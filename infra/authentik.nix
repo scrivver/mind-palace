@@ -155,10 +155,13 @@ in
       readiness_probe = {
         exec.command = pkgs.writeShellScript "authentik-server-ready" ''
           AK_PORT=$(cat "$DATA_DIR/authentik/server_port" 2>/dev/null) || exit 1
-          curl -sf "http://127.0.0.1:$AK_PORT/-/health/live/" -o /dev/null 2>&1
+          # Use -o /dev/null without -f so curl doesn't exit non-zero on HTTP errors
+          # Just check that the port is responding at all
+          curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$AK_PORT/-/health/live/" | grep -q "200\|204"
         '';
-        initial_delay_seconds = 10;
-        period_seconds = 5;
+        initial_delay_seconds = 30;
+        period_seconds = 10;
+        failure_threshold = 20;
       };
     };
 
