@@ -180,6 +180,7 @@ let
         "redirect_uris": [
             {"matching_mode": "regex", "url": "http://localhost:.*/callback"},
             {"matching_mode": "regex", "url": "http://127.0.0.1:.*/callback"},
+            {"matching_mode": "regex", "url": "com\\.mindpalace\\.app://callback"},
         ],
         "property_mappings": scope_pks,
     }, token=token)
