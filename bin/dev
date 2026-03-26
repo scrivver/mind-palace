@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ -z "${DATA_DIR:-}" ]; then
+  echo "ERROR: DATA_DIR is not set. Are you in the dev shell? (nix develop)" >&2
+  exit 1
+fi
+
+SESSION="mind-palace"
+
+# Kill existing session if any.
+tmux kill-session -t "$SESSION" 2>/dev/null || true
+
+# Create tmux session with infra in the first window.
+tmux new-session -d -s "$SESSION" -n infra
+tmux send-keys -t "$SESSION:infra" "start-infra" Enter
+
+echo "Waiting for infra to be ready..."
+for i in $(seq 1 60); do
+  if [ -f "$MINIO_API_PORT_FILE" ] && [ -f "$AUTHENTIK_SERVER_PORT_FILE" ]; then
+    break
+  fi
+  sleep 1
+done
+
+if [ ! -f "$MINIO_API_PORT_FILE" ]; then
+  echo "WARNING: MinIO may not be ready yet" >&2
+fi
+
+if [ ! -f "$AUTHENTIK_SERVER_PORT_FILE" ]; then
+  echo "WARNING: Authentik may not be ready yet (it can take a while on first run)" >&2
+fi
+
+source load-infra-env
+
+# Select infra window and attach.
+tmux select-window -t "$SESSION:infra" 2>/dev/null || true
+exec tmux attach-session -t "$SESSION"
