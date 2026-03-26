@@ -5,7 +5,6 @@ pkgs.mkShell {
   buildInputs = [
     pkgs.authentik
     pkgs.postgresql
-    pkgs.redis
     pkgs.minio
     pkgs.minio-client
     pkgs.process-compose
@@ -21,7 +20,6 @@ pkgs.mkShell {
     mkdir -p "$DATA_DIR"
     mkdir -p "$DATA_DIR/minio"
     mkdir -p "$DATA_DIR/authentik/postgres"
-    mkdir -p "$DATA_DIR/authentik/redis"
 
     # Generate process-compose config
     cp -f ${processComposeConfig} "$DATA_DIR/process-compose.yaml"
@@ -35,7 +33,6 @@ pkgs.mkShell {
 
     # Authentik files
     export AUTHENTIK_PG_SOCKET_DIR_FILE="$DATA_DIR/authentik/pg_socket_dir"
-    export AUTHENTIK_REDIS_PORT_FILE="$DATA_DIR/authentik/redis_port"
     export AUTHENTIK_SERVER_PORT_FILE="$DATA_DIR/authentik/server_port"
   '';
 }
