@@ -13,11 +13,10 @@
 	config.allowUnfree = true;
 	};
 	authentikInfra = import ./infra/authentik.nix { inherit pkgs; };
-	minioInfra = import ./infra/minio.nix { inherit pkgs; };
 	yamlFormat = pkgs.formats.yaml {};
 	processComposeConfig = yamlFormat.generate "process-compose.yaml" {
 	  version = "0.5";
-	  processes = authentikInfra.processes // minioInfra.processes;
+	  processes = authentikInfra.processes;
 	};
 	infraShell = import ./shells/infra.nix { inherit pkgs processComposeConfig; };
 	devShellNix = import ./shells/dev.nix { inherit pkgs infraShell; };

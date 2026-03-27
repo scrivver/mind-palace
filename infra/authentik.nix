@@ -186,7 +186,7 @@ let
         "name": "Mind Palace",
         "slug": "mind-palace",
         "provider": provider["pk"],
-        "meta_launch_url": "http://localhost:8080",
+        "meta_launch_url": "com.mindpalace.app://",
     }, token=token)
 
     print("  Created Mind Palace application")

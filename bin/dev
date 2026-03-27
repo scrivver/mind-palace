@@ -17,15 +17,11 @@ tmux send-keys -t "$SESSION:infra" "start-infra" Enter
 
 echo "Waiting for infra to be ready..."
 for i in $(seq 1 60); do
-  if [ -f "$MINIO_API_PORT_FILE" ] && [ -f "$AUTHENTIK_SERVER_PORT_FILE" ]; then
+  if [ -f "$AUTHENTIK_SERVER_PORT_FILE" ]; then
     break
   fi
   sleep 1
 done
-
-if [ ! -f "$MINIO_API_PORT_FILE" ]; then
-  echo "WARNING: MinIO may not be ready yet" >&2
-fi
 
 if [ ! -f "$AUTHENTIK_SERVER_PORT_FILE" ]; then
   echo "WARNING: Authentik may not be ready yet (it can take a while on first run)" >&2
