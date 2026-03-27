@@ -110,27 +110,22 @@ let
     # We should now have a session cookie
     print("  Logged in as akadmin")
 
-    # Create API token via session auth
-    print("  Creating API token...")
+    # Get or create API token
+    print("  Setting up API token...")
     try:
-        token_resp = api_call("POST", "/core/tokens/", {
+        token_key_resp = api_call("GET", "/core/tokens/mind-palace-api/view_key/")
+        token = token_key_resp["key"]
+        print("  API token already exists")
+    except urllib.error.HTTPError:
+        api_call("POST", "/core/tokens/", {
             "identifier": "mind-palace-api",
             "intent": "api",
             "expiring": False,
             "description": "Mind Palace dev API token",
         })
-        # Retrieve the actual key
-        token_key_resp = api_call("GET", f"/core/tokens/mind-palace-api/view_key/")
+        token_key_resp = api_call("GET", "/core/tokens/mind-palace-api/view_key/")
         token = token_key_resp["key"]
-        print(f"  API token created")
-    except urllib.error.HTTPError as e:
-        if e.code == 400 and "already exists" in str(e.read() if hasattr(e, 'read') else ""):
-            # Token already exists, retrieve key
-            token_key_resp = api_call("GET", "/core/tokens/mind-palace-api/view_key/")
-            token = token_key_resp["key"]
-            print(f"  API token already exists, retrieved key")
-        else:
-            raise
+        print("  API token created")
 
     # ── Step 3: Check if OAuth2 app already exists ──
     apps = api_call("GET", "/core/applications/?slug=mind-palace", token=token)
