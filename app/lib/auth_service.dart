@@ -89,6 +89,17 @@ class AuthService {
     }
   }
 
+  /// Returns the current access token, refreshing if needed.
+  /// Returns null if not logged in and refresh fails.
+  Future<String?> getAccessToken() async {
+    final token = await _secureStorage.read(key: _accessTokenKey);
+    if (token != null) return token;
+    if (await _refreshTokens()) {
+      return _secureStorage.read(key: _accessTokenKey);
+    }
+    return null;
+  }
+
   Future<Map<String, dynamic>?> getUserInfo() async {
     final accessToken = await _secureStorage.read(key: _accessTokenKey);
     if (accessToken == null) return null;
