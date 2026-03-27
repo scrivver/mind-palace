@@ -1,0 +1,3 @@
+[submodule "reliquary"]
+	path = reliquary
+	url = git@github.com:scrivver/reliquary.git
