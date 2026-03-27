@@ -1,10 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 import 'auth_service.dart';
+import 'reliquary_service.dart';
+import 'screens/gallery_screen.dart';
 
-// Configure these to match your authentik setup.
+// Configure these to match your setup.
 // In dev, run `source load-infra-env` to get the AUTHENTIK_URL.
 const _authentikBase = String.fromEnvironment(
   'AUTHENTIK_URL',
@@ -12,6 +12,11 @@ const _authentikBase = String.fromEnvironment(
 );
 final String authentikIssuer = '$_authentikBase/application/o/mind-palace/';
 const String clientId = 'mind-palace';
+
+const String reliquaryBaseUrl = String.fromEnvironment(
+  'RELIQUARY_URL',
+  defaultValue: 'http://127.0.0.1:2080',
+);
 
 void main() {
   runApp(const MindPalaceApp());
@@ -59,13 +64,19 @@ class _HomePageState extends State<HomePage> {
 
   bool _loading = true;
   bool _loggedIn = false;
-  Map<String, dynamic>? _userInfo;
-  Map<String, dynamic>? _idClaims;
+  String? _username;
   String? _error;
+
+  late final ReliquaryService _reliquary;
 
   @override
   void initState() {
     super.initState();
+    _reliquary = ReliquaryService(
+      auth: _auth,
+      baseUrl: reliquaryBaseUrl,
+      onUnauthorized: _logout,
+    );
     _checkLoginStatus();
   }
 
@@ -79,11 +90,9 @@ class _HomePageState extends State<HomePage> {
       final loggedIn = await _auth.isLoggedIn();
       if (loggedIn) {
         final userInfo = await _auth.getUserInfo();
-        final idClaims = await _auth.getIdTokenClaims();
         setState(() {
           _loggedIn = true;
-          _userInfo = userInfo;
-          _idClaims = idClaims;
+          _username = userInfo?['preferred_username'] as String? ?? 'unknown';
         });
       } else {
         setState(() => _loggedIn = false);
@@ -108,11 +117,9 @@ class _HomePageState extends State<HomePage> {
       final success = await _auth.login();
       if (success) {
         final userInfo = await _auth.getUserInfo();
-        final idClaims = await _auth.getIdTokenClaims();
         setState(() {
           _loggedIn = true;
-          _userInfo = userInfo;
-          _idClaims = idClaims;
+          _username = userInfo?['preferred_username'] as String? ?? 'unknown';
         });
       } else {
         setState(() => _error = 'Login was cancelled or failed');
@@ -128,165 +135,65 @@ class _HomePageState extends State<HomePage> {
     await _auth.logout();
     setState(() {
       _loggedIn = false;
-      _userInfo = null;
-      _idClaims = null;
+      _username = null;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_loggedIn) {
+      return GalleryScreen(
+        reliquary: _reliquary,
+        onLogout: _logout,
+        username: _username ?? '',
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mind Palace'),
-        actions: [
-          if (_loggedIn)
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Logout',
-              onPressed: _logout,
-            ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _loggedIn
-              ? _buildUserInfoView()
-              : _buildLoginView(),
-    );
-  }
-
-  Widget _buildLoginView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.account_balance,
-              size: 80,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Mind Palace',
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Cold data storage, labeling & retrieval',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-            const SizedBox(height: 48),
-            FilledButton.icon(
-              onPressed: _login,
-              icon: const Icon(Icons.login),
-              label: const Text('Sign in with Authentik'),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUserInfoView() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 32,
-                    child: Text(
-                      (_userInfo?['preferred_username'] ?? '?')[0]
-                          .toUpperCase(),
-                      style: const TextStyle(fontSize: 24),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _userInfo?['name'] ?? 'Unknown',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        if (_userInfo?['email'] != null)
-                          Text(
-                            _userInfo!['email'],
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        if (_userInfo?['preferred_username'] != null)
-                          Text(
-                            '@${_userInfo!['preferred_username']}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          if (_userInfo != null) ...[
-            Text(
-              'User Info (from /userinfo)',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            _buildJsonCard(_userInfo!),
-          ],
-          if (_idClaims != null) ...[
-            const SizedBox(height: 24),
-            Text(
-              'ID Token Claims',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            _buildJsonCard(_idClaims!),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildJsonCard(Map<String, dynamic> data) {
-    final encoder = const JsonEncoder.withIndent('  ');
-    return Card(
-      child: SizedBox(
-        width: double.infinity,
+      body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SelectableText(
-            encoder.convert(data),
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 13,
-            ),
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.account_balance,
+                size: 80,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Mind Palace',
+                style: Theme.of(context).textTheme.headlineLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Cold data storage, labeling & retrieval',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              const SizedBox(height: 48),
+              FilledButton.icon(
+                onPressed: _login,
+                icon: const Icon(Icons.login),
+                label: const Text('Sign in with Authentik'),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
           ),
         ),
       ),
