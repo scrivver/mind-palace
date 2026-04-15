@@ -18,6 +18,7 @@ pkgs.mkShell {
     pkgs.clang
     pkgs.zenity
     pkgs.libsecret
+    pkgs.nodejs
   ];
 
   shellHook = ''
