@@ -165,28 +165,34 @@ let
     scopes = api_call("GET", "/propertymappings/provider/scope/?ordering=scope_name", token=token)
     scope_pks = [s["pk"] for s in scopes["results"] if s["scope_name"] in ("openid", "email", "profile")]
 
-    # Create OAuth2 provider
-    provider = api_call("POST", "/providers/oauth2/", {
-        "name": "Mind Palace OAuth2",
-        "authorization_flow": auth_flow_pk,
-        "invalidation_flow": inv_flow_pk,
-        "client_type": "public",
-        "client_id": "mind-palace",
-        "redirect_uris": [
-            {"matching_mode": "regex", "url": "http://localhost:.*/callback"},
-            {"matching_mode": "regex", "url": "http://127.0.0.1:.*/callback"},
-            {"matching_mode": "regex", "url": "com\\.mindpalace\\.app://callback"},
-        ],
-        "property_mappings": scope_pks,
-    }, token=token)
-    print(f"  Created OAuth2 provider (pk={provider['pk']})")
+    # Check if provider already exists
+    providers = api_call("GET", "/providers/oauth2/?name=Mind+Palace+OAuth2", token=token)
+    if providers["pagination"]["count"] > 0:
+        provider = providers["results"][0]
+        print(f"  OAuth2 provider already exists (pk={provider['pk']})")
+    else:
+        # Create OAuth2 provider
+        provider = api_call("POST", "/providers/oauth2/", {
+            "name": "Mind Palace OAuth2",
+            "authorization_flow": auth_flow_pk,
+            "invalidation_flow": inv_flow_pk,
+            "client_type": "public",
+            "client_id": "mind-palace",
+            "redirect_uris": [
+                {"matching_mode": "regex", "url": "http://localhost:.*/callback"},
+                {"matching_mode": "regex", "url": "http://127.0.0.1:.*/callback"},
+                {"matching_mode": "regex", "url": "com\\.mindpalace\\.app://callback"},
+            ],
+            "property_mappings": scope_pks,
+        }, token=token)
+        print(f"  Created OAuth2 provider (pk={provider['pk']})")
 
     # Create application
     api_call("POST", "/core/applications/", {
         "name": "Mind Palace",
         "slug": "mind-palace",
         "provider": provider["pk"],
-        "meta_launch_url": "com.mindpalace.app://",
+        "meta_launch_url": "http://localhost:3000",
     }, token=token)
 
     print("  Created Mind Palace application")

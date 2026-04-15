@@ -4,12 +4,18 @@ let
     if ! psql -h "$DATA_DIR/postgres" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '${db}'" | grep -q 1; then
       echo "Creating database '${db}'..."
       createdb -h "$DATA_DIR/postgres" "${db}"
-      if [ "${db}" = "authentik" ]; then
-        psql -h "$DATA_DIR/postgres" -d postgres -c "CREATE USER authentik WITH PASSWORD 'authentik';" || true
-        psql -h "$DATA_DIR/postgres" -d postgres -c "ALTER DATABASE authentik OWNER authentik;" || true
-      fi
-    else
-      echo "Database '${db}' already exists."
+    fi
+
+    if [ "${db}" = "authentik" ]; then
+      echo "Configuring permissions for '${db}'..."
+      # Ensure user exists
+      psql -h "$DATA_DIR/postgres" -d postgres -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'authentik') THEN CREATE ROLE authentik WITH LOGIN PASSWORD 'authentik'; END IF; END \$\$;"
+      # Grant database-level permissions
+      psql -h "$DATA_DIR/postgres" -d postgres -c "GRANT CONNECT ON DATABASE authentik TO authentik;"
+      psql -h "$DATA_DIR/postgres" -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE authentik TO authentik;"
+      psql -h "$DATA_DIR/postgres" -d postgres -c "ALTER DATABASE authentik OWNER TO authentik;"
+      # Grant schema-level permissions
+      psql -h "$DATA_DIR/postgres" -d authentik -c "GRANT ALL ON SCHEMA public TO authentik;"
     fi
   '') databases);
 in
