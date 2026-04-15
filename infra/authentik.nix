@@ -50,10 +50,28 @@ let
             headers["Authorization"] = f"Bearer {token}"
         return http_call(method, f"{api}{path}", data, headers)
 
-    # ── Step 1: Complete initial-setup flow to create akadmin ──
+    # ── Step 1: Wait for API and check if initial setup is needed ──
     print("Step 1: Checking if initial setup is needed...")
+    
+    # Wait for API to be ready (it may return 503 while starting)
+    resp = None
+    for attempt in range(30):
+        try:
+            resp = http_call("GET", f"{base}/api/v3/flows/executor/initial-setup/")
+            break
+        except urllib.error.HTTPError as e:
+            if e.code == 503:
+                if attempt == 0:
+                    print("  Waiting for authentik to finish starting...")
+                time.sleep(5)
+                continue
+            if e.code == 404:
+                # 404 means initial setup is already done
+                resp = {"component": "redirect"} 
+                break
+            raise
+
     try:
-        resp = http_call("GET", f"{base}/api/v3/flows/executor/initial-setup/")
         component = resp.get("component", "")
         if component == "ak-stage-prompt":
             print("  Running initial setup flow...")

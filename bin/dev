@@ -6,34 +6,24 @@ if [ -z "${DATA_DIR:-}" ]; then
   exit 1
 fi
 
+# Check if infra is running before starting backends
+if [ ! -f "$MINIO_API_PORT_FILE" ]; then
+  echo "ERROR: Infrastructure is not running." >&2
+  echo "Please run 'start-infra' in another terminal or tab first." >&2
+  exit 1
+fi
+
 SESSION="mind-palace"
 
 # Kill existing session if any.
 tmux kill-session -t "$SESSION" 2>/dev/null || true
 
-# Create tmux session with infra in the first window.
-tmux new-session -d -s "$SESSION" -n infra
-tmux send-keys -t "$SESSION:infra" "start-infra" Enter
-
-echo "Waiting for infra (MinIO) to be ready..."
-for i in $(seq 1 60); do
-  if [ -f "$MINIO_API_PORT_FILE" ]; then
-    break
-  fi
-  sleep 1
-done
-
-if [ ! -f "$MINIO_API_PORT_FILE" ]; then
-  echo "ERROR: MinIO not ready after 60s" >&2
-  exit 1
-fi
-
-# Load env into current shell
+# Load env into current shell to confirm ports are available
 source load-infra-env
 
 # 1. Reliquary Backend
-tmux new-window -t "$SESSION" -n rel-be
-tmux send-keys -t "$SESSION:rel-be" "cd reliquary/backend && source ../../bin/load-infra-env && LISTEN_ADDR=\$DATA_DIR/reliquary/backend.sock air" Enter
+tmux new-session -d -s "$SESSION" -n rel-be
+tmux send-keys -t "$SESSION:rel-be" "cd reliquary/backend && source ../../bin/load-infra-env && LISTEN_ADDR=$DATA_DIR/reliquary/backend.sock air" Enter
 
 # 2. Engram Backend
 tmux new-window -t "$SESSION" -n eng-be
@@ -47,19 +37,12 @@ tmux send-keys -t "$SESSION:eng-ingest" "cd engram/ingestion && source ../../bin
 tmux new-window -t "$SESSION" -n syn-worker
 tmux send-keys -t "$SESSION:syn-worker" "cd synapse && source ../bin/load-infra-env && go run ./cmd/synapse-worker" Enter
 
-# 5. Frontend (Reliquary)
-tmux new-window -t "$SESSION" -n rel-fe
-tmux send-keys -t "$SESSION:rel-fe" "cd reliquary/frontend && flutter run -d web-server --web-port 3000" Enter
+# 5. Mind Palace App (Desktop)
+tmux new-window -t "$SESSION" -n app
+tmux send-keys -t "$SESSION:app" "start-app" Enter
 
-# Select infra window and attach.
-tmux select-window -t "$SESSION:infra" 2>/dev/null || true
-echo "Services launched in tmux session: $SESSION"
-echo "  infra      - minio, rabbitmq, postgres, caddy, authentik"
-echo "  rel-be     - reliquary go backend"
-echo "  eng-be     - engram go backend"
-echo "  eng-ingest - engram python ingestion"
-echo "  syn-worker - synapse go worker"
-echo "  rel-fe     - reliquary flutter web (port 3000)"
-echo ""
-echo "Proxy available at: http://localhost:2080"
+# Select first window and attach.
+tmux select-window -t "$SESSION:rel-be" 2>/dev/null || true
+echo "Backends and Frontends launched in tmux session: $SESSION"
+echo "Ensure 'start-infra' is running in the background."
 exec tmux attach-session -t "$SESSION"

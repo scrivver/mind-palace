@@ -39,13 +39,16 @@ The project uses a unified infrastructure managed via Nix flakes and `process-co
 # Enter the unified development shell
 nix develop
 
-# Start the entire system (Infrastructure + all Backends + Frontend)
+# 1. Start the infrastructure in a separate terminal/tab
+start-infra
+
+# 2. Start all backends and frontends in a tmux session
 dev
 
-# Individual service management
-start-infra      # Starts PostgreSQL, RabbitMQ, MinIO, Caddy, Authentik
+# Utility Commands
 source load-infra-env # Loads dynamic ports into current shell
-shutdown-infra   # Stops all managed services
+shutdown-infra       # Stops all managed services
+start-app            # Launches only the main Flutter desktop app
 ```
 
 ## Architecture & Conventions
@@ -56,5 +59,5 @@ shutdown-infra   # Stops all managed services
 ## Key Files
 - `flake.nix`: Root environment and infrastructure orchestration.
 - `infra/`: Nix definitions for shared services.
-- `bin/dev`: Multi-service tmux launcher.
+- `bin/dev`: Multi-backend/frontend tmux launcher.
 - `reliquary/CLAUDE.md`, `engram/CLAUDE.md`, `synapse/CLAUDE.md`: Component-specific guides.

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ -z "${DATA_DIR:-}" ]; then
+  echo "ERROR: DATA_DIR is not set. Are you in the dev shell? (nix develop)" >&2
+  exit 1
+fi
+
+source load-infra-env
+
+cd app
+flutter run -d linux \
+  --dart-define=AUTHENTIK_URL="$AUTHENTIK_URL" \
+  --dart-define=RELIQUARY_URL="http://localhost:2080/api/reliquary"

@@ -21,7 +21,9 @@ fi
 # RabbitMQ
 if [ -f "$RABBITMQ_AMQP_PORT_FILE" ]; then
   export RABBITMQ_AMQP_PORT=$(cat "$RABBITMQ_AMQP_PORT_FILE")
+  export RABBITMQ_URL="amqp://guest:guest@127.0.0.1:$RABBITMQ_AMQP_PORT"
   echo "RABBITMQ_AMQP_PORT=$RABBITMQ_AMQP_PORT"
+  echo "RABBITMQ_URL=$RABBITMQ_URL"
 fi
 
 # Proxy (Caddy)
