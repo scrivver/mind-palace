@@ -1,61 +1,60 @@
 # Mind Palace Monorepo
 
 ## Project Overview
-`mind-palace` is a digitalized mnemonic technique system. It is structured as a monorepo containing a storage backend, multiple Flutter applications, and a Nix-managed infrastructure layer.
+`mind-palace` is a digitalized mnemonic technique system. It is structured as a monorepo containing multiple storage and metadata backends, Flutter applications, and a unified Nix-managed infrastructure layer.
 
 ### Core Components
-1.  **Reliquary (`/reliquary`)**: A "Digital Cold Storage" system for long-term preservation of artifacts.
-    - **Backend (`/reliquary/backend`)**: Go API server (Chi router) using MinIO for object storage. Features include multi-user support, SHA-256 deduplication, JWT authentication, and automated lifecycle archival.
-    - **Frontend (`/reliquary/frontend`)**: Flutter application (Web, Android, iOS, Linux) for managing artifacts, viewing galleries, and monitoring storage analytics.
-2.  **Mind Palace App (`/app`)**: The primary Flutter application for the mnemonic system, likely serving as the user-facing interface that integrates with Reliquary for storage and Authentik for authentication.
-3.  **Infrastructure (`/infra`, `/reliquary/infra`)**: Nix-based configuration for services including:
-    - **MinIO**: Object storage.
-    - **Caddy**: Reverse proxy and static file server.
-    - **Authentik**: Identity provider for OIDC/OAuth2 support.
+1.  **Reliquary (`/reliquary`)**: Digital Cold Storage system.
+    - **Backend**: Go API server using MinIO for object storage.
+    - **Frontend**: Flutter application for artifact management and analytics.
+2.  **Engram (`/engram`)**: Metadata extraction and search layer.
+    - **Ingestion**: Python worker that extracts metadata from MinIO events.
+    - **API**: Go server providing read-only access to extracted metadata.
+3.  **Synapse (`/synapse`)**: Reconciliation-driven file movement engine.
+    - **Worker**: Go process that transfers files between storage tiers.
+4.  **Mind Palace App (`/app`)**: Primary user-facing Flutter application.
 
-## Technologies
-- **Languages**: Go (1.25+), Dart/Flutter (3.11+), Nix.
-- **Backend**: Chi, MinIO Go SDK, JWT, FFmpeg (for video thumbnails).
-- **Frontend**: Flutter (Dio, flutter_secure_storage, flutter_appauth).
-- **Infrastructure**: Nix Flakes, `process-compose`, Docker/Podman (for deployment).
+## Infrastructure (Root `/infra`)
+The project uses a unified infrastructure managed via Nix flakes and `process-compose`.
+
+- **PostgreSQL**: Shared database for Authentik, Engram, and Synapse.
+- **RabbitMQ**: Shared message broker.
+  - `engram.ingest`: Receives S3 bucket notifications from MinIO.
+  - `synapse.jobs`: Receives movement tasks.
+- **MinIO**: Shared object storage. Configured to emit AMQP events to RabbitMQ on `reliquary` bucket changes.
+- **Caddy**: Unified reverse proxy (port 2080).
+  - `/api/reliquary/*` -> Reliquary Backend.
+  - `/api/engram/*` -> Engram Backend.
+  - `/storage/*` -> MinIO.
+- **Authentik**: Shared identity provider for OIDC/OAuth2.
 
 ## Development Workflow
 
 ### Prerequisites
 - [Nix](https://nixos.org/) with flakes enabled.
-- [tmux](https://github.com/tmux/tmux) (recommended for the `dev` launcher).
+- [tmux](https://github.com/tmux/tmux) (required for the `dev` launcher).
 
 ### Commands
-The project uses Nix development shells to manage dependencies and provides utility scripts in `bin/`.
-
 ```bash
-# Enter the development shell
+# Enter the unified development shell
 nix develop
 
-# Start all services (Infrastructure, Backend, Frontend) in tmux
+# Start the entire system (Infrastructure + all Backends + Frontend)
 dev
 
-# Individual service management (inside nix develop)
-start-infra      # Starts MinIO, Caddy, and Authentik via process-compose
-start-backend    # Starts Reliquary Go backend with hot reload (air)
-start-frontend   # Starts Reliquary Flutter web server
+# Individual service management
+start-infra      # Starts PostgreSQL, RabbitMQ, MinIO, Caddy, Authentik
+source load-infra-env # Loads dynamic ports into current shell
 shutdown-infra   # Stops all managed services
 ```
 
-### Reliquary Specifics
-- **Caddy Proxy**: Runs on `http://localhost:2080` by default.
-  - `/api/*` -> Go Backend.
-  - `/storage/*` -> MinIO.
-- **Default Credentials**: `admin` / `admin` (Initial setup).
-
 ## Architecture & Conventions
-- **Nix-First**: All development environments and build processes are managed via Nix flakes.
-- **Process-Compose**: Used to orchestrate local infrastructure services.
-- **Surgical Updates**: When modifying the backend or frontend, ensure compatibility with the reverse proxy configurations in `infra/`.
-- **Deduplication**: Reliquary uses SHA-256 checksums for file deduplication; verify checksum logic when touching upload/storage paths.
+- **Event-Driven**: Reliquary storage events flow through MinIO -> RabbitMQ -> Engram Ingestion.
+- **Nix-First**: All environments and build processes are managed via Nix flakes at the root.
+- **Submodules**: `reliquary`, `engram`, and `synapse` are integrated as git submodules but share the root infrastructure during development.
 
 ## Key Files
-- `flake.nix`: Root environment and infrastructure definitions.
-- `reliquary/CLAUDE.md`: Detailed development guide for the Reliquary sub-project.
-- `reliquary/backend/main.go`: Entry point for the Go storage server.
-- `app/lib/main.dart`: Entry point for the main Mind Palace Flutter app.
+- `flake.nix`: Root environment and infrastructure orchestration.
+- `infra/`: Nix definitions for shared services.
+- `bin/dev`: Multi-service tmux launcher.
+- `reliquary/CLAUDE.md`, `engram/CLAUDE.md`, `synapse/CLAUDE.md`: Component-specific guides.

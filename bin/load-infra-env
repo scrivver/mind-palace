@@ -7,14 +7,37 @@ if [ -z "${DATA_DIR:-}" ]; then
   return 1 2>/dev/null || exit 1
 fi
 
+# MinIO
+if [ -f "$MINIO_API_PORT_FILE" ]; then
+  export MINIO_PORT=$(cat "$MINIO_API_PORT_FILE")
+  export MINIO_URL="http://127.0.0.1:$MINIO_PORT"
+  export STORAGE_S3_ENDPOINT="$MINIO_URL"
+  export STORAGE_S3_ACCESS_KEY=minioadmin
+  export STORAGE_S3_SECRET_KEY=minioadmin
+  export STORAGE_S3_BUCKET=reliquary
+  echo "MINIO_URL=$MINIO_URL"
+fi
+
+# RabbitMQ
+if [ -f "$RABBITMQ_AMQP_PORT_FILE" ]; then
+  export RABBITMQ_AMQP_PORT=$(cat "$RABBITMQ_AMQP_PORT_FILE")
+  echo "RABBITMQ_AMQP_PORT=$RABBITMQ_AMQP_PORT"
+fi
+
+# Proxy (Caddy)
+if [ -f "$PROXY_PORT_FILE" ]; then
+  export PROXY_PORT=$(cat "$PROXY_PORT_FILE")
+  echo "PROXY_PORT=$PROXY_PORT"
+fi
+
+# PostgreSQL
+export PGHOST="$DATA_DIR/postgres"
+echo "PGHOST=$PGHOST"
+
 # Authentik
+AUTHENTIK_SERVER_PORT_FILE="$DATA_DIR/authentik/server_port"
 if [ -f "$AUTHENTIK_SERVER_PORT_FILE" ]; then
   export AUTHENTIK_PORT=$(cat "$AUTHENTIK_SERVER_PORT_FILE")
   export AUTHENTIK_URL="http://127.0.0.1:$AUTHENTIK_PORT"
   echo "AUTHENTIK_URL=$AUTHENTIK_URL"
-fi
-
-if [ -f "$AUTHENTIK_PG_SOCKET_DIR_FILE" ]; then
-  export AUTHENTIK_PG_SOCKET_DIR=$(cat "$AUTHENTIK_PG_SOCKET_DIR_FILE")
-  echo "AUTHENTIK_PG_SOCKET_DIR=$AUTHENTIK_PG_SOCKET_DIR"
 fi

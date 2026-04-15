@@ -12,11 +12,21 @@
 	inherit system;
 	config.allowUnfree = true;
 	};
+	postgresqlInfra = import ./infra/postgresql.nix { inherit pkgs; };
+	rabbitmqInfra = import ./infra/rabbitmq.nix { inherit pkgs; };
+	minioInfra = import ./infra/minio.nix { inherit pkgs; };
+	caddyInfra = import ./infra/caddy.nix { inherit pkgs; };
 	authentikInfra = import ./infra/authentik.nix { inherit pkgs; };
+	
 	yamlFormat = pkgs.formats.yaml {};
 	processComposeConfig = yamlFormat.generate "process-compose.yaml" {
 	  version = "0.5";
-	  processes = authentikInfra.processes;
+	  processes = 
+	    postgresqlInfra.processes // 
+	    rabbitmqInfra.processes // 
+	    minioInfra.processes // 
+	    caddyInfra.processes // 
+	    authentikInfra.processes;
 	};
 	infraShell = import ./shells/infra.nix { inherit pkgs processComposeConfig; };
 	devShellNix = import ./shells/dev.nix { inherit pkgs infraShell; };
