@@ -42,4 +42,11 @@ if [ -f "$AUTHENTIK_SERVER_PORT_FILE" ]; then
   export AUTHENTIK_PORT=$(cat "$AUTHENTIK_SERVER_PORT_FILE")
   export AUTHENTIK_URL="http://127.0.0.1:$AUTHENTIK_PORT"
   echo "AUTHENTIK_URL=$AUTHENTIK_URL"
+
+  # Reliquary OIDC auth — validates Bearer tokens against Authentik's
+  # userinfo endpoint.
+  export AUTH_MODE=oidc
+  export OIDC_ISSUER_URL="$AUTHENTIK_URL/application/o/mind-palace/"
+  export OIDC_CLIENT_ID=mind-palace
+  echo "OIDC_ISSUER_URL=$OIDC_ISSUER_URL"
 fi
