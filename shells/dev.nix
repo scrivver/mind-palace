@@ -31,6 +31,7 @@ pkgs.mkShell {
     pkgs.caddy
     pkgs.ffmpeg
     pkgs.file # Provides libmagic
+    pkgs.tesseract # OCR for engram ingestion (images + scanned PDFs)
     pkgs.air
   ];
 
