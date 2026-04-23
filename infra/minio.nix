@@ -65,7 +65,7 @@
           if [ "${bucket}" = "reliquary" ]; then
             # Enable bucket notifications only for user uploads (files/ prefix),
             # skipping thumbnails/archives. Events go to RabbitMQ (PRIMARY:amqp).
-            ${pkgs.minio-client}/bin/mc event add local/${bucket} arn:minio:sqs::PRIMARY:amqp --event put --prefix files/ 2>/dev/null || true
+            ${pkgs.minio-client}/bin/mc event add local/${bucket} arn:minio:sqs::PRIMARY:amqp --event put,delete --prefix files/ 2>/dev/null || true
             echo "  Bucket notifications enabled for ${bucket} (prefix files/) -> engram.ingest"
           else
             ${pkgs.minio-client}/bin/mc anonymous set download local/${bucket}
