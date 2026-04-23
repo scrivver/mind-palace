@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../models/file_item.dart';
+import '../engram_service.dart';
+import '../models/engram_file.dart';
 import '../reliquary_service.dart';
 import 'upload_screen.dart';
 
 class GalleryScreen extends StatefulWidget {
+  final EngramService engram;
   final ReliquaryService reliquary;
   final VoidCallback onLogout;
   final String username;
 
   const GalleryScreen({
     super.key,
+    required this.engram,
     required this.reliquary,
     required this.onLogout,
     required this.username,
@@ -22,11 +25,10 @@ class GalleryScreen extends StatefulWidget {
 }
 
 class _GalleryScreenState extends State<GalleryScreen> {
-  final List<FileItem> _files = [];
+  final List<EngramFile> _files = [];
   bool _loading = true;
   bool _loadingMore = false;
   bool _hasMore = false;
-  int _totalCount = 0;
   String? _error;
 
   static const _pageSize = 50;
@@ -44,15 +46,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
     });
 
     try {
-      final result =
-          await widget.reliquary.listFiles(offset: 0, limit: _pageSize);
+      final files =
+          await widget.engram.listFiles(offset: 0, limit: _pageSize);
       if (!mounted) return;
       setState(() {
         _files
           ..clear()
-          ..addAll(result.files);
-        _totalCount = result.totalCount;
-        _hasMore = result.hasMore;
+          ..addAll(files);
+        _hasMore = files.length == _pageSize;
         _loading = false;
       });
     } catch (e) {
@@ -69,15 +70,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
     setState(() => _loadingMore = true);
 
     try {
-      final result = await widget.reliquary.listFiles(
+      final files = await widget.engram.listFiles(
         offset: _files.length,
         limit: _pageSize,
       );
       if (!mounted) return;
       setState(() {
-        _files.addAll(result.files);
-        _totalCount = result.totalCount;
-        _hasMore = result.hasMore;
+        _files.addAll(files);
+        _hasMore = files.length == _pageSize;
         _loadingMore = false;
       });
     } catch (e) {
@@ -86,7 +86,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
   }
 
-  Future<void> _deleteFile(FileItem file) async {
+  Future<void> _deleteFile(EngramFile file) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -108,7 +108,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     if (confirm != true) return;
 
     try {
-      await widget.reliquary.deleteFile(file.key);
+      await widget.reliquary.deleteFile(file.filePath);
       _loadFiles();
     } catch (e) {
       if (!mounted) return;
@@ -118,9 +118,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
   }
 
-  Future<void> _downloadFile(FileItem file) async {
+  Future<void> _downloadFile(EngramFile file) async {
     try {
-      final url = await widget.reliquary.presignDownloadForSave(file.key);
+      final url = await widget.reliquary.presignDownloadForSave(file.filePath);
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (e) {
       if (!mounted) return;
@@ -130,7 +130,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
   }
 
-  Future<void> _openFile(FileItem file) async {
+  Future<void> _openFile(EngramFile file) async {
     if (file.isImage) {
       _viewFullImage(file);
     } else {
@@ -138,9 +138,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
   }
 
-  Future<void> _viewFullImage(FileItem file) async {
+  Future<void> _viewFullImage(EngramFile file) async {
     try {
-      final url = await widget.reliquary.presignDownload(file.key);
+      final url = await widget.reliquary.presignDownload(file.filePath);
       if (!mounted) return;
 
       Navigator.of(context).push(MaterialPageRoute(
@@ -176,7 +176,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
   }
 
-  void _showFileDetails(FileItem file) {
+  void _showFileDetails(EngramFile file) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -185,11 +185,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _detailRow('Type', file.contentType),
+            _detailRow('Type', file.mimeType ?? 'unknown'),
             _detailRow('Size', file.formattedSize),
-            if (file.uploadDate != null) _detailRow('Uploaded', file.uploadDate!),
-            if (file.checksum != null)
-              _detailRow('SHA-256', '${file.checksum!.substring(0, 16)}...'),
+            _detailRow('Uploaded', file.createdAt.toLocal().toString()),
+            if (file.tags.isNotEmpty)
+              _detailRow('Tags', file.tags.join(', ')),
+            if (file.hash.isNotEmpty)
+              _detailRow('SHA-256', '${file.hash.substring(0, 16)}...'),
           ],
         ),
         actions: [
@@ -245,10 +247,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
         title: Row(
           children: [
             const Text('Files'),
-            if (_totalCount > 0) ...[
+            if (_files.isNotEmpty) ...[
               const SizedBox(width: 8),
               Text(
-                '($_totalCount)',
+                '(${_files.length})',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -358,7 +360,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
 }
 
 class _FileTile extends StatefulWidget {
-  final FileItem file;
+  final EngramFile file;
   final ReliquaryService reliquary;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
@@ -380,17 +382,32 @@ class _FileTileState extends State<_FileTile> {
   @override
   void initState() {
     super.initState();
-    if (widget.file.thumbnailKey != null) {
+    if (_supportsThumbnail(widget.file.mimeType ?? '')) {
       _loadThumbnail();
     }
   }
 
+  // Reliquary stores thumbs at thumbs/<user>/... mirroring files/<user>/...
+  String? _thumbKeyFor(String filePath) {
+    const prefix = 'files/';
+    if (!filePath.startsWith(prefix)) return null;
+    return 'thumbs/${filePath.substring(prefix.length)}';
+  }
+
+  bool _supportsThumbnail(String mime) =>
+      mime.startsWith('image/') ||
+      mime.startsWith('video/') ||
+      mime == 'application/pdf';
+
   Future<void> _loadThumbnail() async {
+    final key = _thumbKeyFor(widget.file.filePath);
+    if (key == null) return;
     try {
-      final url =
-          await widget.reliquary.presignDownload(widget.file.thumbnailKey!);
+      final url = await widget.reliquary.presignDownload(key);
       if (mounted) setState(() => _thumbUrl = url);
-    } catch (_) {}
+    } catch (_) {
+      // Thumbnail may not exist yet (async generation) — fall through to icon.
+    }
   }
 
   @override
@@ -426,7 +443,7 @@ class _FileTileState extends State<_FileTile> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            _iconForContentType(widget.file.contentType),
+            _iconForMime(widget.file.mimeType ?? ''),
             size: 32,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -446,12 +463,12 @@ class _FileTileState extends State<_FileTile> {
     );
   }
 
-  IconData _iconForContentType(String contentType) {
-    if (contentType.startsWith('image/')) return Icons.image;
-    if (contentType.startsWith('video/')) return Icons.videocam;
-    if (contentType.startsWith('audio/')) return Icons.audiotrack;
-    if (contentType.contains('pdf')) return Icons.picture_as_pdf;
-    if (contentType.contains('zip') || contentType.contains('archive')) {
+  IconData _iconForMime(String mime) {
+    if (mime.startsWith('image/')) return Icons.image;
+    if (mime.startsWith('video/')) return Icons.videocam;
+    if (mime.startsWith('audio/')) return Icons.audiotrack;
+    if (mime.contains('pdf')) return Icons.picture_as_pdf;
+    if (mime.contains('zip') || mime.contains('archive')) {
       return Icons.archive;
     }
     return Icons.insert_drive_file;

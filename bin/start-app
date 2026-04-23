@@ -11,4 +11,5 @@ source load-infra-env
 cd app
 flutter run -d linux \
   --dart-define=AUTHENTIK_URL="$AUTHENTIK_URL" \
-  --dart-define=RELIQUARY_URL="http://localhost:2080/api/reliquary"
+  --dart-define=RELIQUARY_URL="$RELIQUARY_URL" \
+  --dart-define=ENGRAM_URL="$ENGRAM_URL"

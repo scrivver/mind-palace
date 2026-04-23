@@ -15,11 +15,16 @@ class ReliquaryService {
   final Map<String, _CachedUrl> _urlCache = {};
   static const _cacheTtl = Duration(minutes: 10);
 
+  /// Origin of baseUrl (scheme://host[:port]), used to resolve server-relative
+  /// URLs like `/storage/...` that presigned responses return.
+  late final String _origin;
+
   ReliquaryService({
     required this.auth,
     required this.baseUrl,
     this.onUnauthorized,
   }) {
+    _origin = Uri.parse(baseUrl).origin;
     dio = Dio(BaseOptions(baseUrl: baseUrl));
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
@@ -94,7 +99,7 @@ class ReliquaryService {
     final response =
         await dio.get('/api/files/presign', queryParameters: {'key': key});
     final relativePath = response.data['url'] as String;
-    final url = baseUrl + relativePath;
+    final url = _origin + relativePath;
 
     _urlCache[key] =
         _CachedUrl(url: url, expiresAt: DateTime.now().add(_cacheTtl));
@@ -105,7 +110,7 @@ class ReliquaryService {
     final response = await dio.get('/api/files/presign',
         queryParameters: {'key': key, 'download': 'true'});
     final relativePath = response.data['url'] as String;
-    return baseUrl + relativePath;
+    return _origin + relativePath;
   }
 
   Future<void> deleteFile(String key) async {

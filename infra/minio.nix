@@ -61,13 +61,14 @@
         ${pkgs.lib.concatStringsSep "\n" (map (bucket: ''
           echo "Setting up bucket: ${bucket}"
           ${pkgs.minio-client}/bin/mc mb --ignore-existing local/${bucket}
-          ${pkgs.minio-client}/bin/mc anonymous set download local/${bucket}
-          
+
           if [ "${bucket}" = "reliquary" ]; then
-            # Enable bucket notifications for object creation events on reliquary bucket
-            # This will emit events to RabbitMQ (PRIMARY:amqp)
-            ${pkgs.minio-client}/bin/mc event add local/${bucket} arn:minio:sqs::PRIMARY:amqp --event put 2>/dev/null || true
-            echo "  Bucket notifications enabled for ${bucket} -> engram.ingest"
+            # Enable bucket notifications only for user uploads (files/ prefix),
+            # skipping thumbnails/archives. Events go to RabbitMQ (PRIMARY:amqp).
+            ${pkgs.minio-client}/bin/mc event add local/${bucket} arn:minio:sqs::PRIMARY:amqp --event put --prefix files/ 2>/dev/null || true
+            echo "  Bucket notifications enabled for ${bucket} (prefix files/) -> engram.ingest"
+          else
+            ${pkgs.minio-client}/bin/mc anonymous set download local/${bucket}
           fi
         '') buckets)}
 

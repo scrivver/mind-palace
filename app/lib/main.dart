@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'auth_service.dart';
+import 'engram_service.dart';
 import 'reliquary_service.dart';
 import 'screens/gallery_screen.dart';
 
@@ -15,7 +16,12 @@ const String clientId = 'mind-palace';
 
 const String reliquaryBaseUrl = String.fromEnvironment(
   'RELIQUARY_URL',
-  defaultValue: 'http://127.0.0.1:2080',
+  defaultValue: 'http://127.0.0.1:2080/api/reliquary',
+);
+
+const String engramBaseUrl = String.fromEnvironment(
+  'ENGRAM_URL',
+  defaultValue: 'http://127.0.0.1:2080/api/engram',
 );
 
 void main() {
@@ -68,6 +74,7 @@ class _HomePageState extends State<HomePage> {
   String? _error;
 
   late final ReliquaryService _reliquary;
+  late final EngramService _engram;
 
   @override
   void initState() {
@@ -75,6 +82,11 @@ class _HomePageState extends State<HomePage> {
     _reliquary = ReliquaryService(
       auth: _auth,
       baseUrl: reliquaryBaseUrl,
+      onUnauthorized: _logout,
+    );
+    _engram = EngramService(
+      auth: _auth,
+      baseUrl: engramBaseUrl,
       onUnauthorized: _logout,
     );
     _checkLoginStatus();
@@ -149,6 +161,7 @@ class _HomePageState extends State<HomePage> {
 
     if (_loggedIn) {
       return GalleryScreen(
+        engram: _engram,
         reliquary: _reliquary,
         onLogout: _logout,
         username: _username ?? '',

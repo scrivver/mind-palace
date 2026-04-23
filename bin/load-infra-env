@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
 # Source this script to load infra env vars into your shell:
 #   source load-infra-env
+#
+# Self-contained: derives DATA_DIR and port-file paths from the script's
+# location so it works in tmux windows / subshells that didn't inherit the
+# nix-shell environment.
+
+_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_repo_root="$(cd "$_script_dir/.." && pwd)"
 
 if [ -z "${DATA_DIR:-}" ]; then
-  echo "ERROR: DATA_DIR is not set. Are you in the dev shell? (nix develop)" >&2
-  return 1 2>/dev/null || exit 1
+  export DATA_DIR="$_repo_root/.data"
 fi
+
+export MINIO_API_PORT_FILE="${MINIO_API_PORT_FILE:-$DATA_DIR/minio/api_port}"
+export RABBITMQ_AMQP_PORT_FILE="${RABBITMQ_AMQP_PORT_FILE:-$DATA_DIR/rabbitmq/amqp_port}"
+export PROXY_PORT_FILE="${PROXY_PORT_FILE:-$DATA_DIR/caddy/port}"
 
 # MinIO
 if [ -f "$MINIO_API_PORT_FILE" ]; then
@@ -30,6 +40,16 @@ fi
 if [ -f "$PROXY_PORT_FILE" ]; then
   export PROXY_PORT=$(cat "$PROXY_PORT_FILE")
   echo "PROXY_PORT=$PROXY_PORT"
+fi
+
+# Engram backend URL (proxied by Caddy) and presign URL template used by
+# Engram to render download_url for s3-backed files.
+if [ -n "${PROXY_PORT:-}" ]; then
+  export ENGRAM_URL="http://localhost:$PROXY_PORT/api/engram"
+  export RELIQUARY_URL="http://localhost:$PROXY_PORT/api/reliquary"
+  export PRESIGN_URL_TEMPLATE="$RELIQUARY_URL/api/files/presign?key={file_path}"
+  echo "ENGRAM_URL=$ENGRAM_URL"
+  echo "RELIQUARY_URL=$RELIQUARY_URL"
 fi
 
 # PostgreSQL
