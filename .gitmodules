@@ -3,7 +3,7 @@
 	url = git@github.com:scrivver/reliquary.git
 [submodule "engram"]
 	path = engram
-	url = https://github.com/scrivver/engram
+	url = git@github.com:scrivver/engram
 [submodule "synapse"]
 	path = synapse
-	url = https://github.com/scrivver/synapse
+	url = git@github.com:scrivver/synapse
