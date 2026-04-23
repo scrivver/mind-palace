@@ -62,6 +62,11 @@ class EngramService {
         .toList();
   }
 
+  Future<EngramFile> getFile(String id) async {
+    final response = await dio.get('/api/files/$id');
+    return EngramFile.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<List<Map<String, dynamic>>> listTags() async {
     final response = await dio.get('/api/tags');
     final data = response.data as List?;

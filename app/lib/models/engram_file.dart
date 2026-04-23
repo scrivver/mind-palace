@@ -14,6 +14,7 @@ class EngramFile {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? downloadUrl;
+  final String? extractedText;
 
   EngramFile({
     required this.id,
@@ -31,6 +32,7 @@ class EngramFile {
     this.pageCount,
     this.tags = const [],
     this.downloadUrl,
+    this.extractedText,
   });
 
   factory EngramFile.fromJson(Map<String, dynamic> json) {
@@ -50,6 +52,7 @@ class EngramFile {
       updatedAt: DateTime.parse(json['updated_at'] as String),
       tags: (json['tags'] as List?)?.cast<String>() ?? const [],
       downloadUrl: json['download_url'] as String?,
+      extractedText: json['extracted_text'] as String?,
     );
   }
 

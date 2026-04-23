@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../engram_service.dart';
 import '../models/engram_file.dart';
 import '../reliquary_service.dart';
+import 'file_detail_screen.dart';
 import 'upload_screen.dart';
 
 class GalleryScreen extends StatefulWidget {
@@ -144,158 +144,19 @@ class _GalleryScreenState extends State<GalleryScreen> {
     _loadFiles();
   }
 
-  Future<void> _deleteFile(EngramFile file) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete file?'),
-        content: Text('Permanently remove "${file.displayName}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child:
-                const Text('Delete', style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
+  Future<void> _openDetail(EngramFile file) async {
+    final deleted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => FileDetailScreen(
+          initial: file,
+          engram: widget.engram,
+          reliquary: widget.reliquary,
+        ),
       ),
     );
-    if (confirm != true) return;
-
-    try {
-      await widget.reliquary.deleteFile(file.filePath);
+    if (deleted == true) {
       _refreshAll();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to delete file')),
-      );
     }
-  }
-
-  Future<void> _downloadFile(EngramFile file) async {
-    try {
-      final url = await widget.reliquary.presignDownloadForSave(file.filePath);
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to download file')),
-      );
-    }
-  }
-
-  Future<void> _openFile(EngramFile file) async {
-    if (file.isImage) {
-      _viewFullImage(file);
-    } else {
-      _showFileDetails(file);
-    }
-  }
-
-  Future<void> _viewFullImage(EngramFile file) async {
-    try {
-      final url = await widget.reliquary.presignDownload(file.filePath);
-      if (!mounted) return;
-
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            foregroundColor: Colors.white,
-            title: Text(file.displayName),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.info_outline),
-                onPressed: () => _showFileDetails(file),
-              ),
-              IconButton(
-                icon: const Icon(Icons.download),
-                onPressed: () => _downloadFile(file),
-              ),
-            ],
-          ),
-          body: Center(
-            child: InteractiveViewer(
-              child: Image.network(url),
-            ),
-          ),
-        ),
-      ));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load image')),
-      );
-    }
-  }
-
-  void _showFileDetails(EngramFile file) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(file.displayName),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _detailRow('Type', file.mimeType ?? 'unknown'),
-            _detailRow('Size', file.formattedSize),
-            _detailRow('Uploaded', file.createdAt.toLocal().toString()),
-            if (file.tags.isNotEmpty)
-              _detailRow('Tags', file.tags.join(', ')),
-            if (file.hash.isNotEmpty)
-              _detailRow('SHA-256', '${file.hash.substring(0, 16)}...'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _deleteFile(file);
-            },
-            child:
-                const Text('Delete', style: TextStyle(color: Colors.redAccent)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _downloadFile(file);
-            },
-            child: const Text('Download'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    )),
-          ),
-          Expanded(
-              child:
-                  Text(value, style: Theme.of(context).textTheme.bodyMedium)),
-        ],
-      ),
-    );
   }
 
   @override
@@ -464,8 +325,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             return _FileTile(
               file: file,
               reliquary: widget.reliquary,
-              onTap: () => _openFile(file),
-              onLongPress: () => _showFileDetails(file),
+              onTap: () => _openDetail(file),
             );
           },
         ),
@@ -478,13 +338,11 @@ class _FileTile extends StatefulWidget {
   final EngramFile file;
   final ReliquaryService reliquary;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
 
   const _FileTile({
     required this.file,
     required this.reliquary,
     required this.onTap,
-    required this.onLongPress,
   });
 
   @override
@@ -529,7 +387,6 @@ class _FileTileState extends State<_FileTile> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: widget.onTap,
-      onLongPress: widget.onLongPress,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Container(
