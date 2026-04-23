@@ -39,6 +39,10 @@ class EngramService {
     int limit = 50,
     String? query,
     List<String> tags = const [],
+    String? fileType,
+    DateTime? from,
+    DateTime? to,
+    String? sort,
   }) async {
     final params = <String, dynamic>{
       'offset': offset,
@@ -50,6 +54,18 @@ class EngramService {
     if (tags.isNotEmpty) {
       // Engram expects repeated ?tag=a&tag=b (not tag[]=).
       params['tag'] = tags;
+    }
+    if (fileType != null && fileType.isNotEmpty) {
+      params['type'] = fileType;
+    }
+    if (from != null) {
+      params['from'] = from.toUtc().toIso8601String();
+    }
+    if (to != null) {
+      params['to'] = to.toUtc().toIso8601String();
+    }
+    if (sort != null && sort.isNotEmpty) {
+      params['sort'] = sort;
     }
     final response = await dio.get(
       '/api/files',
