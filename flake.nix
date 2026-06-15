@@ -10,7 +10,12 @@
 	let
 	pkgs = import nixpkgs {
 	inherit system;
-	config.allowUnfree = true;
+	config = {
+	  allowUnfree = true;
+	  permittedInsecurePackages = [
+	    "minio-2025-10-15T17-29-55Z"
+	  ];
+	};
 	};
 	postgresqlInfra = import ./infra/postgresql.nix { inherit pkgs; };
 	rabbitmqInfra = import ./infra/rabbitmq.nix { inherit pkgs; };
