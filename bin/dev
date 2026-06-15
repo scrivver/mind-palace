@@ -26,18 +26,22 @@ tmux new-session -d -s "$SESSION" -n rel-be
 tmux send-keys -t "$SESSION:rel-be" "cd reliquary/backend && source ../../bin/load-infra-env && LISTEN_ADDR=$DATA_DIR/reliquary/backend.sock air" Enter
 
 # 2. Engram Backend
+tmux new-window -t "$SESSION" -n rel-thumb
+tmux send-keys -t "$SESSION:rel-thumb" "cd reliquary/backend && source ../../bin/load-infra-env && go run ./cmd/reliquary-thumbnail-worker" Enter
+
+# 3. Engram Backend
 tmux new-window -t "$SESSION" -n eng-be
 tmux send-keys -t "$SESSION:eng-be" "cd engram/backend && source ../../bin/load-infra-env && PORT=8081 air" Enter
 
-# 3. Engram Ingestion
+# 4. Engram Ingestion
 tmux new-window -t "$SESSION" -n eng-ingest
 tmux send-keys -t "$SESSION:eng-ingest" "cd engram/ingestion && source ../../bin/load-infra-env && uv run main.py" Enter
 
-# 4. Synapse Worker
+# 5. Synapse Worker
 tmux new-window -t "$SESSION" -n syn-worker
 tmux send-keys -t "$SESSION:syn-worker" "cd synapse && source ../bin/load-infra-env && go run ./cmd/synapse-worker" Enter
 
-# 5. Mind Palace App (Desktop)
+# 6. Mind Palace App (Desktop)
 tmux new-window -t "$SESSION" -n app
 tmux send-keys -t "$SESSION:app" "start-app" Enter
 

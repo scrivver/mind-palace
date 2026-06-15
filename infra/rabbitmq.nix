@@ -1,5 +1,7 @@
 { pkgs, queues ? [
   { name = "engram.ingest"; durable = true; }
+  { name = "reliquary.thumbnail"; durable = true; }
+  { name = "reliquary.thumbnail.dead"; durable = true; }
   { name = "synapse.jobs"; durable = true; }
 ] }:
 let
