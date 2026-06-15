@@ -8,7 +8,7 @@
     - **Backend**: Go API server using MinIO for object storage.
     - **Frontend**: Flutter application for artifact management and analytics.
 2.  **Engram (`/engram`)**: Metadata extraction and search layer.
-    - **Ingestion**: Python worker that extracts metadata from MinIO events.
+    - **Ingestion**: Python worker that extracts metadata from canonical file events.
     - **API**: Go server providing read-only access to extracted metadata.
 3.  **Synapse (`/synapse`)**: Reconciliation-driven file movement engine.
     - **Worker**: Go process that transfers files between storage tiers.
@@ -19,9 +19,9 @@ The project uses a unified infrastructure managed via Nix flakes and `process-co
 
 - **PostgreSQL**: Shared database for Authentik, Engram, and Synapse.
 - **RabbitMQ**: Shared message broker.
-  - `engram.ingest`: Receives S3 bucket notifications from MinIO.
+  - `engram.ingest`: Receives canonical file events from Reliquary and filesystem watchers.
   - `synapse.jobs`: Receives movement tasks.
-- **MinIO**: Shared object storage. Configured to emit AMQP events to RabbitMQ on `reliquary` bucket changes.
+- **MinIO**: Shared object storage. It does not emit application events.
 - **Caddy**: Unified reverse proxy (port 2080).
   - `/api/reliquary/*` -> Reliquary Backend.
   - `/api/engram/*` -> Engram Backend.
@@ -52,7 +52,7 @@ start-app            # Launches only the main Flutter desktop app
 ```
 
 ## Architecture & Conventions
-- **Event-Driven**: Reliquary storage events flow through MinIO -> RabbitMQ -> Engram Ingestion.
+- **Event-Driven**: Reliquary publishes confirmed canonical events directly to RabbitMQ after S3 mutations.
 - **Nix-First**: All environments and build processes are managed via Nix flakes at the root.
 - **Submodules**: `reliquary`, `engram`, and `synapse` are integrated as git submodules but share the root infrastructure during development.
 
