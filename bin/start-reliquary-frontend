@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ -z "${DATA_DIR:-}" ]; then
+  echo "ERROR: DATA_DIR is not set. Are you in the dev shell? (nix develop)" >&2
+  exit 1
+fi
+
+source load-infra-env
+
+if [ -z "${RELIQUARY_URL:-}" ]; then
+  echo "ERROR: RELIQUARY_URL is not set. Is the Mind Palace proxy running?" >&2
+  exit 1
+fi
+
+PORT="${RELIQUARY_FRONTEND_PORT:-3001}"
+
+cd reliquary/frontend
+flutter run -d web-server \
+  --web-port="$PORT" \
+  --dart-define=RELIQUARY_DEFAULT_API_BASE_URL="$RELIQUARY_URL"
