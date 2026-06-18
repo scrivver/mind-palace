@@ -182,12 +182,23 @@ let
     # Get scope mappings
     scopes = api_call("GET", "/propertymappings/provider/scope/?ordering=scope_name", token=token)
     scope_pks = [s["pk"] for s in scopes["results"] if s["scope_name"] in ("openid", "email", "profile")]
+    redirect_uris = [
+        {"matching_mode": "regex", "url": "http://localhost:.*/callback"},
+        {"matching_mode": "regex", "url": "http://127.0.0.1:.*/callback"},
+        {"matching_mode": "regex", "url": "com\\.mindpalace\\.app://callback"},
+        {"matching_mode": "regex", "url": "com\\.reliquary\\.app://callback"},
+    ]
 
     # Check if provider already exists
     providers = api_call("GET", "/providers/oauth2/?name=Mind+Palace+OAuth2", token=token)
     if providers["pagination"]["count"] > 0:
         provider = providers["results"][0]
         print(f"  OAuth2 provider already exists (pk={provider['pk']})")
+        provider = api_call("PATCH", f"/providers/oauth2/{provider['pk']}/", {
+            "redirect_uris": redirect_uris,
+            "property_mappings": scope_pks,
+        }, token=token)
+        print("  Updated OAuth2 provider redirect URIs")
     else:
         # Create OAuth2 provider
         provider = api_call("POST", "/providers/oauth2/", {
@@ -196,11 +207,7 @@ let
             "invalidation_flow": inv_flow_pk,
             "client_type": "public",
             "client_id": "mind-palace",
-            "redirect_uris": [
-                {"matching_mode": "regex", "url": "http://localhost:.*/callback"},
-                {"matching_mode": "regex", "url": "http://127.0.0.1:.*/callback"},
-                {"matching_mode": "regex", "url": "com\\.mindpalace\\.app://callback"},
-            ],
+            "redirect_uris": redirect_uris,
             "property_mappings": scope_pks,
         }, token=token)
         print(f"  Created OAuth2 provider (pk={provider['pk']})")
