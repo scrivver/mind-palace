@@ -45,6 +45,67 @@ than application domain records.
 - Health checks must be observable from the deployment path.
 - Dependencies must avoid cycles.
 
+## ContainerBuildJob
+
+**Purpose**: Represents a Nix build output that produces one local OCI/Docker
+image tarball before packaged Compose startup.
+
+**Fields**:
+- `owner_repo`: repository that owns the build job, for example `engram` or
+  `synapse`
+- `target`: owning flake package target, for example `api-container` or
+  `worker-container`
+- `platform_image_name`: root Compose image name after load/tag, for example
+  `mind-palace-engram-api:latest`
+- `source_component`: root, Reliquary, Engram, or Synapse
+- `build_artifact`: binary package, Python runtime, static assets, or image
+  tarball produced by Nix
+- `loaded_image`: local image name and tag expected by `docker-compose.yml`
+- `runtime_entrypoint`: executable used as the container entrypoint
+- `healthcheck`: command or endpoint used by Compose
+- `dependencies`: other build jobs or component lock files required for a
+  reproducible build
+
+**Validation rules**:
+- Every application image referenced by Compose must have a build job.
+- Component implementation build jobs must live in the owning child repo.
+- Build jobs must be runnable from the owning repo with `nix build .#<target>`.
+- Build jobs must be runnable by root orchestration with
+  `nix build path:$PROJECT_ROOT/<component>#<target>`.
+- Build jobs must not require source bind mounts at runtime.
+- Build jobs must fail during build if required locked dependencies are missing.
+- Runtime dependency downloads during Compose startup are not allowed.
+- Root build jobs must remain thin aliases, image tags, or root-owned app/ingress
+  artifacts; they must not duplicate component dependency packaging.
+
+**State transitions**:
+- `not-built` -> `building` -> `loaded`
+- `building` -> `failed`
+- `loaded` -> `stale` when source, lock files, or image targets change
+
+## ContainerImage
+
+**Purpose**: Describes a loaded application image used by packaged Compose.
+
+**Fields**:
+- `image_name`: stable local image name, for example
+  `mind-palace-synapse-worker:latest`
+- `service`: Compose service that runs the image
+- `component`: owner component
+- `entrypoint`: binary or script started as PID 1
+- `ports`: exposed container ports, if any
+- `environment`: required environment variables
+- `runtime_tools`: non-application tools needed in the image, such as
+  `curl`, `cacert`, `libmagic`, OCR tools, or media extraction tools
+
+**Validation rules**:
+- Image names must match the packaged Compose contract.
+- API images must expose a health endpoint or healthcheck command.
+- Worker images may use a PID liveness healthcheck when no HTTP endpoint exists.
+- Images must include CA certificates when calling HTTPS services.
+- Secret values must be provided by Compose environment, not baked into the
+  image.
+
 ## RuntimeConfiguration
 
 **Purpose**: Captures configuration values required to start a deployment path.

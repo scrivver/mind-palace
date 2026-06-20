@@ -13,6 +13,10 @@ for a single-host Mind Palace deployment.
   Podman.
 - `docs/dogfood-deployment.md`: local and packaged operation guide.
 - Nix package targets for every local application image referenced by Compose.
+- Engram-owned package/image outputs that build real API and ingestion runtime
+  artifacts, not placeholder containers.
+- Synapse-owned package/image outputs that build real worker and reconciler
+  runtime artifacts, not placeholder containers.
 
 ## Image Contract
 
@@ -29,6 +33,72 @@ Image names must be stable and documented. Initial local image names:
 If the implementation reuses Reliquary image names for component-local images,
 the root docs must clearly map each Compose service to the image it expects.
 
+## Build Job Contract
+
+`bin/deploy` must build and load every local application image before Compose is
+started. Mind Palace is the platform consumer: it invokes child-repo flake
+outputs, loads the resulting image archives, and tags them to the root Compose
+image names when necessary. Required build targets:
+
+- `mind-palace-app-container`
+- Reliquary-owned API image target, then tag or name it as
+  `mind-palace-reliquary-api:latest`
+- Reliquary-owned thumbnail worker image target, then tag or name it as
+  `mind-palace-reliquary-thumbnail-worker:latest`
+- Engram-owned API image target, then tag or name it as
+  `mind-palace-engram-api:latest`
+- Engram-owned ingestion image target, then tag or name it as
+  `mind-palace-engram-ingestion:latest`
+- Synapse-owned worker image target, then tag or name it as
+  `mind-palace-synapse-worker:latest`
+- Synapse-owned reconciler image target, then tag or name it as
+  `mind-palace-synapse-reconciler:latest`
+- `mind-palace-ingress-container`
+
+Build targets must:
+
+- be invokable from their owning repository with `nix build .#<target>`
+- be invokable by the root deploy script with `nix build path:$PROJECT_ROOT/<component>#<target>`
+- produce loadable OCI/Docker image archives
+- embed application binaries or Python runtime artifacts produced by Nix
+- avoid source-code bind mounts in Compose
+- fail at build time, not runtime, when locked dependencies cannot be resolved
+- expose a small contract to Mind Palace: target name, produced image name, main
+  port if any, healthcheck command, and required environment variables
+
+Engram API image requirements:
+
+- entrypoint runs the Engram Go backend binary
+- exposes port `8081`
+- includes a healthcheck that probes `/api/health`
+- accepts PostgreSQL and OIDC configuration from Compose environment
+
+Engram ingestion image requirements:
+
+- entrypoint runs the packaged Python ingestion worker
+- includes required extraction runtime tools and CA certificates
+- receives PostgreSQL, RabbitMQ, and S3 settings from Compose environment
+- does not install Python dependencies during Compose startup
+
+Synapse image requirements:
+
+- worker image entrypoint runs `synapse-worker`
+- reconciler image entrypoint runs `synapse-reconciler`
+- both images are built from the same Synapse Go package when practical
+- worker receives RabbitMQ and S3 settings from Compose environment
+- reconciler receives RabbitMQ and Engram API settings from Compose environment
+- `synapse-metagen` should be available from the package or a documented helper
+  when needed for smoke-test setup
+
+Mind Palace root requirements:
+
+- root `bin/deploy` may tag child images to `mind-palace-*` names
+- root `flake.nix` may expose thin aliases or wrapper targets only when useful
+  for operator ergonomics
+- root Nix files must not duplicate Engram or Synapse build implementation
+  details such as Go module vendor hashes, Python dependency materialization, or
+  component entrypoint construction
+
 ## Compose Service Contract
 
 The default Compose deployment must:
@@ -39,6 +109,7 @@ The default Compose deployment must:
 - include one-shot initialization services for buckets, queues, or identity
   bootstrap when needed
 - avoid bind-mounting source code into application containers
+- run real Engram and Synapse service images, not placeholder sleep containers
 
 ## Environment Contract
 

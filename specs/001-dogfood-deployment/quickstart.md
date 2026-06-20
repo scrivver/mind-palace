@@ -70,7 +70,43 @@ It is not an implementation script.
 
 ## Validate Packaged Compose Deployment
 
-1. Build and load local images:
+1. Confirm child repositories expose packaged image targets:
+
+   ```bash
+   nix eval --json path:./engram#packages.x86_64-linux --apply 'builtins.attrNames'
+   nix eval --json path:./synapse#packages.x86_64-linux --apply 'builtins.attrNames'
+   ```
+
+   Expected result: Engram exposes image targets for its API and ingestion
+   worker, and Synapse exposes image targets for its worker and reconciler. The
+   exact names should be documented in the child repos and consumed by root
+   `bin/deploy`.
+
+2. Confirm root-owned packaged image targets are present:
+
+   ```bash
+   nix eval --json .#packages.x86_64-linux --apply 'builtins.attrNames'
+   ```
+
+   Expected result: the output includes root-owned app/ingress targets and any
+   intentionally thin aliases, but Engram and Synapse implementation packaging
+   belongs to their own repos.
+
+3. Build the new Engram and Synapse images directly during implementation
+   validation:
+
+   ```bash
+   nix build path:./engram#api-container --no-link --print-out-paths
+   nix build path:./engram#ingestion-container --no-link --print-out-paths
+   nix build path:./synapse#worker-container --no-link --print-out-paths
+   nix build path:./synapse#reconciler-container --no-link --print-out-paths
+   ```
+
+   Expected result: each command prints a loadable image archive path. These
+   child-owned targets must run real component entrypoints, not placeholder
+   sleep commands.
+
+4. Build and load all local images through the platform deployment command:
 
    ```bash
    nix develop
@@ -78,9 +114,24 @@ It is not an implementation script.
    ```
 
    Expected result: all images referenced by `docker-compose.yml` are loaded
-   into Docker or Podman.
+   into Docker or Podman. Root `bin/deploy` builds child-repo image outputs,
+   loads them, and tags them to the `mind-palace-*` names expected by Compose.
 
-2. Prepare configuration:
+5. Confirm loaded image names:
+
+   ```bash
+   docker image ls \
+     mind-palace-engram-api \
+     mind-palace-engram-ingestion \
+     mind-palace-synapse-worker \
+     mind-palace-synapse-reconciler
+   ```
+
+   Use the matching Podman image command when Podman is selected.
+
+   Expected result: all four images exist with the `latest` tag.
+
+6. Prepare configuration:
 
    ```bash
    cp .env.example .env
@@ -88,7 +139,13 @@ It is not an implementation script.
 
    Edit `.env` and replace documented placeholder secrets before shared use.
 
-3. Start packaged deployment:
+7. Validate Compose configuration before startup:
+
+   ```bash
+   docker compose config --quiet
+   ```
+
+8. Start packaged deployment:
 
    ```bash
    docker compose up -d
@@ -96,17 +153,18 @@ It is not an implementation script.
 
    Use `podman compose up -d` if Podman is the selected runtime.
 
-4. Check status and health:
+9. Check status and health:
 
    ```bash
    docker compose ps
    curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/health
+   curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/health
    ```
 
    Expected result: only the public entry point is exposed by default and
    service health is visible through Compose.
 
-5. Run the same smoke workflow used for local dogfood:
+10. Run the same smoke workflow used for local dogfood:
 
    - Open the packaged public entry point.
    - Authenticate or use the documented packaged access mode.
@@ -114,7 +172,7 @@ It is not an implementation script.
    - Confirm metadata discovery.
    - Confirm movement/reconciliation behavior when enabled.
 
-6. Inspect logs on failure:
+11. Inspect logs on failure:
 
    ```bash
    docker compose logs --tail=200
@@ -122,13 +180,13 @@ It is not an implementation script.
 
    Sanitize secrets before copying logs into a failure report.
 
-7. Stop packaged deployment:
+12. Stop packaged deployment:
 
    ```bash
    docker compose down
    ```
 
-8. Reset packaged state only when intended:
+13. Reset packaged state only when intended:
 
    ```bash
    docker compose down -v

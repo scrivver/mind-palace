@@ -42,6 +42,82 @@ PostgreSQL, RabbitMQ, MinIO, and Authentik internal by default.
 - Depend on published images only. This blocks local dogfooding when image
   publishing has not been configured.
 
+## Decision: Replace Placeholder Engram/Synapse Images with Child-Owned Nix Build Jobs
+
+**Rationale**: The current root package targets for Engram and Synapse are only
+dogfood placeholders. Compose cannot validate the packaged deployment while
+those images sleep instead of running application code. Reliquary's model is the
+correct precedent: the component repo owns the Nix package and image outputs for
+its own runtime boundaries, while the platform deployment consumes those outputs.
+Engram and Synapse therefore need first-class package/image outputs in their own
+flakes. Mind Palace should build those child outputs, load the image archives,
+and tag or map them to the platform image names used by root Compose.
+
+**Alternatives considered**:
+- Keep placeholder containers until later. This leaves the packaged deployment
+  unable to dogfood metadata extraction or reconciliation.
+- Build images with ad-hoc Dockerfiles. This breaks the Nix-first requirement
+  and diverges from Reliquary's reproducible deployment pattern.
+- Put all Engram/Synapse package definitions in the Mind Palace root. This makes
+  the platform repo know too much about component internals and creates package
+  drift away from the repos that own the source, dependencies, and entrypoints.
+- Collapse Engram and Synapse into a single image. This obscures service
+  boundaries and makes health checks, scaling, and logs less useful.
+
+## Decision: Package Engram as Separate API and Ingestion Runtime Images
+
+**Rationale**: Engram has two deployable runtime boundaries: the Go read-only
+API and the Python ingestion worker. The API should follow Reliquary's Go
+pattern inside the Engram repo with a `buildGoModule` package and an API image
+exposing port `8081` with an HTTP healthcheck at `/api/health`. The ingestion
+worker should be a separate Engram-owned Python runtime image that includes the
+locked Python dependencies, `libmagic`, OCR/PDF/media extraction tools required
+by the worker, CA certificates, and an entrypoint equivalent to running the
+ingestion worker from `engram/ingestion`.
+
+**Alternatives considered**:
+- Run `uv run main.py` in the final container. This is convenient but risks
+  runtime network resolution and mutable dependency installation during Compose
+  startup.
+- Package the Go watcher for packaged dogfood now. Reliquary is the canonical
+  S3 event producer in the root dogfood stack, so the watcher is not required
+  for the initial packaged Compose deployment.
+- Combine API and ingestion in one process. This conflicts with Engram's
+  documented component boundary and makes worker restarts affect API reads.
+
+## Decision: Package Synapse as One Go Package with Worker and Reconciler Images
+
+**Rationale**: Synapse is a Go service with separate `cmd/synapse-worker` and
+`cmd/synapse-reconciler` entrypoints. A single Synapse-owned Nix package can
+build the Synapse command set, including `synapse-metagen` for setup/smoke
+workflows, and two layered images can point their entrypoints at the worker and
+reconciler binaries. This mirrors Reliquary's "one package, multiple images"
+backend pattern without moving Synapse implementation knowledge into the
+platform repo.
+
+**Alternatives considered**:
+- Build separate Go packages for each Synapse command. This is viable but
+  duplicates module/vendor handling without a clear benefit.
+- Use `go run` in containers. This is slower, requires source and toolchain in
+  the image, and does not match the Reliquary packaging model.
+
+## Decision: Compose Must Treat Image Build/Load as a Precondition
+
+**Rationale**: Reliquary's Compose workflow intentionally separates image
+build/load (`./bin/deploy`) from service startup (`docker compose up -d`).
+Mind Palace should keep the same contract: `bin/deploy` builds and loads
+component-owned image outputs from Reliquary, Engram, and Synapse, plus
+root-owned app/ingress outputs, then Compose only runs already-loaded images.
+This makes stale or missing images a documented failure mode before deployment
+starts while preserving component packaging ownership.
+
+**Alternatives considered**:
+- Use Compose `build:` sections. This would mix Docker and Nix build systems and
+  weaken reproducibility.
+- Auto-run `bin/deploy` inside `docker compose up`. Compose does not provide a
+  portable pre-build hook, and hiding image generation makes failures harder to
+  debug.
+
 ## Decision: Compose Is Single-Host Dogfood, Not Production Scaling
 
 **Rationale**: The feature asks for easy deployment and testing before
