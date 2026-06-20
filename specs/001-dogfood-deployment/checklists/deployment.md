@@ -71,6 +71,37 @@
 - [ ] CHK037 Is the image naming contract aligned with the plan's packaging scope, or does it leave ambiguity about reused Reliquary images versus root Mind Palace images? [Ambiguity, Contract §Image Contract, Plan §Project Structure]
 - [ ] CHK038 Are acceptance scenarios traceable to functional requirements and success criteria with enough IDs or section references for future task generation? [Traceability, Spec §Acceptance Scenarios, Spec §Functional Requirements, Spec §Success Criteria]
 
+## Component Packaging Ownership
+
+- [ ] CHK039 Are Engram package and image ownership requirements stated clearly enough to prevent Mind Palace root from duplicating Engram dependency or entrypoint packaging? [Clarity, Plan §Structure Decision, Contract §Mind Palace root requirements]
+- [ ] CHK040 Are Synapse package and image ownership requirements stated clearly enough to prevent Mind Palace root from duplicating Synapse dependency or entrypoint packaging? [Clarity, Plan §Structure Decision, Contract §Mind Palace root requirements]
+- [ ] CHK041 Are child-repo flake output contracts documented with enough detail for Mind Palace to consume them without knowing component implementation internals? [Completeness, Contract §Build Job Contract, Data Model §ContainerBuildJob]
+- [ ] CHK042 Are component-owned image target names, produced image names, ports, health signals, and required environment variables all required by the contract? [Completeness, Contract §Build Job Contract]
+- [ ] CHK043 Are root-owned responsibilities limited to orchestration, image loading, image tagging, Compose wiring, and root-owned app/ingress artifacts? [Consistency, Plan §Project Structure, Contract §Mind Palace root requirements]
+
+## Build Contract Clarity
+
+- [ ] CHK044 Are the expected Engram child outputs for API and ingestion described as separate runtime boundaries with distinct entrypoints and health expectations? [Clarity, Research §Package Engram, Contract §Engram API image requirements, Contract §Engram ingestion image requirements]
+- [ ] CHK045 Are the expected Synapse child outputs for worker and reconciler described as separate runtime boundaries with distinct entrypoints and configuration needs? [Clarity, Research §Package Synapse, Contract §Synapse image requirements]
+- [ ] CHK046 Is the distinction between owning-repo target names and platform `mind-palace-*` image names unambiguous? [Ambiguity, Data Model §ContainerBuildJob, Contract §Image Contract]
+- [ ] CHK047 Are requirements explicit that Python dependency materialization for Engram ingestion must happen at build time rather than during Compose startup? [Non-Functional, Contract §Engram ingestion image requirements]
+- [ ] CHK048 Are requirements explicit that Go module/vendor details for Engram and Synapse belong to the child repos rather than root Nix files? [Consistency, Contract §Mind Palace root requirements, Constitution §Component Boundaries and Submodule Ownership]
+
+## Orchestration Contract Coverage
+
+- [ ] CHK049 Are root `bin/deploy` requirements complete enough to cover building child flake outputs, loading image archives, and tagging images for root Compose? [Completeness, Plan §Continuation packaging decision, Contract §Build Job Contract]
+- [ ] CHK050 Are stale, missing, or renamed child flake output scenarios represented as requirements for diagnostics or documentation? [Coverage, Spec §Edge Cases, Quickstart §Validate Packaged Compose Deployment]
+- [ ] CHK051 Are requirements defined for how root docs map child-owned image outputs to platform Compose services? [Gap, Contract §Image Contract, Contract §Operations Contract]
+- [ ] CHK052 Are submodule pointer and child-repo commit requirements explicit enough for reviewers to identify when packaging changes must be committed inside `engram/` or `synapse/` first? [Gap, Constitution §Component Boundaries and Submodule Ownership]
+- [ ] CHK053 Are rollback or recovery requirements defined for a failed child image build or partially loaded platform image set? [Gap, Spec §Edge Cases, Contract §Operations Contract]
+
+## Acceptance Criteria Quality
+
+- [ ] CHK054 Are success criteria for packaged deployment updated to measure real Engram and Synapse image builds instead of generic "all required images" wording? [Measurability, Spec §SC-003, Contract §Build Job Contract]
+- [ ] CHK055 Are validation expectations specific enough to distinguish child-repo build success from root deploy consumption success? [Acceptance Criteria, Quickstart §Validate Packaged Compose Deployment]
+- [ ] CHK056 Are smoke-test requirements clear about whether metadata discovery and reconciliation must use packaged Engram and Synapse services in the Compose path? [Clarity, Spec §FR-008, Spec §SC-004]
+- [ ] CHK057 Are failure-report requirements specific enough to capture whether a failure belongs to child packaging, root tagging/loading, Compose wiring, or runtime service startup? [Completeness, Contract §Reporting Contract]
+
 ## Notes
 
 - Check items off as completed: `[x]`

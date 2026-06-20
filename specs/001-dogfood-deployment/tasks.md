@@ -2,144 +2,184 @@
 
 **Input**: Design documents from `/specs/001-dogfood-deployment/`
 
-**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/, quickstart.md
+**Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`
 
-**Tests**: Include focused validation tasks before implementation where practical because this feature changes orchestration, deployment contracts, and dogfood smoke paths.
+**Tests**: Include focused package evaluation, image build/load, compose config,
+component checks, and quickstart validation tasks for changed behavior. If a
+check cannot be run locally, record the reason in
+`specs/001-dogfood-deployment/implementation-notes.md`.
 
-**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+**Organization**: Tasks are grouped by user story. This continuation focuses on
+the packaged deployment path and the corrected ownership boundary: Engram and
+Synapse own their package/image outputs; Mind Palace consumes those child-repo
+outputs for the platform Compose deployment.
 
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
+- **[Story]**: Which user story this task belongs to (`US1`, `US2`, `US3`)
 - Include exact file paths in descriptions
 
 ## Path Conventions
 
-- **Root orchestration**: `flake.nix`, `shells/`, `infra/`, `bin/`
-- **Root deployment docs/config**: `docker-compose.yml`, `.env.example`, `docs/dogfood-deployment.md`
-- **Spec artifacts**: `specs/001-dogfood-deployment/`
-- **Submodules**: `reliquary/`, `engram/`, `synapse/` only when component-owned packaged entrypoints or health checks are needed
+- **Root infrastructure/orchestration**: `flake.nix`, `bin/`, `shells/`, `infra/`
+- **Root packaged deployment**: `docker-compose.yml`, `.env.example`, `.dockerignore`, `docs/`
+- **Engram submodule**: `engram/`, including `engram/backend/`, `engram/ingestion/`, `engram/nix/`
+- **Synapse submodule**: `synapse/`, including `synapse/cmd/`, `synapse/internal/`, `synapse/nix/`
+- **Specs and validation**: `specs/001-dogfood-deployment/`
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: Setup (Shared Context)
 
-**Purpose**: Establish the implementation baseline, ignore coverage, and target file ownership before changing runtime behavior.
+**Purpose**: Establish the current component contracts and deployment surface before editing code.
 
-- [X] T001 Inspect current root orchestration files and record existing dev/infra behavior in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T002 Inspect Reliquary deployment pattern and record reusable build/compose conventions in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T003 [P] Verify root `.gitignore` covers `.data/`, `.env`, generated container outputs, and local logs in `.gitignore`
-- [X] T004 [P] Create root `.dockerignore` with Nix, Docker, Flutter, Go, Python, `.data/`, `.git/`, `.env*`, and build-output exclusions in `.dockerignore`
-- [X] T005 [P] Identify required component-owned image or healthcheck gaps for `reliquary/`, `engram/`, and `synapse/` in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T001 Review Engram packaging-relevant guidance in `engram/README.md` and `engram/CLAUDE.md`
+- [ ] T002 Review Synapse packaging-relevant guidance in `synapse/README.md` and `synapse/CLAUDE.md`
+- [ ] T003 [P] Inspect Reliquary split-image precedent in `reliquary/nix/backend.nix`, `reliquary/nix/api-container.nix`, and `reliquary/nix/thumbnail-worker-container.nix`
+- [ ] T004 [P] Inspect Reliquary deploy precedent in `reliquary/bin/deploy` and record applicable image load/tag behavior in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T005 [P] Audit current root placeholder image outputs in `flake.nix` and list targets to remove or replace in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T006 [P] Audit current root packaged Compose image references in `docker-compose.yml` and list required child image mappings in `specs/001-dogfood-deployment/implementation-notes.md`
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Define shared service contracts, container targets, and documentation scaffolding that all user stories depend on.
+**Purpose**: Define stable child-repo output contracts that root deployment can consume.
 
-**CRITICAL**: No user story work can begin until this phase is complete.
+**CRITICAL**: No root packaged deployment wiring should be finalized until this phase is complete.
 
-- [X] T006 Add root full-stack process-compose service definitions for Reliquary, Engram, Synapse, and the primary app in `flake.nix`
-- [X] T007 Update root process-compose generation to produce both infra-only and full-stack configs in `flake.nix`
-- [X] T008 Update shell setup to copy both generated process-compose configs and export socket/config paths in `shells/infra.nix`
-- [X] T009 Update root dev shell environment variables for service URLs, state paths, and local dogfood defaults in `shells/dev.nix`
-- [X] T010 Add packaged container package targets for root deployment images in `flake.nix`
-- [X] T011 [P] Add root deployment documentation skeleton with local and packaged sections in `docs/dogfood-deployment.md`
-- [X] T012 [P] Add root packaged environment placeholder file in `.env.example`
+- [ ] T007 Define Engram package/image output contract names in `engram/README.md`
+- [ ] T008 Define Synapse package/image output contract names in `synapse/README.md`
+- [ ] T009 [P] Add Engram packaging notes for API image environment, port, and healthcheck in `engram/README.md`
+- [ ] T010 [P] Add Engram packaging notes for ingestion image environment and runtime tools in `engram/README.md`
+- [ ] T011 [P] Add Synapse packaging notes for worker image environment and liveness expectations in `synapse/README.md`
+- [ ] T012 [P] Add Synapse packaging notes for reconciler image environment and Engram API dependency in `synapse/README.md`
+- [ ] T013 Create or update Engram Nix package directory structure in `engram/nix/`
+- [ ] T014 Create or update Synapse Nix package directory structure in `synapse/nix/`
+- [ ] T015 Update packaging ownership notes in `specs/001-dogfood-deployment/contracts/packaged-compose-deployment.md`
+- [ ] T016 Update packaged deployment validation expectations in `specs/001-dogfood-deployment/quickstart.md`
 
-**Checkpoint**: Shared orchestration and deployment scaffolding is ready for story implementation.
+**Checkpoint**: Engram and Synapse output contracts are documented before implementation.
 
 ---
 
-## Phase 3: User Story 1 - Start Local Dogfood Environment (Priority: P1) MVP
+## Phase 3: User Story 1 - Start Local Dogfood Environment (Priority: P1)
 
-**Goal**: A developer can start the complete local dogfood stack with one root `dev` command after entering `nix develop`.
+**Goal**: Preserve the verified one-command local dogfood startup while packaged image work proceeds.
 
-**Independent Test**: From the root dev shell, `dev` starts shared infrastructure, backends, workers, proxy/identity, and the primary app without a separate `start-infra`; status/logs are visible through process-compose and shutdown preserves `.data/`.
-
-### Tests for User Story 1
-
-- [X] T013 [US1] Add a local dev contract validation script for generated full-stack process names and dependency coverage in `specs/001-dogfood-deployment/validation/local-dev-contract.sh`
-- [X] T014 [US1] Run the local dev contract validation and record expected pre-implementation failures in `specs/001-dogfood-deployment/implementation-notes.md`
+**Independent Test**: Enter `nix develop`, run `dev`, confirm the generated process-compose stack still starts local infrastructure, backends, workers, and app without a separate `start-infra` step.
 
 ### Implementation for User Story 1
 
-- [X] T015 [US1] Replace tmux-based root full-stack startup with process-compose full-stack startup in `bin/dev`
-- [X] T016 [US1] Update root infra-only startup to explicitly use the infra-only generated config in `bin/start-infra`
-- [X] T017 [US1] Update root shutdown behavior to stop the active process-compose stack without deleting `.data/` in `bin/shutdown-infra`
-- [X] T018 [US1] Update root environment loading for Reliquary, Engram, Synapse, Authentik, Caddy, RabbitMQ, MinIO, and PostgreSQL values in `bin/load-infra-env`
-- [X] T019 [US1] Update primary app startup to work under process-compose-managed environment values in `bin/start-app`
-- [X] T020 [US1] Document local dogfood startup, status, logs, shutdown, and reset behavior in `docs/dogfood-deployment.md`
-- [X] T021 [US1] Update root development command guidance to make `dev` the default one-command startup path in `AGENTS.md`
-- [X] T022 [US1] Run local dev contract validation and mark US1 validation results in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T017 [US1] Confirm root dev shell still generates full-stack process-compose config in `shells/infra.nix`
+- [ ] T018 [US1] Confirm root `dev` still starts the generated full-stack process-compose config in `bin/dev`
+- [ ] T019 [US1] Confirm Engram local startup still waits for Authentik OIDC discovery in `flake.nix`
+- [ ] T020 [US1] Confirm RabbitMQ local readiness remains a lightweight AMQP TCP probe in `infra/rabbitmq.nix`
+- [ ] T021 [US1] Run local dev-shell evaluation and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T022 [US1] Run local process-compose YAML parse validation and record result in `specs/001-dogfood-deployment/implementation-notes.md`
 
-**Checkpoint**: User Story 1 is independently functional and testable.
+**Checkpoint**: Local dogfood startup behavior remains intact.
 
 ---
 
 ## Phase 4: User Story 2 - Run Packaged Dogfood Deployment (Priority: P2)
 
-**Goal**: A maintainer can build/load root deployment images and run the packaged Mind Palace dogfood stack through a documented Compose workflow.
+**Goal**: Build and run a packaged Mind Palace deployment using real component-owned Engram and Synapse images consumed by root Compose.
 
-**Independent Test**: Follow `docs/dogfood-deployment.md` from image build/load through compose startup, status, logs, health, shutdown, and reset using `.env.example` placeholders replaced for local use.
+**Independent Test**: Build Engram and Synapse image outputs from their child repos, run root `bin/deploy` to load/tag all images, run `docker compose config --quiet`, start the packaged deployment, and probe the public entrypoint plus Engram health route.
 
-### Tests for User Story 2
+### Engram Package and Image Outputs
 
-- [X] T023 [P] [US2] Add a packaged Compose contract validation script for required services, images, ports, volumes, and internal-only dependencies in `specs/001-dogfood-deployment/validation/packaged-compose-contract.sh`
-- [X] T024 [P] [US2] Add an environment example validation script for required placeholders and secret warnings in `specs/001-dogfood-deployment/validation/env-example-contract.sh`
-- [X] T025 [US2] Run packaged deployment contract validations and record expected pre-implementation failures in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T023 [P] [US2] Add Engram Go backend package derivation in `engram/nix/backend.nix`
+- [ ] T024 [P] [US2] Add Engram API container image derivation in `engram/nix/api-container.nix`
+- [ ] T025 [P] [US2] Add Engram API container healthcheck helper in `engram/nix/api-container.nix`
+- [ ] T026 [P] [US2] Add Engram Python ingestion runtime derivation in `engram/nix/ingestion.nix`
+- [ ] T027 [P] [US2] Add Engram ingestion container image derivation in `engram/nix/ingestion-container.nix`
+- [ ] T028 [US2] Wire Engram package and image outputs into `engram/flake.nix`
+- [ ] T029 [US2] Ensure Engram API image exposes port and default environment contract in `engram/nix/api-container.nix`
+- [ ] T030 [US2] Ensure Engram ingestion image includes required extraction tools and CA certificates in `engram/nix/ingestion-container.nix`
+- [ ] T031 [US2] Add Engram image build documentation to `engram/README.md`
+- [ ] T032 [US2] Add Engram image output notes to `engram/CLAUDE.md`
 
-### Implementation for User Story 2
+### Synapse Package and Image Outputs
 
-- [X] T026 [US2] Add root split-service packaged deployment in `docker-compose.yml`
-- [X] T027 [US2] Populate packaged environment variables, safe defaults, and required secret placeholders in `.env.example`
-- [X] T028 [US2] Add root image build/load workflow for Docker or Podman in `bin/deploy`
-- [X] T029 [US2] Add or wire Nix container definitions for root packaged images under `nix/`
-- [X] T030 [US2] Add packaged ingress configuration and health behavior for the public entry point under `nix/`
-- [X] T031 [US2] Add packaged deployment build, startup, status, log, shutdown, and reset docs in `docs/dogfood-deployment.md`
-- [X] T032 [US2] Document image names, service boundaries, volumes, and internal service exposure rules in `docs/dogfood-deployment.md`
-- [X] T033 [US2] Run packaged Compose and environment contract validations and record US2 validation results in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T033 [P] [US2] Add Synapse Go command package derivation in `synapse/nix/synapse.nix`
+- [ ] T034 [P] [US2] Add Synapse worker container image derivation in `synapse/nix/worker-container.nix`
+- [ ] T035 [P] [US2] Add Synapse reconciler container image derivation in `synapse/nix/reconciler-container.nix`
+- [ ] T036 [P] [US2] Add Synapse worker liveness helper in `synapse/nix/worker-container.nix`
+- [ ] T037 [P] [US2] Add Synapse reconciler liveness helper in `synapse/nix/reconciler-container.nix`
+- [ ] T038 [US2] Wire Synapse package and image outputs into `synapse/flake.nix`
+- [ ] T039 [US2] Ensure Synapse package includes worker, reconciler, and metagen binaries in `synapse/nix/synapse.nix`
+- [ ] T040 [US2] Add Synapse image build documentation to `synapse/README.md`
+- [ ] T041 [US2] Add Synapse image output notes to `synapse/CLAUDE.md`
 
-**Checkpoint**: User Story 2 is independently functional and testable.
+### Root Platform Consumption
+
+- [ ] T042 [US2] Remove root placeholder Engram and Synapse container implementations from `flake.nix`
+- [ ] T043 [US2] Update root package outputs in `flake.nix` to keep only root-owned app and ingress artifacts or thin aliases
+- [ ] T044 [US2] Update root deploy target list to build Engram child outputs from `bin/deploy`
+- [ ] T045 [US2] Update root deploy target list to build Synapse child outputs from `bin/deploy`
+- [ ] T046 [US2] Add root image tagging from Engram child image names to `mind-palace-engram-*` names in `bin/deploy`
+- [ ] T047 [US2] Add root image tagging from Synapse child image names to `mind-palace-synapse-*` names in `bin/deploy`
+- [ ] T048 [US2] Update root deploy error messages for missing or renamed child flake outputs in `bin/deploy`
+- [ ] T049 [US2] Update packaged Compose dependencies for real Engram and Synapse services in `docker-compose.yml`
+- [ ] T050 [US2] Add or update packaged healthchecks for Engram and Synapse services in `docker-compose.yml`
+- [ ] T051 [US2] Ensure packaged Compose environment variables match child image contracts in `docker-compose.yml`
+- [ ] T052 [US2] Update packaged configuration placeholders for Engram and Synapse in `.env.example`
+
+### Packaged Deployment Documentation and Validation
+
+- [ ] T053 [P] [US2] Update packaged build/load instructions for child-owned image outputs in `docs/dogfood-deployment.md`
+- [ ] T054 [P] [US2] Update packaged troubleshooting guidance for child build failures in `docs/dogfood-deployment.md`
+- [ ] T055 [P] [US2] Update packaged failure-report guidance for child packaging versus root orchestration failures in `docs/dogfood-deployment.md`
+- [ ] T056 [P] [US2] Update packaged compose contract validation script for child image ownership in `specs/001-dogfood-deployment/validation/packaged-compose-contract.sh`
+- [ ] T057 [P] [US2] Update docs validation script for child image build/load instructions in `specs/001-dogfood-deployment/validation/dogfood-docs-contract.sh`
+- [ ] T058 [US2] Add validation for Engram child output names to `specs/001-dogfood-deployment/validation/packaged-compose-contract.sh`
+- [ ] T059 [US2] Add validation for Synapse child output names to `specs/001-dogfood-deployment/validation/packaged-compose-contract.sh`
+- [ ] T060 [US2] Run `nix eval --json path:./engram#packages.x86_64-linux --apply 'builtins.attrNames'` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T061 [US2] Run `nix eval --json path:./synapse#packages.x86_64-linux --apply 'builtins.attrNames'` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T062 [US2] Build Engram API image with `nix build path:./engram#api-container --no-link --print-out-paths` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T063 [US2] Build Engram ingestion image with `nix build path:./engram#ingestion-container --no-link --print-out-paths` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T064 [US2] Build Synapse worker image with `nix build path:./synapse#worker-container --no-link --print-out-paths` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T065 [US2] Build Synapse reconciler image with `nix build path:./synapse#reconciler-container --no-link --print-out-paths` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T066 [US2] Run root `./bin/deploy` image build/load flow and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T067 [US2] Run `docker compose config --quiet` or equivalent Podman command and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+
+**Checkpoint**: Packaged deployment uses real child-owned Engram and Synapse images and root Compose can consume them.
 
 ---
 
 ## Phase 5: User Story 3 - Compare Development and Packaged Behavior (Priority: P3)
 
-**Goal**: Dogfooding participants can run one parity smoke checklist against both deployment paths and report failures with consistent diagnostics.
+**Goal**: Keep local and packaged dogfood validation comparable so dogfooding reports can identify whether failures are environment-specific.
 
-**Independent Test**: Run the documented smoke checklist for both local-dev and packaged-compose paths, then confirm known differences and failure-report fields are documented.
-
-### Tests for User Story 3
-
-- [X] T034 [P] [US3] Add a documentation validation script for parity checklist, known differences, and failure report fields in `specs/001-dogfood-deployment/validation/dogfood-docs-contract.sh`
-- [X] T035 [US3] Run documentation validation and record expected pre-implementation failures in `specs/001-dogfood-deployment/implementation-notes.md`
+**Independent Test**: Run the documented smoke checklist against local dev and packaged Compose, then confirm the report template captures deployment path, service status, logs, config source, state freshness, and child packaging/root orchestration failure category.
 
 ### Implementation for User Story 3
 
-- [X] T036 [US3] Add shared local and packaged dogfood smoke checklist steps in `docs/dogfood-deployment.md`
-- [X] T037 [US3] Add known-differences table for local-dev versus packaged-compose behavior in `docs/dogfood-deployment.md`
-- [X] T038 [US3] Add failure report template covering deployment path, state freshness, status, logs, config source, and failed smoke step in `docs/dogfood-deployment.md`
-- [X] T039 [US3] Update quickstart validation guidance to match final dogfood commands and smoke steps in `specs/001-dogfood-deployment/quickstart.md`
-- [X] T040 [US3] Run dogfood documentation validation and record US3 validation results in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T068 [P] [US3] Update local versus packaged behavior differences in `docs/dogfood-deployment.md`
+- [ ] T069 [P] [US3] Update smoke-test checklist for packaged Engram metadata discovery in `docs/dogfood-deployment.md`
+- [ ] T070 [P] [US3] Update smoke-test checklist for packaged Synapse reconciliation behavior in `docs/dogfood-deployment.md`
+- [ ] T071 [US3] Update failure-report checklist to include child packaging, root tagging/loading, Compose wiring, and runtime startup categories in `docs/dogfood-deployment.md`
+- [ ] T072 [US3] Update quickstart comparison steps in `specs/001-dogfood-deployment/quickstart.md`
+- [ ] T073 [US3] Update implementation notes with any known local-versus-packaged differences in `specs/001-dogfood-deployment/implementation-notes.md`
 
-**Checkpoint**: All user stories are independently functional.
+**Checkpoint**: Dogfooding reports can distinguish child packaging failures, root orchestration failures, and runtime service failures.
 
 ---
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-**Purpose**: Final validation, formatting, and state/secret hygiene checks across the completed feature.
+**Purpose**: Verification, formatting, submodule hygiene, and final documentation consistency.
 
-- [X] T041 [P] Run Nix formatting or manual formatting checks for `flake.nix`, `shells/infra.nix`, `shells/dev.nix`, and files under `nix/`
-- [X] T042 [P] Run shell syntax checks for `bin/dev`, `bin/start-infra`, `bin/shutdown-infra`, `bin/load-infra-env`, `bin/start-app`, and `bin/deploy`
-- [X] T043 [P] Run YAML validation for `docker-compose.yml`
-- [X] T044 [P] Run repository whitespace validation with `git diff --check`
-- [X] T045 Run local process-compose config evaluation with `nix develop` or an equivalent Nix eval command and record the result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T046 Run packaged image target evaluation or build command for root container outputs and record the result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T047 Run relevant component checks for touched areas and record skipped checks with reasons in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T048 Verify no generated runtime state, secrets, local database files, Compose volumes, or `.data/` content are included in the final diff
-- [X] T049 Update task completion status in `specs/001-dogfood-deployment/tasks.md`
+- [ ] T074 [P] Run Engram Go formatting and tests for touched Go packaging or healthcheck code and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T075 [P] Run Engram Python formatting/checks for touched ingestion packaging and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T076 [P] Run Synapse Go formatting and tests for touched Go packaging or healthcheck code and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T077 Run root feature validation scripts in `specs/001-dogfood-deployment/validation/`
+- [ ] T078 Run root `git diff --check` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T079 Confirm no generated runtime state, secrets, local database files, `.data/`, image archives, or `result*` symlinks are included in the final diff for `.gitignore`
+- [ ] T080 Commit Engram submodule packaging changes inside `engram/` before updating the root submodule pointer in `.gitmodules`
+- [ ] T081 Commit Synapse submodule packaging changes inside `synapse/` before updating the root submodule pointer in `.gitmodules`
+- [ ] T082 Update root implementation summary and verification notes in `specs/001-dogfood-deployment/implementation-notes.md`
 
 ---
 
@@ -147,58 +187,81 @@
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies.
-- **Foundational (Phase 2)**: Depends on Setup completion and blocks all user stories.
-- **User Story 1 (Phase 3)**: Depends on Foundational. This is the MVP path.
-- **User Story 2 (Phase 4)**: Depends on Foundational and can proceed independently of US1 except for shared docs coordination.
-- **User Story 3 (Phase 5)**: Depends on US1 and US2 documentation and command names.
-- **Polish (Phase 6)**: Depends on all desired user stories.
+- **Setup (Phase 1)**: No dependencies; can start immediately.
+- **Foundational (Phase 2)**: Depends on Setup; blocks child image implementation.
+- **US1 Local Dogfood Preservation (Phase 3)**: Can run after Setup; verifies prior local startup work did not regress.
+- **US2 Packaged Deployment (Phase 4)**: Depends on Foundational; child package/image outputs must precede root deploy wiring.
+- **US3 Comparison and Reporting (Phase 5)**: Depends on US2 documentation and validation paths.
+- **Polish (Phase 6)**: Depends on selected user stories being complete.
 
 ### User Story Dependencies
 
-- **User Story 1 (P1)**: Can start after Foundational; no dependency on packaged deployment.
-- **User Story 2 (P2)**: Can start after Foundational; no dependency on local `dev` implementation except shared docs names.
-- **User Story 3 (P3)**: Requires both deployment paths to exist so parity and known differences are meaningful.
+- **US1 (P1)**: Independent validation of existing local dogfood path; no dependency on US2.
+- **US2 (P2)**: Main continuation; depends on Phase 2 child output contracts.
+- **US3 (P3)**: Depends on US2 because comparison requires packaged Compose behavior.
 
-### Within Each User Story
+### Within US2
 
-- Validation scripts are written before implementation where practical.
-- Contract validation is run before implementation to capture expected failures.
-- Implementation updates command/config/docs files.
-- Validation is rerun after implementation and results are recorded.
+- Engram and Synapse child package outputs can be implemented in parallel after Phase 2.
+- Root `bin/deploy`, `flake.nix`, and `docker-compose.yml` updates depend on child output target names.
+- Packaged validation depends on image build outputs and root image tagging.
+
+---
 
 ## Parallel Opportunities
 
-- T003, T004, and T005 can run in parallel after T001 and T002.
-- T011 and T012 can run in parallel after T006-T010 are understood.
-- T023 and T024 can run in parallel for packaged deployment validation.
-- T041, T042, T043, and T044 can run in parallel during polish.
+- T003, T004, T005, and T006 can run in parallel during setup.
+- T009, T010, T011, and T012 can run in parallel after output names are chosen.
+- T023 through T027 can run in parallel within Engram, except final `engram/flake.nix` wiring in T028.
+- T033 through T037 can run in parallel within Synapse, except final `synapse/flake.nix` wiring in T038.
+- T053 through T057 can run in parallel with root deploy script updates once image target names are known.
+- T068 through T070 can run in parallel after packaged service behavior is known.
+- T074, T075, and T076 can run in parallel during final verification.
+
+---
 
 ## Parallel Example: User Story 2
 
-```bash
-Task: "T023 [P] [US2] Add a packaged Compose contract validation script for required services, images, ports, volumes, and internal-only dependencies in specs/001-dogfood-deployment/validation/packaged-compose-contract.sh"
-Task: "T024 [P] [US2] Add an environment example validation script for required placeholders and secret warnings in specs/001-dogfood-deployment/validation/env-example-contract.sh"
+```text
+Task: "T023 Add Engram Go backend package derivation in engram/nix/backend.nix"
+Task: "T026 Add Engram Python ingestion runtime derivation in engram/nix/ingestion.nix"
+Task: "T033 Add Synapse Go command package derivation in synapse/nix/synapse.nix"
+Task: "T034 Add Synapse worker container image derivation in synapse/nix/worker-container.nix"
+Task: "T035 Add Synapse reconciler container image derivation in synapse/nix/reconciler-container.nix"
 ```
+
+---
 
 ## Implementation Strategy
 
-### MVP First (User Story 1 Only)
+### MVP First
 
 1. Complete Phase 1 and Phase 2.
-2. Complete User Story 1 tasks T013-T022.
-3. Validate that `dev` starts the full local process-compose stack without a prior `start-infra`.
-4. Stop and review before packaged deployment work.
+2. Complete US1 preservation checks to avoid regressing local dogfood startup.
+3. Complete the Engram child package/image outputs in US2.
+4. Complete the Synapse child package/image outputs in US2.
+5. Wire root `bin/deploy` and Compose to consume child image outputs.
+6. Stop and validate the packaged deployment path before moving to US3.
 
 ### Incremental Delivery
 
-1. Local dogfood startup via root process-compose.
-2. Packaged Compose dogfood deployment.
-3. Shared parity smoke checklist and failure report template.
-4. Final formatting, validation, and state/secret hygiene checks.
+1. Engram child images build and load.
+2. Synapse child images build and load.
+3. Root deploy consumes child outputs and tags platform images.
+4. Compose starts real packaged services.
+5. Documentation and smoke-test comparison classify failures accurately.
 
-### Notes
+### Submodule Strategy
 
-- Keep submodule changes inside the owning submodule and update root pointers only after submodule commits.
-- Do not commit `.data/`, `.env`, generated process-compose YAML, local database files, container tarballs, or Compose volumes.
-- Keep `start-infra` available for targeted debugging, but make `dev` the default dogfood command.
+1. Make Engram packaging changes inside `engram/`.
+2. Make Synapse packaging changes inside `synapse/`.
+3. Commit child repo changes inside each submodule first.
+4. Update the root repo only after child output contracts are stable.
+
+---
+
+## Notes
+
+- All tasks use unchecked boxes because this is a new continuation task plan.
+- Child repos own implementation packaging details; root Mind Palace owns platform orchestration.
+- If a check cannot run locally because of sandbox, network, or container-runtime limits, record the reason in `specs/001-dogfood-deployment/implementation-notes.md`.
