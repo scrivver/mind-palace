@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+if command -v docker >/dev/null 2>&1; then
+  CTR=docker
+elif command -v podman >/dev/null 2>&1; then
+  CTR=podman
+else
+  echo "ERROR: Neither docker nor podman found in PATH" >&2
+  exit 1
+fi
+
+targets=(
+  mind-palace-app-container
+  mind-palace-engram-api-container
+  mind-palace-engram-ingestion-container
+  mind-palace-synapse-worker-container
+  mind-palace-synapse-reconciler-container
+  mind-palace-ingress-container
+)
+
+echo "Using container runtime: $CTR"
+echo "=== Building Mind Palace dogfood images ==="
+
+cd "$PROJECT_ROOT"
+for target in "${targets[@]}"; do
+  echo "Building $target..."
+  image_path="$(nix build ".#$target" --no-link --print-out-paths)"
+  "$CTR" load < "$image_path"
+done
+
+if [ -d "$PROJECT_ROOT/reliquary" ]; then
+  echo "Building Reliquary component images..."
+  for target in api-container thumbnail-worker-container; do
+    image_path="$(nix build "path:$PROJECT_ROOT/reliquary#$target" --no-link --print-out-paths)"
+    "$CTR" load < "$image_path"
+  done
+  "$CTR" tag reliquary-api:latest mind-palace-reliquary-api:latest
+  "$CTR" tag reliquary-thumbnail-worker:latest mind-palace-reliquary-thumbnail-worker:latest
+fi
+
+echo
+echo "=== Ready to deploy ==="
+echo "  cp .env.example .env"
+echo "  # Edit .env before shared use."
+echo "  $CTR compose up -d"

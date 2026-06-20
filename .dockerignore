@@ -1,0 +1,46 @@
+.git/
+.data/
+.agents/
+.specify/
+specs/
+result
+result-*
+.env
+.env.*
+!.env.example
+*.log
+*.log.*
+*.tar
+*.tar.gz
+*.oci
+
+# Flutter/Dart
+.dart_tool/
+build/
+app/.dart_tool/
+app/build/
+reliquary/frontend/.dart_tool/
+reliquary/frontend/build/
+
+# Go
+*.exe
+*.test
+*.out
+vendor/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+*.egg-info/
+engram/ingestion/.venv/
+
+# Local/editor noise
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/

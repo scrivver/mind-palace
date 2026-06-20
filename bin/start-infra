@@ -6,4 +6,7 @@ if [ -z "${DATA_DIR:-}" ]; then
   exit 1
 fi
 
-exec process-compose up -f "$DATA_DIR/process-compose.yaml" -u "$PC_SOCKET"
+config="${INFRA_PROCESS_COMPOSE_FILE:-$DATA_DIR/process-compose.yaml}"
+socket="${PC_SOCKET:-$DATA_DIR/process-compose.sock}"
+
+exec process-compose up -f "$config" -u "$socket"

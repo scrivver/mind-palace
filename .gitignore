@@ -1,2 +1,12 @@
 .data/
 .agents
+.env
+.env.*
+!.env.example
+result
+result-*
+*.log
+*.log.*
+*.tar
+*.tar.gz
+*.oci

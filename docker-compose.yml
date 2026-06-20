@@ -1,0 +1,172 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  reliquary-api:
+    image: mind-palace-reliquary-api:latest
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      PORT: 8080
+      PROXY_BASE_URL: ${PROXY_BASE_URL:-http://localhost:2080}
+      MINIO_PORT: 9000
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+      MINIO_BUCKET: ${RELIQUARY_BUCKET:-reliquary}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
+      AUTH_MODE: ${AUTH_MODE:-full}
+      AUTH_USERNAME: ${AUTH_USERNAME:-admin}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-change-me-in-shared-use}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-shared-use}
+      EVENTS_ENABLED: ${EVENTS_ENABLED:-true}
+      EVENT_QUEUE: ${EVENT_QUEUE:-engram.ingest}
+      EVENT_DEVICE_NAME: ${EVENT_DEVICE_NAME:-reliquary}
+
+  reliquary-thumbnail-worker:
+    image: mind-palace-reliquary-thumbnail-worker:latest
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    environment:
+      MINIO_PORT: 9000
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+      MINIO_BUCKET: ${RELIQUARY_BUCKET:-reliquary}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
+      THUMBNAIL_QUEUE: ${RELIQUARY_THUMBNAIL_QUEUE:-reliquary.thumbnail}
+      THUMBNAIL_DEAD_QUEUE: ${RELIQUARY_THUMBNAIL_DEAD_QUEUE:-reliquary.thumbnail.dead}
+
+  engram-api:
+    image: mind-palace-engram-api:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 8081
+      PGHOST: postgres
+
+  engram-ingestion:
+    image: mind-palace-engram-ingestion:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      PGHOST: postgres
+      RABBITMQ_AMQP_PORT: 5672
+      STORAGE_BACKEND: s3
+      STORAGE_S3_ENDPOINT: http://minio:9000
+      STORAGE_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      STORAGE_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+      STORAGE_S3_BUCKET: ${RELIQUARY_BUCKET:-reliquary}
+
+  synapse-worker:
+    image: mind-palace-synapse-worker:latest
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+      S3_HOT_BUCKET: ${S3_HOT_BUCKET:-synapse-hot}
+      S3_COLD_BUCKET: ${S3_COLD_BUCKET:-synapse-cold}
+
+  synapse-reconciler:
+    image: mind-palace-synapse-reconciler:latest
+    restart: unless-stopped
+    depends_on:
+      synapse-worker:
+        condition: service_started
+      engram-api:
+        condition: service_started
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
+      ENGRAM_API_URL: http://engram-api:8081/api
+
+  app:
+    image: mind-palace-app:latest
+    restart: unless-stopped
+    depends_on:
+      ingress:
+        condition: service_healthy
+
+  ingress:
+    image: mind-palace-ingress:latest
+    restart: unless-stopped
+    depends_on:
+      reliquary-api:
+        condition: service_started
+      engram-api:
+        condition: service_started
+    ports:
+      - "${MIND_PALACE_PORT:-2080}:2080"
+    healthcheck:
+      test: ["CMD", "mind-palace-ingress-healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  minio_data:

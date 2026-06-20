@@ -12,10 +12,12 @@ _repo_root="$(cd "$_script_dir/.." && pwd)"
 if [ -z "${DATA_DIR:-}" ]; then
   export DATA_DIR="$_repo_root/.data"
 fi
+export PROJECT_ROOT="${PROJECT_ROOT:-$_repo_root}"
 
 export MINIO_API_PORT_FILE="${MINIO_API_PORT_FILE:-$DATA_DIR/minio/api_port}"
 export RABBITMQ_AMQP_PORT_FILE="${RABBITMQ_AMQP_PORT_FILE:-$DATA_DIR/rabbitmq/amqp_port}"
 export PROXY_PORT_FILE="${PROXY_PORT_FILE:-$DATA_DIR/caddy/port}"
+export PGHOST="$DATA_DIR/postgres"
 
 # MinIO
 if [ -f "$MINIO_API_PORT_FILE" ]; then
@@ -25,6 +27,19 @@ if [ -f "$MINIO_API_PORT_FILE" ]; then
   export STORAGE_S3_ACCESS_KEY=minioadmin
   export STORAGE_S3_SECRET_KEY=minioadmin
   export STORAGE_S3_BUCKET=reliquary
+  export MINIO_ENDPOINT="127.0.0.1:$MINIO_PORT"
+  export MINIO_ACCESS_KEY="$STORAGE_S3_ACCESS_KEY"
+  export MINIO_SECRET_KEY="$STORAGE_S3_SECRET_KEY"
+  export MINIO_BUCKET=reliquary
+  export S3_ENDPOINT="$MINIO_URL"
+  export S3_ACCESS_KEY=minioadmin
+  export S3_SECRET_KEY=minioadmin
+  export S3_HOT_BUCKET=synapse-hot
+  export S3_COLD_BUCKET=synapse-cold
+  export STORAGE_BACKEND=s3
+  export STORAGE_FS_ROOT="$DATA_DIR/synapse/storage"
+  export METADATA_FILE="$DATA_DIR/synapse/metadata.json"
+  export EVENT_LOG_FILE="$DATA_DIR/synapse/events.log"
   echo "MINIO_URL=$MINIO_URL"
 fi
 
@@ -32,6 +47,7 @@ fi
 if [ -f "$RABBITMQ_AMQP_PORT_FILE" ]; then
   export RABBITMQ_AMQP_PORT=$(cat "$RABBITMQ_AMQP_PORT_FILE")
   export RABBITMQ_URL="amqp://guest:guest@127.0.0.1:$RABBITMQ_AMQP_PORT"
+  export ENGRAM_AMQP_URL="$RABBITMQ_URL"
   echo "RABBITMQ_AMQP_PORT=$RABBITMQ_AMQP_PORT"
   echo "RABBITMQ_URL=$RABBITMQ_URL"
 fi
@@ -48,12 +64,13 @@ if [ -n "${PROXY_PORT:-}" ]; then
   export ENGRAM_URL="http://localhost:$PROXY_PORT/api/engram"
   export RELIQUARY_URL="http://localhost:$PROXY_PORT/api/reliquary"
   export PRESIGN_URL_TEMPLATE="$RELIQUARY_URL/api/files/presign?key={file_path}"
+  export ENGRAM_API_URL="$ENGRAM_URL"
+  export PROXY_BASE_URL="http://localhost:$PROXY_PORT"
   echo "ENGRAM_URL=$ENGRAM_URL"
   echo "RELIQUARY_URL=$RELIQUARY_URL"
 fi
 
 # PostgreSQL
-export PGHOST="$DATA_DIR/postgres"
 echo "PGHOST=$PGHOST"
 
 # Authentik

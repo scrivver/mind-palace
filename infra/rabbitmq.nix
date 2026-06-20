@@ -87,7 +87,7 @@ in
       readiness_probe = {
         exec.command = pkgs.writeShellScript "rabbitmq-ready" ''
           AMQP_PORT=$(cat "$DATA_DIR/rabbitmq/amqp_port" 2>/dev/null) || exit 1
-          ${pkgs.rabbitmq-server}/bin/rabbitmqctl --node mind-palace@localhost status >/dev/null 2>&1
+          exec ${pkgs.bash}/bin/bash -c ":</dev/tcp/127.0.0.1/$AMQP_PORT"
         '';
         initial_delay_seconds = 5;
         period_seconds = 3;

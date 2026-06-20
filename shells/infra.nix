@@ -1,4 +1,4 @@
-{ pkgs, processComposeConfig }:
+{ pkgs, processComposeConfig, devProcessComposeConfig ? processComposeConfig }:
 
 pkgs.mkShell {
   name = "mind-palace-infra-shell";
@@ -18,11 +18,14 @@ pkgs.mkShell {
     mkdir -p "$DATA_DIR"
     mkdir -p "$DATA_DIR/authentik/postgres"
 
-    # Generate process-compose config
+    # Generate process-compose configs
     cp -f ${processComposeConfig} "$DATA_DIR/process-compose.yaml"
+    cp -f ${devProcessComposeConfig} "$DATA_DIR/dev-process-compose.yaml"
 
     # Process-compose unix socket path
     export PC_SOCKET="$DATA_DIR/process-compose.sock"
+    export INFRA_PROCESS_COMPOSE_FILE="$DATA_DIR/process-compose.yaml"
+    export DEV_PROCESS_COMPOSE_FILE="$DATA_DIR/dev-process-compose.yaml"
 
     # Authentik files
     export AUTHENTIK_PG_SOCKET_DIR_FILE="$DATA_DIR/authentik/pg_socket_dir"

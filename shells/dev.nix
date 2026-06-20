@@ -37,6 +37,7 @@ pkgs.mkShell {
 
     shellHook = ''
     export CHROME_EXECUTABLE="$(which chromium 2>/dev/null || which google-chrome-stable 2>/dev/null || echo "")"
+    export PROJECT_ROOT="$PWD"
 
     # Export infrastructure paths and ports
     export DATA_DIR="$PWD/.data"
@@ -44,11 +45,20 @@ pkgs.mkShell {
     export RABBITMQ_AMQP_PORT_FILE="$DATA_DIR/rabbitmq/amqp_port"
     export PROXY_PORT_FILE="$DATA_DIR/caddy/port"
     export PGHOST="$DATA_DIR/postgres"
+    export PC_SOCKET="$DATA_DIR/process-compose.sock"
+    export INFRA_PROCESS_COMPOSE_FILE="$DATA_DIR/process-compose.yaml"
+    export DEV_PROCESS_COMPOSE_FILE="$DATA_DIR/dev-process-compose.yaml"
+    export MIND_PALACE_PORT=2080
+    export AUTH_USERNAME=admin
+    export AUTH_PASSWORD=mind-palace-admin
+    export JWT_SECRET=mind-palace-dev-secret-change-me
 
     # Ensure runtime directories exist
     mkdir -p "$DATA_DIR/reliquary"
     mkdir -p "$DATA_DIR/engram"
     mkdir -p "$DATA_DIR/synapse"
+    mkdir -p "$DATA_DIR/synapse/storage/synapse-hot"
+    mkdir -p "$DATA_DIR/synapse/storage/synapse-cold"
 
     # Help python-magic find libmagic
     export LD_LIBRARY_PATH="${pkgs.file}/lib:''${LD_LIBRARY_PATH:-}"
@@ -59,12 +69,22 @@ pkgs.mkShell {
       if [ -f "$MINIO_API_PORT_FILE" ]; then
         export MINIO_PORT=$(cat "$MINIO_API_PORT_FILE")
         export STORAGE_S3_ENDPOINT="http://127.0.0.1:$MINIO_PORT"
+        export MINIO_URL="$STORAGE_S3_ENDPOINT"
+        export S3_ENDPOINT="$STORAGE_S3_ENDPOINT"
+        export S3_ACCESS_KEY=minioadmin
+        export S3_SECRET_KEY=minioadmin
+        export S3_HOT_BUCKET=synapse-hot
+        export S3_COLD_BUCKET=synapse-cold
       fi
       if [ -f "$RABBITMQ_AMQP_PORT_FILE" ]; then
         export RABBITMQ_AMQP_PORT=$(cat "$RABBITMQ_AMQP_PORT_FILE")
+        export RABBITMQ_URL="amqp://guest:guest@127.0.0.1:$RABBITMQ_AMQP_PORT"
+        export ENGRAM_AMQP_URL="$RABBITMQ_URL"
       fi
       if [ -f "$PROXY_PORT_FILE" ]; then
         export PROXY_PORT=$(cat "$PROXY_PORT_FILE")
+        export ENGRAM_URL="http://localhost:$PROXY_PORT/api/engram"
+        export RELIQUARY_URL="http://localhost:$PROXY_PORT/api/reliquary"
       fi
     }
 

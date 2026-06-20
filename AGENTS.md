@@ -17,10 +17,10 @@ Initialize components with `git submodule update --init --recursive`. Read each 
 Run commands from the repository root unless noted:
 
 - `nix develop`: enter the complete Go, Python, Flutter, and infrastructure environment.
-- `start-infra`: start PostgreSQL, RabbitMQ, MinIO, Caddy, and Authentik.
-- `dev`: launch the backends, ingestion worker, Synapse worker, and desktop app in tmux.
+- `dev`: launch PostgreSQL, RabbitMQ, MinIO, Caddy, Authentik, the backends, workers, and primary app with process-compose.
+- `start-infra`: start only PostgreSQL, RabbitMQ, MinIO, Caddy, and Authentik for targeted debugging.
 - `start-app`: run only the main Flutter Linux client.
-- `shutdown-infra`: stop managed infrastructure.
+- `shutdown-infra`: stop the active process-compose stack without deleting `.data/`.
 - `cd app && flutter analyze`: run Dart static analysis.
 - `cd app && flutter test`: run Flutter tests.
 - `cd reliquary/backend && go test ./...`: run the current Go unit tests.
