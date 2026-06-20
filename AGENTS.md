@@ -39,3 +39,8 @@ Place Go tests beside source as `*_test.go`, Flutter tests under `test/` as `*_t
 Recent commits use short imperative subjects, often scoped by component, such as `gallery: add tag filter` or `dev shell: add tesseract`. Keep commits focused. For submodule changes, commit inside the submodule first, then update the root pointer explicitly.
 
 Pull requests should explain behavior, list verification commands, link relevant issues, and include screenshots for Flutter UI changes. Call out schema, infrastructure, environment-variable, or submodule updates.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
