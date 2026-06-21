@@ -53,23 +53,23 @@ let
     # ── Step 1: Wait for API and check if initial setup is needed ──
     print("Step 1: Checking if initial setup is needed...")
     
-    # Wait for API to be ready (it may return 503 while starting)
+    # Wait for API and blueprints to be ready (503 or 404 means not ready yet)
     resp = None
     for attempt in range(30):
         try:
             resp = http_call("GET", f"{base}/api/v3/flows/executor/initial-setup/")
             break
         except urllib.error.HTTPError as e:
-            if e.code == 503:
+            if e.code in (503, 404):
                 if attempt == 0:
                     print("  Waiting for authentik to finish starting...")
                 time.sleep(5)
                 continue
-            if e.code == 404:
-                # 404 means initial setup is already done
-                resp = {"component": "redirect"} 
-                break
             raise
+    else:
+        # All retries exhausted — assume initial setup already completed
+        print("  Initial setup flow not found after retries, assuming already completed")
+        resp = {"component": "redirect"}
 
     try:
         component = resp.get("component", "")
@@ -85,6 +85,8 @@ let
                 "locale": "",
             })
             print("  Initial setup complete - akadmin user created")
+        elif component == "ak-stage-access-denied":
+            print("  Initial setup skipped (admin user already has a usable password)")
         elif "xak-flow-redirect" in component or "redirect" in str(resp):
             print("  Initial setup already completed, skipping")
         else:
@@ -247,6 +249,9 @@ in
         export AUTHENTIK_POSTGRESQL__USER="authentik"
         export AUTHENTIK_POSTGRESQL__PASSWORD="authentik"
 
+        # Unset bootstrap env vars to prevent leaking from parent shell (.env file)
+        unset AUTHENTIK_BOOTSTRAP_PASSWORD AUTHENTIK_BOOTSTRAP_TOKEN AUTHENTIK_BOOTSTRAP_EMAIL
+
         echo "Running authentik migrations..."
         ${pkgs.authentik}/bin/ak migrate
 
@@ -276,6 +281,9 @@ in
         export AUTHENTIK_POSTGRESQL__NAME="authentik"
         export AUTHENTIK_POSTGRESQL__USER="authentik"
         export AUTHENTIK_POSTGRESQL__PASSWORD="authentik"
+        # Unset bootstrap env vars to prevent leaking from parent shell (.env file)
+        unset AUTHENTIK_BOOTSTRAP_PASSWORD AUTHENTIK_BOOTSTRAP_TOKEN AUTHENTIK_BOOTSTRAP_EMAIL
+
         export AUTHENTIK_LISTEN__HTTP="0.0.0.0:$AK_PORT"
 
         echo "Authentik server starting on :$AK_PORT"
