@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mime/mime.dart';
 
 import '../reliquary_service.dart';
+import '../services/file_picker_service.dart' as picker;
 import '../upload_file.dart';
 
 class UploadScreen extends StatefulWidget {
@@ -21,21 +22,40 @@ class _UploadScreenState extends State<UploadScreen> {
 
   String _key(PlatformFile f) => '${f.name}::${f.hashCode}';
 
+  bool _pickingFiles = false;
+
   Future<void> _pickFiles() async {
+    if (_pickingFiles) return;
+    setState(() => _pickingFiles = true);
+
     try {
-      final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-      if (result != null && result.files.isNotEmpty) {
-        setState(() {
-          _selectedFiles = result.files;
-          _progress.clear();
-        });
+      for (int attempt = 0; attempt < 2; attempt++) {
+        if (!mounted) return;
+        final result = await picker.pickFiles(allowMultiple: true);
+        if (result != null && result.isNotEmpty) {
+          setState(() {
+            _selectedFiles = result;
+            _progress.clear();
+            _pickingFiles = false;
+          });
+          return;
+        }
+        if (!mounted) return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No files selected. Tap "Select files" to try again.'),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick files: $e')),
       );
     }
+
+    if (!mounted) return;
+    setState(() => _pickingFiles = false);
   }
 
   Future<void> _uploadAll() async {
@@ -114,7 +134,7 @@ class _UploadScreenState extends State<UploadScreen> {
             SizedBox(
               height: 100,
               child: OutlinedButton(
-                onPressed: _uploading ? null : _pickFiles,
+                onPressed: _uploading || _pickingFiles ? null : _pickFiles,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -140,7 +160,7 @@ class _UploadScreenState extends State<UploadScreen> {
               SizedBox(
                 height: 48,
                 child: FilledButton(
-                  onPressed: _uploading ? null : _uploadAll,
+                  onPressed: _uploading || _pickingFiles ? null : _uploadAll,
                   child: Text(
                     _uploading
                         ? 'Uploading...'
