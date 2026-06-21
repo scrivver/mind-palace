@@ -19,13 +19,22 @@ class _UploadScreenState extends State<UploadScreen> {
   final Map<String, _UploadProgress> _progress = {};
   bool _uploading = false;
 
+  String _key(PlatformFile f) => '${f.name}::${f.hashCode}';
+
   Future<void> _pickFiles() async {
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if (result != null && result.files.isNotEmpty) {
-      setState(() {
-        _selectedFiles = result.files;
-        _progress.clear();
-      });
+    try {
+      final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+      if (result != null && result.files.isNotEmpty) {
+        setState(() {
+          _selectedFiles = result.files;
+          _progress.clear();
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick files: $e')),
+      );
     }
   }
 
@@ -35,9 +44,11 @@ class _UploadScreenState extends State<UploadScreen> {
     setState(() => _uploading = true);
 
     for (final file in _selectedFiles) {
-      final name = file.name;
+      final k = _key(file);
+
+      if (!mounted) return;
       setState(() {
-        _progress[name] = _UploadProgress(status: 'Uploading...', fraction: 0);
+        _progress[k] = _UploadProgress(status: 'Initializing...', fraction: 0);
       });
 
       try {
@@ -46,14 +57,20 @@ class _UploadScreenState extends State<UploadScreen> {
 
         final bytes = await readPlatformFileBytes(file);
 
+        if (!mounted) return;
+        setState(() {
+          _progress[k] = _UploadProgress(status: 'Uploading...', fraction: 0);
+        });
+
         final result = await widget.reliquary.uploadFile(
           file.name,
           bytes,
           contentType,
           onProgress: (sent, total) {
+            if (!mounted) return;
             if (total > 0) {
               setState(() {
-                _progress[name] = _UploadProgress(
+                _progress[k] = _UploadProgress(
                   status: 'Uploading...',
                   fraction: sent / total,
                 );
@@ -62,20 +79,23 @@ class _UploadScreenState extends State<UploadScreen> {
           },
         );
 
+        if (!mounted) return;
         setState(() {
-          _progress[name] = _UploadProgress(
+          _progress[k] = _UploadProgress(
             status: result.duplicate ? 'Duplicate skipped' : 'Done',
             fraction: 1.0,
             done: true,
           );
         });
       } catch (e) {
+        if (!mounted) return;
         setState(() {
-          _progress[name] = _UploadProgress(status: 'Failed: $e', error: true);
+          _progress[k] = _UploadProgress(status: 'Failed: $e', error: true);
         });
       }
     }
 
+    if (!mounted) return;
     setState(() => _uploading = false);
   }
 
@@ -136,7 +156,7 @@ class _UploadScreenState extends State<UploadScreen> {
                 separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final file = _selectedFiles[index];
-                  final progress = _progress[file.name];
+                  final progress = _progress[_key(file)];
                   return ListTile(
                     leading: Icon(
                       progress?.done == true
