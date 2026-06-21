@@ -18,6 +18,17 @@ root_targets=(
   mind-palace-ingress-container
 )
 
+required_images=(
+  mind-palace-app:latest
+  mind-palace-ingress:latest
+  mind-palace-reliquary-api:latest
+  mind-palace-reliquary-thumbnail-worker:latest
+  mind-palace-engram-api:latest
+  mind-palace-engram-ingestion:latest
+  mind-palace-synapse-worker:latest
+  mind-palace-synapse-reconciler:latest
+)
+
 build_and_load() {
   local owner="$1"
   local flake_ref="$2"
@@ -89,6 +100,11 @@ else
   echo "ERROR: Missing Synapse submodule at $PROJECT_ROOT/synapse" >&2
   exit 1
 fi
+
+echo "Verifying loaded platform image names..."
+for image in "${required_images[@]}"; do
+  "$CTR" image inspect "$image" >/dev/null
+done
 
 echo
 echo "=== Ready to deploy ==="

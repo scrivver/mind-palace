@@ -17,21 +17,23 @@ class EngramService {
     this.onUnauthorized,
   }) {
     dio = Dio(BaseOptions(baseUrl: baseUrl));
-    dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final token = await auth.getAccessToken();
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        handler.next(options);
-      },
-      onError: (error, handler) async {
-        if (error.response?.statusCode == 401) {
-          onUnauthorized?.call();
-        }
-        handler.next(error);
-      },
-    ));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await auth.getAccessToken();
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          handler.next(options);
+        },
+        onError: (error, handler) async {
+          if (error.response?.statusCode == 401) {
+            onUnauthorized?.call();
+          }
+          handler.next(error);
+        },
+      ),
+    );
   }
 
   Future<List<EngramFile>> listFiles({
@@ -44,10 +46,7 @@ class EngramService {
     DateTime? to,
     String? sort,
   }) async {
-    final params = <String, dynamic>{
-      'offset': offset,
-      'limit': limit,
-    };
+    final params = <String, dynamic>{'offset': offset, 'limit': limit};
     if (query != null && query.isNotEmpty) {
       params['q'] = query;
     }

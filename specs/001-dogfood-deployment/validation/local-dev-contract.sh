@@ -30,6 +30,10 @@ for process in "${required_processes[@]}"; do
 done
 
 rg -q 'dev-process-compose.yaml' "$root/flake.nix" "$root/shells/infra.nix" "$root/bin/dev"
+rg -q -- '--dart-define=AUTHENTIK_URL=' "$root/bin/start-app"
+rg -q -- '--dart-define=RELIQUARY_URL=' "$root/bin/start-app"
+rg -q -- '--dart-define=ENGRAM_URL=' "$root/bin/start-app"
+rg -q 'bin/start-app' "$root/flake.nix"
 rg -q 'start-infra' "$root/bin/dev" && {
   echo "bin/dev must not require start-infra" >&2
   exit 1

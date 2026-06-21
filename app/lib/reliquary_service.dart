@@ -24,32 +24,36 @@ class ReliquaryService {
     required this.baseUrl,
     this.onUnauthorized,
   }) {
-    _origin = Uri.parse(baseUrl).origin;
+    final parsedBaseUrl = Uri.parse(baseUrl);
+    _origin = parsedBaseUrl.hasScheme ? parsedBaseUrl.origin : '';
     dio = Dio(BaseOptions(baseUrl: baseUrl));
-    dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final token = await auth.getAccessToken();
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        handler.next(options);
-      },
-      onError: (error, handler) async {
-        if (error.response?.statusCode == 401) {
-          onUnauthorized?.call();
-        }
-        handler.next(error);
-      },
-    ));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await auth.getAccessToken();
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          handler.next(options);
+        },
+        onError: (error, handler) async {
+          if (error.response?.statusCode == 401) {
+            onUnauthorized?.call();
+          }
+          handler.next(error);
+        },
+      ),
+    );
   }
 
   Future<FileListResult> listFiles({int offset = 0, int limit = 50}) async {
-    final response = await dio.get('/api/files', queryParameters: {
-      'offset': offset,
-      'limit': limit,
-    });
+    final response = await dio.get(
+      '/api/files',
+      queryParameters: {'offset': offset, 'limit': limit},
+    );
     final data = response.data;
-    final files = (data['files'] as List?)
+    final files =
+        (data['files'] as List?)
             ?.map((f) => FileItem.fromJson(f as Map<String, dynamic>))
             .toList() ??
         [];
@@ -69,9 +73,11 @@ class ReliquaryService {
     void Function(int, int)? onProgress,
   }) async {
     final map = <String, dynamic>{
-      'file': MultipartFile.fromBytes(bytes,
-          filename: filename,
-          contentType: DioMediaType.parse(contentType)),
+      'file': MultipartFile.fromBytes(
+        bytes,
+        filename: filename,
+        contentType: DioMediaType.parse(contentType),
+      ),
     };
     if (relativePath != null) {
       map['path'] = relativePath;
@@ -96,19 +102,25 @@ class ReliquaryService {
       return cached.url;
     }
 
-    final response =
-        await dio.get('/api/files/presign', queryParameters: {'key': key});
+    final response = await dio.get(
+      '/api/files/presign',
+      queryParameters: {'key': key},
+    );
     final relativePath = response.data['url'] as String;
     final url = _origin + relativePath;
 
-    _urlCache[key] =
-        _CachedUrl(url: url, expiresAt: DateTime.now().add(_cacheTtl));
+    _urlCache[key] = _CachedUrl(
+      url: url,
+      expiresAt: DateTime.now().add(_cacheTtl),
+    );
     return url;
   }
 
   Future<String> presignDownloadForSave(String key) async {
-    final response = await dio.get('/api/files/presign',
-        queryParameters: {'key': key, 'download': 'true'});
+    final response = await dio.get(
+      '/api/files/presign',
+      queryParameters: {'key': key, 'download': 'true'},
+    );
     final relativePath = response.data['url'] as String;
     return _origin + relativePath;
   }

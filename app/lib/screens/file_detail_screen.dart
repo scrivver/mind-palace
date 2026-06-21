@@ -58,9 +58,9 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to download file')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to download file')));
     }
   }
 
@@ -69,14 +69,14 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       final url = await widget.reliquary.presignDownload(_file.filePath);
       await Clipboard.setData(ClipboardData(text: url));
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Link copied to clipboard')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to get link')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to get link')));
     }
   }
 
@@ -93,8 +93,10 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete',
-                style: TextStyle(color: Colors.redAccent)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.redAccent),
+            ),
           ),
         ],
       ),
@@ -107,9 +109,9 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       Navigator.of(context).pop(true);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to delete file')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to delete file')));
     }
   }
 
@@ -230,8 +232,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children:
-                    _file.tags.map((t) => Chip(label: Text(t))).toList(),
+                children: _file.tags.map((t) => Chip(label: Text(t))).toList(),
               ),
             ],
           ],
@@ -290,10 +291,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
             ),
           ),
           Expanded(
-            child: SelectableText(
-              value,
-              style: theme.textTheme.bodyMedium,
-            ),
+            child: SelectableText(value, style: theme.textTheme.bodyMedium),
           ),
         ],
       ),

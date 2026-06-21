@@ -280,9 +280,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          await Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => UploadScreen(reliquary: widget.reliquary),
-          ));
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => UploadScreen(reliquary: widget.reliquary),
+            ),
+          );
           _refreshAll();
         },
         child: const Icon(Icons.add),
@@ -310,9 +312,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     _onSearchChanged('');
                   },
                 ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
@@ -364,17 +364,23 @@ class _GalleryScreenState extends State<GalleryScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_upload,
-                size: 64,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.cloud_upload,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 16),
-            Text('No files yet',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'No files yet',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
-            Text('Tap + to upload',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    )),
+            Text(
+              'Tap + to upload',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       );
@@ -473,9 +479,7 @@ class _FileTileState extends State<_FileTile> {
         child: Container(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            border: Border.all(
-              color: Theme.of(context).dividerColor,
-            ),
+            border: Border.all(color: Theme.of(context).dividerColor),
             borderRadius: BorderRadius.circular(8),
           ),
           child: _thumbUrl != null
@@ -612,8 +616,8 @@ class _FilterSheetState extends State<_FilterSheet> {
                   avatar: Icon(t.icon, size: 18),
                   label: Text(t.label),
                   selected: selected,
-                  onSelected: (_) => setState(
-                      () => _fileType = selected ? null : t.key),
+                  onSelected: (_) =>
+                      setState(() => _fileType = selected ? null : t.key),
                 );
               }).toList(),
             ),
@@ -651,10 +655,9 @@ class _FilterSheetState extends State<_FilterSheet> {
                 isDense: true,
               ),
               items: widget.sortOptions
-                  .map((o) => DropdownMenuItem(
-                        value: o.key,
-                        child: Text(o.label),
-                      ))
+                  .map(
+                    (o) => DropdownMenuItem(value: o.key, child: Text(o.label)),
+                  )
                   .toList(),
               onChanged: (v) {
                 if (v != null) setState(() => _sort = v);

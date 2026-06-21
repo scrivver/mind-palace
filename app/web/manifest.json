@@ -1,0 +1,12 @@
+{
+  "name": "Mind Palace",
+  "short_name": "Mind Palace",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3f51b5",
+  "description": "Mind Palace dogfood web app",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'auth_service.dart';
@@ -16,13 +17,23 @@ const String clientId = 'mind-palace';
 
 const String reliquaryBaseUrl = String.fromEnvironment(
   'RELIQUARY_URL',
-  defaultValue: 'http://127.0.0.1:2080/api/reliquary',
+  defaultValue: '',
 );
 
 const String engramBaseUrl = String.fromEnvironment(
   'ENGRAM_URL',
-  defaultValue: 'http://127.0.0.1:2080/api/engram',
+  defaultValue: '',
 );
+
+String get effectiveReliquaryBaseUrl {
+  if (reliquaryBaseUrl.isNotEmpty) return reliquaryBaseUrl;
+  return kIsWeb ? '/api/reliquary' : 'http://127.0.0.1:2080/api/reliquary';
+}
+
+String get effectiveEngramBaseUrl {
+  if (engramBaseUrl.isNotEmpty) return engramBaseUrl;
+  return kIsWeb ? '/api/engram' : 'http://127.0.0.1:2080/api/engram';
+}
 
 void main() {
   runApp(const MindPalaceApp());
@@ -66,6 +77,7 @@ class _HomePageState extends State<HomePage> {
   final AuthService _auth = AuthService(
     issuer: authentikIssuer,
     clientId: clientId,
+    engramBaseUrl: effectiveEngramBaseUrl,
   );
 
   bool _loading = true;
@@ -81,12 +93,12 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _reliquary = ReliquaryService(
       auth: _auth,
-      baseUrl: reliquaryBaseUrl,
+      baseUrl: effectiveReliquaryBaseUrl,
       onUnauthorized: _logout,
     );
     _engram = EngramService(
       auth: _auth,
-      baseUrl: engramBaseUrl,
+      baseUrl: effectiveEngramBaseUrl,
       onUnauthorized: _logout,
     );
     _checkLoginStatus();
@@ -99,6 +111,7 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
+      await _auth.completeRedirectIfPresent();
       final loggedIn = await _auth.isLoggedIn();
       if (loggedIn) {
         final userInfo = await _auth.getUserInfo();
@@ -154,9 +167,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_loggedIn) {
@@ -189,8 +200,8 @@ class _HomePageState extends State<HomePage> {
               Text(
                 'Cold data storage, labeling & retrieval',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 48),
               FilledButton.icon(

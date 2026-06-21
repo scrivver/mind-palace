@@ -94,6 +94,65 @@
 
 ## Polish and Final Verification
 
+- 2026-06-21 web/OIDC continuation:
+  - Engram now exposes public auth helper endpoints at `/api/auth/config`,
+    `/api/auth/oidc/discovery`, and `/api/auth/oidc/token`, with
+    `OIDC_CLIENT_ID` and `OIDC_REDIRECT_URI` included in backend config.
+  - The Mind Palace app now has conditional auth and upload implementations:
+    native keeps the desktop loopback/AppAuth path, while web uses Engram auth
+    helpers, browser PKCE redirect, `/callback`, and same-origin API roots.
+  - `flutter analyze` passed with `XDG_CACHE_HOME=/tmp/mind-palace-cache`.
+  - `flutter test` passed with `XDG_CACHE_HOME=/tmp/mind-palace-cache`; the
+    test run required unsandboxed execution because Flutter's tester binds a
+    localhost socket.
+  - `flutter build web` passed and produced `app/build/web`.
+  - `GOCACHE=/tmp/mind-palace-go-cache XDG_CACHE_HOME=/tmp/mind-palace-cache
+    go test ./...` passed in `engram/backend`.
+  - `docker compose config --quiet` passed.
+  - Root validation scripts passed:
+    `dogfood-docs-contract.sh`, `env-example-contract.sh`,
+    `local-dev-contract.sh`, and `packaged-compose-contract.sh`.
+  - `local-dev-contract.sh` now asserts that `bin/start-app` injects
+    `AUTHENTIK_URL`, `RELIQUARY_URL`, and `ENGRAM_URL` into the desktop app.
+  - `XDG_CACHE_HOME=/tmp/mind-palace-cache nix develop .#infra -c ...`
+    generated and parsed `.data/dev-process-compose.yaml`; the config contains
+    17 processes including Reliquary, Engram, Synapse, and app entries.
+  - `git diff --check` passed.
+  - `git status --short`, `git -C engram status --short`, and
+    `git -C synapse status --short` showed source changes only; no `.data/`,
+    image archives, local databases, secrets, or `result*` symlinks were
+    present in the final diff.
+  - `specs/001-dogfood-deployment/validation/packaged-compose-contract.sh`
+    passed.
+  - `XDG_CACHE_HOME=/tmp/mind-palace-cache nix eval --json
+    .#packages.x86_64-linux --apply 'builtins.attrNames'` passed with
+    `["default","mind-palace-app-container","mind-palace-app-web",
+    "mind-palace-ingress-container"]`.
+  - `XDG_CACHE_HOME=/tmp/mind-palace-cache nix build
+    .#mind-palace-app-container --no-link --print-out-paths` passed and
+    produced `/nix/store/zknqna3mspv74ph9shjvipxl2d5rzmaa-mind-palace-app.tar.gz`.
+  - `XDG_CACHE_HOME=/tmp/mind-palace-cache ./bin/deploy` passed. Docker loaded
+    `mind-palace-app:latest`, root ingress, Reliquary, Engram, and Synapse
+    images, then verified all required `mind-palace-*` image names.
+  - After fixing the app Caddy proxy rewrite, the app image was rebuilt and
+    reloaded directly from
+    `/nix/store/56n491kh6d98wxsgn4a2xa3s8r3ni914-mind-palace-app.tar.gz`; the
+    `app` Compose service was recreated and reported healthy.
+  - `docker compose up -d --wait` passed with all packaged services healthy.
+  - `curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/` returned the
+    Flutter web shell.
+  - `curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/callback` returned
+    the Flutter web shell for browser OIDC redirect fallback.
+  - `curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/health`
+    returned `{"status":"ok"}`.
+  - `curl --fail
+    http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/auth/config`
+    returned `{"oidc":{"enabled":false},"none":{"enabled":true}}` for the
+    default packaged no-auth Engram mode.
+  - `curl --fail
+    http://localhost:${MIND_PALACE_PORT:-2080}/api/reliquary/health` returned
+    `{"auth_mode":"full","status":"ok"}`.
+
 - T074: `gofmt -w engram/backend/internal/config/config.go` completed.
   `TERM=xterm nix develop path:/home/chunhou/Dev/mind-palace/engram#backend -c
   go test ./...` passed. The final Engram API image rebuild passed after the

@@ -171,14 +171,11 @@
         };
         devShellNix = import ./shells/dev.nix { inherit pkgs infraShell; };
 
-        simpleContainer = import ./nix/simple-container.nix { inherit pkgs; };
       in
       {
         packages = {
-          mind-palace-app-container = simpleContainer {
-            name = "mind-palace-app";
-            command = "echo 'mind-palace-app container target is a dogfood packaging placeholder'; sleep infinity";
-          };
+          mind-palace-app-web = import ./nix/app-web.nix { inherit pkgs; };
+          mind-palace-app-container = import ./nix/app-web-container.nix { inherit pkgs; };
           mind-palace-ingress-container = import ./nix/ingress-container.nix { inherit pkgs; };
           default = self.packages.${system}.mind-palace-ingress-container;
         };

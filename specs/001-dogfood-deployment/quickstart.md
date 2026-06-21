@@ -89,9 +89,10 @@ It is not an implementation script.
    ```
 
    Expected result: the output includes a real `mind-palace-app-container`
-   target for the Flutter web UI, the root ingress target if retained, and any
-   intentionally thin aliases. Engram and Synapse implementation packaging must
-   not appear as root-owned placeholder container targets.
+   target for the Flutter web UI, a `mind-palace-app-web` target for the static
+   web bundle, the root ingress target if retained, and any intentionally thin
+   aliases. Engram and Synapse implementation packaging must not appear as
+   root-owned placeholder container targets.
 
 3. Build the primary app web image directly during implementation validation:
 
@@ -188,17 +189,21 @@ It is not an implementation script.
    Expected result: the config endpoint returns no secrets and identifies
    whether OIDC is enabled. Discovery returns the configured provider document
    when OIDC is enabled, or a clear documented failure when disabled.
+   A browser sign-in redirect must return to `/callback`, which serves the same
+   Flutter shell as `/`.
 
 12. Run the same smoke workflow used for local dogfood:
 
    - Open the packaged public entry point.
-   - Authenticate or use the documented packaged access mode.
-   - Add a small artifact.
+   - Authenticate through the browser OIDC flow or use the documented packaged
+     access mode.
+   - Add a small artifact through the web upload flow.
    - Confirm metadata discovery.
    - Confirm movement/reconciliation behavior when enabled.
    - If behavior differs from local development, classify the failure as child
-     packaging, root image tagging/loading, Compose wiring, runtime startup, or
-     smoke-test workflow before filing the report.
+     packaging, root image tagging/loading, Compose wiring, web compile, Caddy
+     proxy, OIDC helper, browser callback, runtime startup, or smoke-test
+     workflow before filing the report.
 
 13. Inspect logs on failure:
 
@@ -234,4 +239,5 @@ Include the following in dogfood reports:
 - Configuration source, without secret values.
 - Exact smoke-test step that failed.
 - Failure category: child packaging, root image tagging/loading, Compose
-  wiring, runtime startup, or smoke test.
+  wiring, web compile, Caddy proxy, OIDC helper, browser callback, runtime
+  startup, or smoke test.

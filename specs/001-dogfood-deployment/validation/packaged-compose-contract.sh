@@ -29,6 +29,7 @@ for service in "${required_services[@]}"; do
 done
 
 rg -q 'mind-palace-ingress:latest' "$compose"
+rg -q 'mind-palace-app:latest' "$compose"
 rg -q 'mind-palace-engram-api:latest' "$compose"
 rg -q 'mind-palace-engram-ingestion:latest' "$compose"
 rg -q 'mind-palace-synapse-worker:latest' "$compose"
@@ -37,11 +38,14 @@ rg -q 'engram-api-healthcheck' "$compose"
 rg -q 'engram-ingestion-healthcheck' "$compose"
 rg -q 'synapse-worker-healthcheck' "$compose"
 rg -q 'synapse-reconciler-healthcheck' "$compose"
+rg -q 'mind-palace-app-healthcheck' "$compose"
 rg -q 'mc mb --ignore-existing' "$compose"
 rg -q '/api/queues/%2F/' "$compose"
 rg -q 'condition: service_completed_successfully' "$compose"
 rg -q 'ENGRAM_API_URL: http://engram-api:8081$' "$compose"
 rg -q '\$\{MIND_PALACE_PORT:-2080\}:2080' "$compose"
+rg -q 'OIDC_REDIRECT_URI' "$compose"
+rg -q 'OIDC_CLIENT_ID' "$compose"
 rg -q '^volumes:' "$compose"
 
 rg -q 'path:\$BUILD_ROOT/engram' "$root/bin/deploy"
@@ -54,6 +58,8 @@ rg -q 'mind-palace-engram-api:latest' "$root/bin/deploy"
 rg -q 'mind-palace-engram-ingestion:latest' "$root/bin/deploy"
 rg -q 'mind-palace-synapse-worker:latest' "$root/bin/deploy"
 rg -q 'mind-palace-synapse-reconciler:latest' "$root/bin/deploy"
+rg -q 'mind-palace-app-container' "$root/bin/deploy"
+rg -q 'mind-palace-app:latest' "$root/bin/deploy"
 
 if rg -q 'mind-palace-engram-.*placeholder|mind-palace-synapse-.*placeholder' "$root/flake.nix"; then
   echo "root flake still contains Engram/Synapse placeholder containers" >&2

@@ -1,11 +1,9 @@
-import 'dart:io' show File;
-
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mime/mime.dart';
 
 import '../reliquary_service.dart';
+import '../upload_file.dart';
 
 class UploadScreen extends StatefulWidget {
   final ReliquaryService reliquary;
@@ -46,14 +44,7 @@ class _UploadScreenState extends State<UploadScreen> {
         final contentType =
             lookupMimeType(file.name) ?? 'application/octet-stream';
 
-        List<int> bytes;
-        if (file.bytes != null) {
-          bytes = file.bytes!;
-        } else if (!kIsWeb && file.path != null) {
-          bytes = await File(file.path!).readAsBytes();
-        } else {
-          throw Exception('No file data available');
-        }
+        final bytes = await readPlatformFileBytes(file);
 
         final result = await widget.reliquary.uploadFile(
           file.name,
@@ -80,8 +71,7 @@ class _UploadScreenState extends State<UploadScreen> {
         });
       } catch (e) {
         setState(() {
-          _progress[name] =
-              _UploadProgress(status: 'Failed: $e', error: true);
+          _progress[name] = _UploadProgress(status: 'Failed: $e', error: true);
         });
       }
     }
@@ -108,9 +98,11 @@ class _UploadScreenState extends State<UploadScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.upload_file,
-                        size: 28,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    Icon(
+                      Icons.upload_file,
+                      size: 28,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     const SizedBox(height: 6),
                     const Text('Select files'),
                   ],
@@ -130,9 +122,9 @@ class _UploadScreenState extends State<UploadScreen> {
                 child: FilledButton(
                   onPressed: _uploading ? null : _uploadAll,
                   child: Text(
-                      _uploading
-                          ? 'Uploading...'
-                          : 'Upload (${_selectedFiles.length})',
+                    _uploading
+                        ? 'Uploading...'
+                        : 'Upload (${_selectedFiles.length})',
                   ),
                 ),
               ),
@@ -150,23 +142,27 @@ class _UploadScreenState extends State<UploadScreen> {
                       progress?.done == true
                           ? Icons.check_circle
                           : progress?.error == true
-                              ? Icons.error
-                              : Icons.insert_drive_file,
+                          ? Icons.error
+                          : Icons.insert_drive_file,
                       color: progress?.done == true
                           ? Colors.green
                           : progress?.error == true
-                              ? Colors.redAccent
-                              : null,
+                          ? Colors.redAccent
+                          : null,
                       size: 20,
                     ),
-                    title:
-                        Text(file.name, style: const TextStyle(fontSize: 13)),
+                    title: Text(
+                      file.name,
+                      style: const TextStyle(fontSize: 13),
+                    ),
                     subtitle: progress != null
                         ? Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(progress.status,
-                                  style: Theme.of(context).textTheme.bodySmall),
+                              Text(
+                                progress.status,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
                               if (progress.fraction != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
@@ -176,8 +172,10 @@ class _UploadScreenState extends State<UploadScreen> {
                                 ),
                             ],
                           )
-                        : Text(_formatSize(file.size),
-                            style: Theme.of(context).textTheme.bodySmall),
+                        : Text(
+                            _formatSize(file.size),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                   );
                 },
               ),
