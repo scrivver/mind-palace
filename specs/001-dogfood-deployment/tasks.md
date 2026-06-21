@@ -4,182 +4,212 @@
 
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`
 
-**Tests**: Include focused package evaluation, image build/load, compose config,
-component checks, and quickstart validation tasks for changed behavior. If a
-check cannot be run locally, record the reason in
-`specs/001-dogfood-deployment/implementation-notes.md`.
+**Tests**: Include focused test, analysis, contract, integration, or screenshot
+tasks for changed behavior. If a relevant check cannot be run locally, record
+the reason in `specs/001-dogfood-deployment/implementation-notes.md`.
 
-**Organization**: Tasks are grouped by user story. This continuation focuses on
-the packaged deployment path and the corrected ownership boundary: Engram and
-Synapse own their package/image outputs; Mind Palace consumes those child-repo
-outputs for the platform Compose deployment.
+**Organization**: Tasks are grouped by user story. This task plan focuses on
+the current continuation: Engram OIDC helper endpoints, a real Mind Palace
+Flutter web target, and a Compose-visible web UI while preserving the existing
+local desktop dogfood path.
 
 ## Format: `[ID] [P?] [Story] Description`
 
-- **[P]**: Can run in parallel (different files, no dependencies)
+- **[P]**: Can run in parallel when it touches different files and does not
+  depend on an incomplete task
 - **[Story]**: Which user story this task belongs to (`US1`, `US2`, `US3`)
-- Include exact file paths in descriptions
+- Include exact file paths in every task description
 
 ## Path Conventions
 
-- **Root infrastructure/orchestration**: `flake.nix`, `bin/`, `shells/`, `infra/`
-- **Root packaged deployment**: `docker-compose.yml`, `.env.example`, `.dockerignore`, `docs/`
-- **Engram submodule**: `engram/`, including `engram/backend/`, `engram/ingestion/`, `engram/nix/`
-- **Synapse submodule**: `synapse/`, including `synapse/cmd/`, `synapse/internal/`, `synapse/nix/`
-- **Specs and validation**: `specs/001-dogfood-deployment/`
+- **Root Flutter app**: `app/lib/`, `app/test/`, `app/web/`, `app/pubspec.yaml`
+- **Root orchestration**: `flake.nix`, `nix/`, `bin/`, `docker-compose.yml`, `.env.example`
+- **Engram submodule**: `engram/backend/`, `engram/nix/`, `engram/README.md`
+- **Reliquary precedent**: `reliquary/frontend/`, `reliquary/backend/`, `reliquary/nix/`
+- **Docs/spec artifacts**: `docs/`, `specs/001-dogfood-deployment/`
 
 ## Phase 1: Setup (Shared Context)
 
-**Purpose**: Establish the current component contracts and deployment surface before editing code.
+**Purpose**: Confirm component guidance and the existing implementation surface
+before editing the app or Engram.
 
-- [X] T001 Review Engram packaging-relevant guidance in `engram/README.md` and `engram/CLAUDE.md`
-- [X] T002 Review Synapse packaging-relevant guidance in `synapse/README.md` and `synapse/CLAUDE.md`
-- [X] T003 [P] Inspect Reliquary split-image precedent in `reliquary/nix/backend.nix`, `reliquary/nix/api-container.nix`, and `reliquary/nix/thumbnail-worker-container.nix`
-- [X] T004 [P] Inspect Reliquary deploy precedent in `reliquary/bin/deploy` and record applicable image load/tag behavior in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T005 [P] Audit current root placeholder image outputs in `flake.nix` and list targets to remove or replace in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T006 [P] Audit current root packaged Compose image references in `docker-compose.yml` and list required child image mappings in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T001 Review root app development guidance in `app/README.md`
+- [ ] T002 Review Engram component guidance in `engram/README.md`
+- [ ] T003 Review Engram agent guidance in `engram/CLAUDE.md`
+- [ ] T004 [P] Inspect Reliquary Flutter web packaging precedent in `reliquary/nix/frontend-web.nix`
+- [ ] T005 [P] Inspect Reliquary Caddy web image precedent in `reliquary/nix/web-container.nix`
+- [ ] T006 [P] Inspect Reliquary browser auth precedent in `reliquary/frontend/lib/services/auth_service.dart` and `reliquary/frontend/lib/models/auth_config.dart`
+- [ ] T007 [P] Inspect Reliquary OIDC helper handlers in `reliquary/backend/main.go`
+- [ ] T008 Audit current Mind Palace app web blockers in `app/lib/auth_service.dart`, `app/lib/reliquary_service.dart`, `app/lib/engram_service.dart`, and `app/lib/screens/upload_screen.dart`
+- [ ] T009 Audit current packaged app placeholder and routing in `flake.nix`, `nix/simple-container.nix`, `docker-compose.yml`, and `bin/deploy`
+- [ ] T010 Record setup findings and any implementation constraints in `specs/001-dogfood-deployment/implementation-notes.md`
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Define stable child-repo output contracts that root deployment can consume.
+**Purpose**: Establish shared contracts and platform-safe app boundaries that
+must be stable before the user-story implementation tasks finish.
 
-**CRITICAL**: No root packaged deployment wiring should be finalized until this phase is complete.
+**CRITICAL**: Complete this phase before finalizing any story-specific web or
+Compose behavior.
 
-- [X] T007 Define Engram package/image output contract names in `engram/README.md`
-- [X] T008 Define Synapse package/image output contract names in `synapse/README.md`
-- [X] T009 [P] Add Engram packaging notes for API image environment, port, and healthcheck in `engram/README.md`
-- [X] T010 [P] Add Engram packaging notes for ingestion image environment and runtime tools in `engram/README.md`
-- [X] T011 [P] Add Synapse packaging notes for worker image environment and liveness expectations in `synapse/README.md`
-- [X] T012 [P] Add Synapse packaging notes for reconciler image environment and Engram API dependency in `synapse/README.md`
-- [X] T013 Create or update Engram Nix package directory structure in `engram/nix/`
-- [X] T014 Create or update Synapse Nix package directory structure in `synapse/nix/`
-- [X] T015 Update packaging ownership notes in `specs/001-dogfood-deployment/contracts/packaged-compose-deployment.md`
-- [X] T016 Update packaged deployment validation expectations in `specs/001-dogfood-deployment/quickstart.md`
+- [ ] T011 Define Engram auth helper response shapes in `engram/backend/internal/api/auth.go`
+- [ ] T012 [P] Add Engram auth helper contract tests for `/api/auth/config` in `engram/backend/internal/api/auth_test.go`
+- [ ] T013 [P] Add Engram auth helper contract tests for `/api/auth/oidc/discovery` and `/api/auth/oidc/token` in `engram/backend/internal/api/auth_test.go`
+- [ ] T014 [P] Add Mind Palace app auth contract tests or widget-safe unit tests in `app/test/auth_service_test.dart`
+- [ ] T015 Split the Mind Palace auth service interface from platform implementations in `app/lib/auth_service.dart`
+- [ ] T016 Add native desktop auth implementation with existing loopback behavior in `app/lib/auth_service_native.dart`
+- [ ] T017 Add web auth implementation scaffold with no `dart:io` imports in `app/lib/auth_service_web.dart`
+- [ ] T018 Add conditional auth service export wiring in `app/lib/auth_service.dart`
+- [ ] T019 Add web-safe file upload abstraction scaffold in `app/lib/upload_file.dart`
+- [ ] T020 Add native upload file implementation in `app/lib/upload_file_native.dart`
+- [ ] T021 Add web upload file implementation scaffold in `app/lib/upload_file_web.dart`
+- [ ] T022 Update app dependency declarations for web auth and storage needs in `app/pubspec.yaml`
+- [ ] T023 Update generated or checked-in Flutter web lock input in `app/pubspec.lock` and `app/pubspec.lock.json`
 
-**Checkpoint**: Engram and Synapse output contracts are documented before implementation.
+**Checkpoint**: Engram route contracts and app platform abstractions exist before service and UI wiring.
 
 ---
 
 ## Phase 3: User Story 1 - Start Local Dogfood Environment (Priority: P1)
 
-**Goal**: Preserve the verified one-command local dogfood startup while packaged image work proceeds.
+**Goal**: Preserve one-command local dogfood startup and the Flutter Linux
+desktop app path while adding web support.
 
-**Independent Test**: Enter `nix develop`, run `dev`, confirm the generated process-compose stack still starts local infrastructure, backends, workers, and app without a separate `start-infra` step.
+**Independent Test**: Enter `nix develop`, run `dev`, confirm the generated
+process-compose stack starts without a separate `start-infra`, then run the
+desktop app path with generated Reliquary and Engram URLs injected.
+
+### Tests and Validation for User Story 1
+
+- [ ] T024 [P] [US1] Add or update launcher validation for desktop app URL injection in `specs/001-dogfood-deployment/validation/local-dev-contract.sh`
+- [ ] T025 [P] [US1] Run local process-compose generation validation and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T026 [P] [US1] Run `cd app && flutter analyze` after platform split and record result in `specs/001-dogfood-deployment/implementation-notes.md`
 
 ### Implementation for User Story 1
 
-- [X] T017 [US1] Confirm root dev shell still generates full-stack process-compose config in `shells/infra.nix`
-- [X] T018 [US1] Confirm root `dev` still starts the generated full-stack process-compose config in `bin/dev`
-- [X] T019 [US1] Confirm Engram local startup still waits for Authentik OIDC discovery in `flake.nix`
-- [X] T020 [US1] Confirm RabbitMQ local readiness remains a lightweight AMQP TCP probe in `infra/rabbitmq.nix`
-- [X] T021 [US1] Run local dev-shell evaluation and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T022 [US1] Run local process-compose YAML parse validation and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T027 [US1] Preserve generated Reliquary and Engram desktop URL injection in `bin/start-app`
+- [ ] T028 [US1] Preserve full-stack process-compose app process environment in `shells/infra.nix`
+- [ ] T029 [US1] Update app startup configuration parsing for desktop and web URL roots in `app/lib/main.dart`
+- [ ] T030 [US1] Update Reliquary client base URL handling to avoid double `/api` prefixes in `app/lib/reliquary_service.dart`
+- [ ] T031 [US1] Update Engram client base URL handling to avoid double `/api` prefixes in `app/lib/engram_service.dart`
+- [ ] T032 [US1] Update upload screen imports to use the platform upload abstraction in `app/lib/screens/upload_screen.dart`
+- [ ] T033 [US1] Document local desktop preservation and generated URL injection in `docs/dogfood-deployment.md`
 
-**Checkpoint**: Local dogfood startup behavior remains intact.
+**Checkpoint**: Local dogfood remains usable through `dev` and the desktop app still launches with generated service URLs.
 
 ---
 
 ## Phase 4: User Story 2 - Run Packaged Dogfood Deployment (Priority: P2)
 
-**Goal**: Build and run a packaged Mind Palace deployment using real component-owned Engram and Synapse images consumed by root Compose.
+**Goal**: Build and run packaged Compose with a real browser-accessible Mind
+Palace web UI and Engram OIDC helper endpoints.
 
-**Independent Test**: Build Engram and Synapse image outputs from their child repos, run root `bin/deploy` to load/tag all images, run `docker compose config --quiet`, start the packaged deployment, and probe the public entrypoint plus Engram health route.
+**Independent Test**: Build `.#mind-palace-app-container`, run `./bin/deploy`,
+run `docker compose config --quiet`, start Compose, open the public entry point,
+and probe `/`, `/api/engram/health`, and `/api/engram/auth/config` through the
+same public origin.
 
-### Engram Package and Image Outputs
+### Engram Auth Helper Endpoints
 
-- [X] T023 [P] [US2] Add Engram Go backend package derivation in `engram/nix/backend.nix`
-- [X] T024 [P] [US2] Add Engram API container image derivation in `engram/nix/api-container.nix`
-- [X] T025 [P] [US2] Add Engram API container healthcheck helper in `engram/nix/api-container.nix`
-- [X] T026 [P] [US2] Add Engram Python ingestion runtime derivation in `engram/nix/ingestion.nix`
-- [X] T027 [P] [US2] Add Engram ingestion container image derivation in `engram/nix/ingestion-container.nix`
-- [X] T028 [US2] Wire Engram package and image outputs into `engram/flake.nix`
-- [X] T029 [US2] Ensure Engram API image exposes port and default environment contract in `engram/nix/api-container.nix`
-- [X] T030 [US2] Ensure Engram ingestion image includes required extraction tools and CA certificates in `engram/nix/ingestion-container.nix`
-- [X] T031 [US2] Add Engram image build documentation to `engram/README.md`
-- [X] T032 [US2] Add Engram image output notes to `engram/CLAUDE.md`
+- [ ] T034 [P] [US2] Add OIDC redirect URI configuration support in `engram/backend/internal/config/config.go`
+- [ ] T035 [P] [US2] Add auth config response types and helpers in `engram/backend/internal/api/auth.go`
+- [ ] T036 [US2] Implement `GET /api/auth/config` in `engram/backend/internal/api/auth.go`
+- [ ] T037 [US2] Implement `GET /api/auth/oidc/discovery` in `engram/backend/internal/api/auth.go`
+- [ ] T038 [US2] Implement `POST /api/auth/oidc/token` in `engram/backend/internal/api/auth.go`
+- [ ] T039 [US2] Register public Engram auth helper routes before protected routes in `engram/backend/internal/api/router.go`
+- [ ] T040 [US2] Update Engram backend startup to pass config into API routes in `engram/backend/main.go`
+- [ ] T041 [US2] Add Engram auth helper documentation and environment variables in `engram/README.md`
+- [ ] T042 [US2] Ensure Engram API container exposes OIDC redirect configuration in `engram/nix/api-container.nix`
 
-### Synapse Package and Image Outputs
+### Mind Palace Flutter Web App
 
-- [X] T033 [P] [US2] Add Synapse Go command package derivation in `synapse/nix/synapse.nix`
-- [X] T034 [P] [US2] Add Synapse worker container image derivation in `synapse/nix/worker-container.nix`
-- [X] T035 [P] [US2] Add Synapse reconciler container image derivation in `synapse/nix/reconciler-container.nix`
-- [X] T036 [P] [US2] Add Synapse worker liveness helper in `synapse/nix/worker-container.nix`
-- [X] T037 [P] [US2] Add Synapse reconciler liveness helper in `synapse/nix/reconciler-container.nix`
-- [X] T038 [US2] Wire Synapse package and image outputs into `synapse/flake.nix`
-- [X] T039 [US2] Ensure Synapse package includes worker, reconciler, and metagen binaries in `synapse/nix/synapse.nix`
-- [X] T040 [US2] Add Synapse image build documentation to `synapse/README.md`
-- [X] T041 [US2] Add Synapse image output notes to `synapse/CLAUDE.md`
+- [ ] T043 [P] [US2] Add Flutter web host files in `app/web/index.html`
+- [ ] T044 [P] [US2] Add web auth model types for Engram auth config and token responses in `app/lib/auth_models.dart`
+- [ ] T045 [US2] Implement Engram auth config discovery for web login in `app/lib/auth_service_web.dart`
+- [ ] T046 [US2] Implement browser PKCE authorization redirect in `app/lib/auth_service_web.dart`
+- [ ] T047 [US2] Implement `/callback` token exchange through Engram helper endpoint in `app/lib/auth_service_web.dart`
+- [ ] T048 [US2] Implement web token persistence and logout behavior in `app/lib/auth_service_web.dart`
+- [ ] T049 [US2] Wire auth state initialization and callback handling into `app/lib/main.dart`
+- [ ] T050 [US2] Complete web upload file handling in `app/lib/upload_file_web.dart`
+- [ ] T051 [US2] Update app UI upload flow to support browser-selected files in `app/lib/screens/upload_screen.dart`
+- [ ] T052 [US2] Update app service clients to use same-origin packaged roots in `app/lib/reliquary_service.dart` and `app/lib/engram_service.dart`
+- [ ] T053 [US2] Run `cd app && flutter test` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T054 [US2] Run `cd app && flutter build web` or the Nix equivalent and record result in `specs/001-dogfood-deployment/implementation-notes.md`
 
-### Root Platform Consumption
+### Nix Web Package and Container
 
-- [X] T042 [US2] Remove root placeholder Engram and Synapse container implementations from `flake.nix`
-- [X] T043 [US2] Update root package outputs in `flake.nix` to keep only root-owned app and ingress artifacts or thin aliases
-- [X] T044 [US2] Update root deploy target list to build Engram child outputs from `bin/deploy`
-- [X] T045 [US2] Update root deploy target list to build Synapse child outputs from `bin/deploy`
-- [X] T046 [US2] Add root image tagging from Engram child image names to `mind-palace-engram-*` names in `bin/deploy`
-- [X] T047 [US2] Add root image tagging from Synapse child image names to `mind-palace-synapse-*` names in `bin/deploy`
-- [X] T048 [US2] Update root deploy error messages for missing or renamed child flake outputs in `bin/deploy`
-- [X] T049 [US2] Update packaged Compose dependencies for real Engram and Synapse services in `docker-compose.yml`
-- [X] T050 [US2] Add or update packaged healthchecks for Engram and Synapse services in `docker-compose.yml`
-- [X] T051 [US2] Ensure packaged Compose environment variables match child image contracts in `docker-compose.yml`
-- [X] T052 [US2] Update packaged configuration placeholders for Engram and Synapse in `.env.example`
+- [ ] T055 [P] [US2] Add root Flutter web package derivation in `nix/app-web.nix`
+- [ ] T056 [P] [US2] Add root Caddy web container derivation in `nix/app-web-container.nix`
+- [ ] T057 [US2] Wire `mind-palace-app-web` and `mind-palace-app-container` package outputs into `flake.nix`
+- [ ] T058 [US2] Add Caddy routing for `/`, `/callback`, `/health`, `/api/reliquary/*`, and `/api/engram/*` in `nix/app-web-container.nix`
+- [ ] T059 [US2] Add web app healthcheck that verifies static shell and proxied API health in `nix/app-web-container.nix`
+- [ ] T060 [US2] Ensure the root web image does not include source bind mounts, Flutter dev server startup, or baked secrets in `nix/app-web-container.nix`
 
-### Packaged Deployment Documentation and Validation
+### Compose and Deploy Wiring
 
-- [X] T053 [P] [US2] Update packaged build/load instructions for child-owned image outputs in `docs/dogfood-deployment.md`
-- [X] T054 [P] [US2] Update packaged troubleshooting guidance for child build failures in `docs/dogfood-deployment.md`
-- [X] T055 [P] [US2] Update packaged failure-report guidance for child packaging versus root orchestration failures in `docs/dogfood-deployment.md`
-- [X] T056 [P] [US2] Update packaged compose contract validation script for child image ownership in `specs/001-dogfood-deployment/validation/packaged-compose-contract.sh`
-- [X] T057 [P] [US2] Update docs validation script for child image build/load instructions in `specs/001-dogfood-deployment/validation/dogfood-docs-contract.sh`
-- [X] T058 [US2] Add validation for Engram child output names to `specs/001-dogfood-deployment/validation/packaged-compose-contract.sh`
-- [X] T059 [US2] Add validation for Synapse child output names to `specs/001-dogfood-deployment/validation/packaged-compose-contract.sh`
-- [X] T060 [US2] Run `nix eval --json path:./engram#packages.x86_64-linux --apply 'builtins.attrNames'` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T061 [US2] Run `nix eval --json path:./synapse#packages.x86_64-linux --apply 'builtins.attrNames'` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T062 [US2] Build Engram API image with `nix build path:./engram#api-container --no-link --print-out-paths` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T063 [US2] Build Engram ingestion image with `nix build path:./engram#ingestion-container --no-link --print-out-paths` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T064 [US2] Build Synapse worker image with `nix build path:./synapse#worker-container --no-link --print-out-paths` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T065 [US2] Build Synapse reconciler image with `nix build path:./synapse#reconciler-container --no-link --print-out-paths` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T066 [US2] Run root `./bin/deploy` image build/load flow and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T067 [US2] Run `docker compose config --quiet` or equivalent Podman command and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T061 [US2] Replace the packaged app placeholder with `mind-palace-app:latest` service wiring in `docker-compose.yml`
+- [ ] T062 [US2] Route the public Compose port to the web app or retained ingress service in `docker-compose.yml`
+- [ ] T063 [US2] Configure Reliquary and Engram same-origin API proxy targets in `docker-compose.yml`
+- [ ] T064 [US2] Add or update packaged auth environment for Engram and app web redirects in `docker-compose.yml`
+- [ ] T065 [US2] Add `MIND_PALACE_PORT`, public origin, and OIDC redirect placeholders in `.env.example`
+- [ ] T066 [US2] Update root `bin/deploy` to build and load `.#mind-palace-app-container`
+- [ ] T067 [US2] Update root `bin/deploy` image verification to require `mind-palace-app:latest`
+- [ ] T068 [US2] Update packaged validation script for web image and auth route contracts in `specs/001-dogfood-deployment/validation/packaged-compose-contract.sh`
+- [ ] T069 [US2] Update packaged documentation for browser UI startup and auth discovery in `docs/dogfood-deployment.md`
 
-**Checkpoint**: Packaged deployment uses real child-owned Engram and Synapse images and root Compose can consume them.
+### Packaged Validation
+
+- [ ] T070 [US2] Run Engram Go tests for auth helper endpoints with `cd engram/backend && go test ./...` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T071 [US2] Run `nix build .#mind-palace-app-container --no-link --print-out-paths` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T072 [US2] Run root `./bin/deploy` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T073 [US2] Run `docker compose config --quiet` or equivalent Podman command and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T074 [US2] Start packaged Compose and verify `curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/` in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T075 [US2] Verify packaged Engram health through `curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/health` in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T076 [US2] Verify packaged Engram auth config through `curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/auth/config` in `specs/001-dogfood-deployment/implementation-notes.md`
+
+**Checkpoint**: Packaged Compose serves the real Mind Palace web UI and exposes Engram metadata/auth routes through one public origin.
 
 ---
 
 ## Phase 5: User Story 3 - Compare Development and Packaged Behavior (Priority: P3)
 
-**Goal**: Keep local and packaged dogfood validation comparable so dogfooding reports can identify whether failures are environment-specific.
+**Goal**: Keep local and packaged dogfood validation comparable so participants
+can identify whether failures are local-only, packaged-only, auth-specific, or
+web-target-specific.
 
-**Independent Test**: Run the documented smoke checklist against local dev and packaged Compose, then confirm the report template captures deployment path, service status, logs, config source, state freshness, and child packaging/root orchestration failure category.
+**Independent Test**: Run the documented smoke checklist against local dev and
+packaged Compose, then confirm the report template captures deployment path,
+service status, logs, config source, state freshness, and web/OIDC failure
+category.
 
 ### Implementation for User Story 3
 
-- [X] T068 [P] [US3] Update local versus packaged behavior differences in `docs/dogfood-deployment.md`
-- [X] T069 [P] [US3] Update smoke-test checklist for packaged Engram metadata discovery in `docs/dogfood-deployment.md`
-- [X] T070 [P] [US3] Update smoke-test checklist for packaged Synapse reconciliation behavior in `docs/dogfood-deployment.md`
-- [X] T071 [US3] Update failure-report checklist to include child packaging, root tagging/loading, Compose wiring, and runtime startup categories in `docs/dogfood-deployment.md`
-- [X] T072 [US3] Update quickstart comparison steps in `specs/001-dogfood-deployment/quickstart.md`
-- [X] T073 [US3] Update implementation notes with any known local-versus-packaged differences in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T077 [P] [US3] Update local versus packaged behavior differences for desktop and web UI in `docs/dogfood-deployment.md`
+- [ ] T078 [P] [US3] Update smoke-test checklist for Engram auth config and OIDC discovery in `docs/dogfood-deployment.md`
+- [ ] T079 [P] [US3] Update smoke-test checklist for packaged web upload and metadata discovery in `docs/dogfood-deployment.md`
+- [ ] T080 [P] [US3] Update quickstart browser UI and auth helper validation steps in `specs/001-dogfood-deployment/quickstart.md`
+- [ ] T081 [US3] Update failure-report checklist with web compile, Caddy proxy, OIDC helper, and browser callback categories in `docs/dogfood-deployment.md`
+- [ ] T082 [US3] Add any known local-versus-packaged differences discovered during validation to `specs/001-dogfood-deployment/implementation-notes.md`
 
-**Checkpoint**: Dogfooding reports can distinguish child packaging failures, root orchestration failures, and runtime service failures.
+**Checkpoint**: Dogfooding reports can distinguish desktop local issues from packaged web, proxy, and Engram OIDC helper issues.
 
 ---
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-**Purpose**: Verification, formatting, submodule hygiene, and final documentation consistency.
+**Purpose**: Verification, formatting, submodule hygiene, and final
+documentation consistency.
 
-- [X] T074 [P] Run Engram Go formatting and tests for touched Go packaging or healthcheck code and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T075 [P] Run Engram Python formatting/checks for touched ingestion packaging and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T076 [P] Run Synapse Go formatting and tests for touched Go packaging or healthcheck code and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T077 Run root feature validation scripts in `specs/001-dogfood-deployment/validation/`
-- [X] T078 Run root `git diff --check` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
-- [X] T079 Confirm no generated runtime state, secrets, local database files, `.data/`, image archives, or `result*` symlinks are included in the final diff for `.gitignore`
-- [X] T080 Commit Engram submodule packaging changes inside `engram/` before updating the root submodule pointer in `.gitmodules`
-- [X] T081 Commit Synapse submodule packaging changes inside `synapse/` before updating the root submodule pointer in `.gitmodules`
-- [X] T082 Update root implementation summary and verification notes in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T083 [P] Run `gofmt` on touched Engram Go files in `engram/backend/`
+- [ ] T084 [P] Run `dart format .` in `app/`
+- [ ] T085 [P] Run root feature validation scripts in `specs/001-dogfood-deployment/validation/`
+- [ ] T086 Run root `git diff --check` and record result in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T087 Confirm no generated runtime state, secrets, local database files, `.data/`, image archives, or `result*` symlinks are included in the final diff for `.gitignore`
+- [ ] T088 Commit Engram submodule auth-helper changes inside `engram/` before updating the root submodule pointer in `.gitmodules`
+- [ ] T089 Update root implementation summary and verification notes in `specs/001-dogfood-deployment/implementation-notes.md`
+- [ ] T090 Run the packaged and local quickstart checks from `specs/001-dogfood-deployment/quickstart.md`
 
 ---
 
@@ -188,46 +218,45 @@ outputs for the platform Compose deployment.
 ### Phase Dependencies
 
 - **Setup (Phase 1)**: No dependencies; can start immediately.
-- **Foundational (Phase 2)**: Depends on Setup; blocks child image implementation.
-- **US1 Local Dogfood Preservation (Phase 3)**: Can run after Setup; verifies prior local startup work did not regress.
-- **US2 Packaged Deployment (Phase 4)**: Depends on Foundational; child package/image outputs must precede root deploy wiring.
-- **US3 Comparison and Reporting (Phase 5)**: Depends on US2 documentation and validation paths.
+- **Foundational (Phase 2)**: Depends on Setup; blocks final story implementation.
+- **US1 Local Dogfood Preservation (Phase 3)**: Depends on platform abstractions from Phase 2.
+- **US2 Packaged Web Deployment (Phase 4)**: Depends on Phase 2; Engram helper endpoints, web app implementation, Nix packaging, and Compose wiring can proceed in that order.
+- **US3 Comparison and Reporting (Phase 5)**: Depends on US1 and US2 validation behavior being known.
 - **Polish (Phase 6)**: Depends on selected user stories being complete.
 
 ### User Story Dependencies
 
-- **US1 (P1)**: Independent validation of existing local dogfood path; no dependency on US2.
-- **US2 (P2)**: Main continuation; depends on Phase 2 child output contracts.
-- **US3 (P3)**: Depends on US2 because comparison requires packaged Compose behavior.
+- **US1 (P1)**: MVP preservation path; can complete after Phase 2 without US2.
+- **US2 (P2)**: Main web/OIDC delivery; depends on Phase 2 contracts and platform abstractions.
+- **US3 (P3)**: Depends on US1 and US2 because comparison requires both deployment paths.
 
 ### Within US2
 
-- Engram and Synapse child package outputs can be implemented in parallel after Phase 2.
-- Root `bin/deploy`, `flake.nix`, and `docker-compose.yml` updates depend on child output target names.
-- Packaged validation depends on image build outputs and root image tagging.
+- Engram auth helper tests should exist before endpoint implementation.
+- App platform split must land before web auth and upload code.
+- Nix web package can start after web build inputs are stable.
+- Compose/deploy wiring depends on the `mind-palace-app-container` output name.
+- Packaged validation depends on image build/load and Compose configuration.
 
 ---
 
 ## Parallel Opportunities
 
-- T003, T004, T005, and T006 can run in parallel during setup.
-- T009, T010, T011, and T012 can run in parallel after output names are chosen.
-- T023 through T027 can run in parallel within Engram, except final `engram/flake.nix` wiring in T028.
-- T033 through T037 can run in parallel within Synapse, except final `synapse/flake.nix` wiring in T038.
-- T053 through T057 can run in parallel with root deploy script updates once image target names are known.
-- T068 through T070 can run in parallel after packaged service behavior is known.
-- T074, T075, and T076 can run in parallel during final verification.
+- T004, T005, T006, and T007 can run in parallel during setup.
+- T012, T013, and T014 can run in parallel after route contracts are defined.
+- T034, T035, T043, T044, T055, and T056 can run in parallel across Engram, app, and Nix files.
+- T077, T078, T079, and T080 can run in parallel once validation behavior is known.
+- T083, T084, and T085 can run in parallel during final verification.
 
 ---
 
 ## Parallel Example: User Story 2
 
 ```text
-Task: "T023 Add Engram Go backend package derivation in engram/nix/backend.nix"
-Task: "T026 Add Engram Python ingestion runtime derivation in engram/nix/ingestion.nix"
-Task: "T033 Add Synapse Go command package derivation in synapse/nix/synapse.nix"
-Task: "T034 Add Synapse worker container image derivation in synapse/nix/worker-container.nix"
-Task: "T035 Add Synapse reconciler container image derivation in synapse/nix/reconciler-container.nix"
+Task: "T034 Add OIDC redirect URI configuration support in engram/backend/internal/config/config.go"
+Task: "T043 Add Flutter web host files in app/web/index.html"
+Task: "T055 Add root Flutter web package derivation in nix/app-web.nix"
+Task: "T056 Add root Caddy web container derivation in nix/app-web-container.nix"
 ```
 
 ---
@@ -237,31 +266,29 @@ Task: "T035 Add Synapse reconciler container image derivation in synapse/nix/rec
 ### MVP First
 
 1. Complete Phase 1 and Phase 2.
-2. Complete US1 preservation checks to avoid regressing local dogfood startup.
-3. Complete the Engram child package/image outputs in US2.
-4. Complete the Synapse child package/image outputs in US2.
-5. Wire root `bin/deploy` and Compose to consume child image outputs.
-6. Stop and validate the packaged deployment path before moving to US3.
+2. Complete US1 to prove the desktop local dogfood path did not regress.
+3. Stop and validate `dev`, generated service URLs, and `flutter analyze`.
 
 ### Incremental Delivery
 
-1. Engram child images build and load.
-2. Synapse child images build and load.
-3. Root deploy consumes child outputs and tags platform images.
-4. Compose starts real packaged services.
-5. Documentation and smoke-test comparison classify failures accurately.
+1. Add Engram auth helper endpoint tests and implementation.
+2. Add platform-safe app auth and upload abstractions.
+3. Add the Flutter web build and verify it compiles.
+4. Add the Nix web package/container and build `.#mind-palace-app-container`.
+5. Wire Compose and deploy script to expose the real web UI.
+6. Run packaged smoke checks through the public origin.
 
 ### Submodule Strategy
 
-1. Make Engram packaging changes inside `engram/`.
-2. Make Synapse packaging changes inside `synapse/`.
-3. Commit child repo changes inside each submodule first.
-4. Update the root repo only after child output contracts are stable.
+1. Make Engram API changes inside `engram/`.
+2. Commit Engram submodule changes before updating the root pointer.
+3. Keep Mind Palace root responsible for `app/`, `nix/`, `docker-compose.yml`, `.env.example`, `bin/deploy`, and docs.
 
 ---
 
 ## Notes
 
-- All tasks use unchecked boxes because this is a new continuation task plan.
-- Child repos own implementation packaging details; root Mind Palace owns platform orchestration.
+- All tasks are unchecked because this is the executable task list for the current web/OIDC continuation.
+- Engram owns OIDC helper API semantics; the root app consumes those routes.
+- The packaged app container must serve a real Flutter web bundle, not a placeholder response or Flutter dev server.
 - If a check cannot run locally because of sandbox, network, or container-runtime limits, record the reason in `specs/001-dogfood-deployment/implementation-notes.md`.
