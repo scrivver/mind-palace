@@ -13,6 +13,8 @@ for a single-host Mind Palace deployment.
   Podman.
 - `docs/dogfood-deployment.md`: local and packaged operation guide.
 - Nix package targets for every local application image referenced by Compose.
+- A real root-owned Mind Palace web app image served by Caddy, as specified in
+  [app-web-compose.md](./app-web-compose.md).
 - Engram-owned package/image outputs that build real API and ingestion runtime
   artifacts, not placeholder containers.
 - Synapse-owned package/image outputs that build real worker and reconciler
@@ -59,6 +61,15 @@ Required build targets:
   `mind-palace-synapse-reconciler:latest`. The child target is
   `synapse#reconciler-container`, producing `synapse-reconciler:latest`.
 - `mind-palace-ingress-container`
+
+Mind Palace app image requirements:
+
+- entrypoint runs Caddy or an equivalent static web server
+- serves the Nix-built Flutter web app
+- exposes or participates in the single public Compose entry point
+- proxies Reliquary and Engram API routes for same-origin browser access
+- includes a healthcheck that verifies the web bundle is reachable
+- does not run a Flutter dev server at runtime
 
 Build targets must:
 
@@ -119,6 +130,8 @@ The default Compose deployment must:
   bootstrap when needed
 - avoid bind-mounting source code into application containers
 - run real Engram and Synapse service images, not placeholder sleep containers
+- run a real Mind Palace web UI image, not a placeholder sleep or text-response
+  container
 
 ## Environment Contract
 

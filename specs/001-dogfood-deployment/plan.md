@@ -29,16 +29,27 @@ implementation build logic. The implementation should study and follow
 Reliquary's `nix/backend.nix`, `nix/*-container.nix`, and `bin/deploy`
 split-image pattern as the model for component-owned packaging.
 
+Second continuation scope: replace the root `mind-palace-app` placeholder image
+with a real Flutter web application image so packaged Compose exposes a usable
+web UI for dogfooding. The primary app still supports the Flutter Linux desktop
+dev path, but the packaged path should serve a web build through Caddy, following
+Reliquary's `frontend-web.nix` and `web-container.nix` pattern. Engram must also
+expose Reliquary-style OIDC helper endpoints so browser clients can discover the
+identity provider and complete token exchange without baking provider URLs into
+the static web bundle.
+
 ## Technical Context
 
 **Language/Version**: Nix flakes for orchestration and containers; Bash for
 launcher scripts; Go services in Reliquary, Engram, and Synapse; Python 3.13
-Engram ingestion via `uv`; Flutter/Dart primary app and Reliquary frontend.
+Engram ingestion via `uv`; Flutter/Dart primary app with Linux desktop and web
+targets; Reliquary Flutter frontend as the established web packaging precedent.
 
 **Primary Dependencies**: `process-compose`, PostgreSQL, RabbitMQ, MinIO,
 Caddy, Authentik, Docker or Podman Compose, Nix build outputs, Flutter, Go,
 Python `uv`, `pkgs.buildGoModule`, `pkgs.dockerTools.buildLayeredImage`,
-`pkgs.python3Packages` or `uv`-materialized Python application packaging.
+`pkgs.flutter.buildFlutterApplication`, `pkgs.python3Packages` or
+`uv`-materialized Python application packaging.
 
 **Storage**: Local dogfood uses `.data/` for PostgreSQL socket/data, RabbitMQ
 state, MinIO buckets, Caddy config, Authentik state, and process-compose socket.
@@ -47,10 +58,12 @@ Authentik, and service-specific persistent state.
 
 **Testing**: `process-compose` health/status checks, `curl` health probes,
 component checks (`cd app && flutter analyze`, `cd app && flutter test`,
-`cd reliquary/backend && go test ./...`, `cd engram && bin/test-ingest`,
-Synapse build/test checks), child-repo Nix package evaluation/builds for Engram
-and Synapse container targets, root image load/tag checks, Compose configuration
-validation, and an end-to-end dogfood smoke checklist.
+`flutter build web` or Nix web build for the app, `cd reliquary/backend && go
+test ./...`, `cd engram && bin/test-ingest`, focused Engram API tests for OIDC
+helper endpoints, Synapse build/test checks), child-repo Nix package
+evaluation/builds for Engram and Synapse container targets, root image load/tag
+checks, Compose configuration validation, packaged web UI health checks, and an
+end-to-end dogfood smoke checklist.
 
 **Target Platform**: Linux development workstations with Nix flakes; local
 single-host Docker or Podman Compose for packaged dogfooding.
@@ -63,9 +76,12 @@ within 10 minutes on a prepared workstation. Packaged build/start/health/shutdow
 workflow completes within 30 minutes after prerequisites are installed.
 
 **Constraints**: One-command local startup after entering `nix develop`; internal
-infrastructure services remain private in packaged Compose by default; generated
+infrastructure services remain private in packaged Compose by default; the
+packaged web UI is the only browser-facing app surface by default; generated
 runtime state and secrets stay out of version control; existing file-event and
-application data contracts remain compatible.
+application data contracts remain compatible; browser auth must avoid direct
+token exchange with Authentik when CORS or client-secret assumptions would make
+that fragile.
 
 **Scale/Scope**: Single developer or maintainer dogfooding environment. Compose
 deployment targets one host for smoke testing and feedback, not final horizontal
@@ -78,23 +94,28 @@ scaling.
 - **Nix-first reproducibility**: PASS. The plan uses the root `nix develop`
   environment, Nix-generated process-compose configs, and Nix package targets for
   root-owned images. The continuation requires real Engram and Synapse package
-  derivations in their own child repos instead of placeholder root containers.
+  derivations in their own child repos instead of placeholder root containers,
+  and replaces the root app placeholder with a Nix-built Flutter web image.
   Verification commands are recorded in [quickstart.md](./quickstart.md).
 - **Component boundaries**: PASS. Root orchestration owns `flake.nix`, `shells/`,
-  `infra/`, `bin/`, Docker Compose, and root docs. Component README/agent
-  guidance for `reliquary/`, `engram/`, and `synapse/` was reviewed. Component
-  package outputs, image definitions, entrypoints, and healthcheck helpers belong
-  in their submodules. Mind Palace consumes those outputs through stable flake
-  contracts for orchestration. Reliquary's component-owned packaging pattern is
-  used as precedent for Engram and Synapse.
+  `infra/`, `bin/`, Docker Compose, root docs, and the primary app under `app/`.
+  Component README/agent guidance for `reliquary/`, `engram/`, and `synapse/`
+  was reviewed. Engram owns its API OIDC helper endpoints because they are part
+  of the metadata API contract. Component package outputs, image definitions,
+  entrypoints, and healthcheck helpers belong in their submodules. Mind Palace
+  consumes those outputs through stable flake contracts for orchestration.
+  Reliquary's component-owned packaging and Flutter web patterns are used as
+  precedent.
 - **Contract-driven integration**: PASS. The affected contracts are startup,
   shutdown, service health, container image names, Compose configuration,
-  environment variables, persistent state, and smoke-test reporting. Existing
-  application APIs, file-event schemas, queue names, and storage identity remain
-  unchanged unless implementation discovers an explicit blocker.
+  environment variables, OIDC discovery/token helper endpoints, web routing,
+  persistent state, and smoke-test reporting. Existing file-event schemas, queue
+  names, and storage identity remain unchanged unless implementation discovers
+  an explicit blocker.
 - **Verification proportional to change**: PASS. The plan requires process
-  status checks, public health probes, packaged Compose health checks, component
-  tests where touched, and an end-to-end dogfood smoke test.
+  status checks, public health probes, packaged Compose health checks, app web
+  build validation, component tests where touched, and an end-to-end dogfood
+  smoke test through the packaged web UI.
 - **State and secret hygiene**: PASS. Local state remains under `.data/`.
   Packaged state uses documented volumes. `.env.example` contains placeholders
   only, and documentation must identify secrets to replace before shared use.
@@ -126,6 +147,8 @@ flake.nix                    # Full-stack dev process-compose and root wrappers/
 nix/
   simple-container.nix       # Root-owned temporary/app/ingress helpers only
   ingress-container.nix
+  app-web.nix                # Build primary Flutter app web artifacts
+  app-web-container.nix      # Serve primary Flutter app web UI with Caddy
 shells/
   infra.nix                  # Generate infra-only and full-stack process-compose configs
   dev.nix                    # Expose root dev shell tools and environment
@@ -153,6 +176,10 @@ synapse/                     # Submodule: owns worker/reconciler package/image o
     worker-container.nix     # Build Synapse worker image
     reconciler-container.nix # Build Synapse reconciler image
 app/                         # Primary Flutter client
+  web/                       # Flutter web host files
+  lib/
+    auth_service*.dart       # Platform-aware OIDC login/token handling
+  pubspec.lock.json          # Nix Flutter web build lock import
 ```
 
 **Structure Decision**: Implement root orchestration and documentation in the
@@ -168,6 +195,19 @@ flake outputs with `nix build path:$PROJECT_ROOT/engram#...` and
 `nix build path:$PROJECT_ROOT/synapse#...`, loads the images, and tags them to
 the `mind-palace-*` names expected by root Compose when needed. Root wrappers
 must stay thin and must not duplicate component implementation packaging.
+
+Web UI decision: Mind Palace root owns the primary app web package because the
+app source lives in `app/`. The app web container should serve static Flutter
+artifacts with Caddy and reverse proxy `/api/reliquary/*` and `/api/engram/*` to
+the correct backend services. The existing ingress image may be replaced by, or
+thinly wrap, the app web container as long as Compose exposes one public host
+port and the smoke test opens a real UI instead of a placeholder response.
+
+Auth decision: Engram should expose `GET /api/auth/config`,
+`GET /api/auth/oidc/discovery`, and `POST /api/auth/oidc/token` equivalents for
+its API. The Mind Palace app should use the Engram helper endpoints for browser
+OIDC discovery and token exchange, while preserving the Linux desktop loopback
+login path.
 
 ## Complexity Tracking
 

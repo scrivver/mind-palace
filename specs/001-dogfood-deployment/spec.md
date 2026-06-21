@@ -13,6 +13,8 @@
 ### Session 2026-06-21
 
 - Q: For first packaged delivery, must Engram and Synapse run real service images or may placeholders satisfy the deployment? → A: Packaged deployment must run real Reliquary, Engram, Synapse, app, and ingress service images for first delivery.
+- Q: How should the primary Mind Palace app be exposed for packaged dogfooding? → A: Packaged Compose should serve a real Flutter web build of the Mind Palace app while preserving the local Flutter desktop dev target.
+- Q: How should browser clients discover identity provider settings? → A: Engram should expose Reliquary-style OIDC config, discovery, and token helper endpoints for the Mind Palace app.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -154,6 +156,19 @@ details are recorded.
 - **FR-012**: The local and packaged dogfood workflows MUST call out known
   differences so participants do not mistake intentional development behavior for
   deployment defects.
+- **FR-013**: The packaged deployment MUST expose a real browser-accessible Mind
+  Palace web UI built from the primary Flutter app; a placeholder app container
+  MUST NOT satisfy packaged deployment acceptance criteria.
+- **FR-014**: The local development workflow MUST preserve the Flutter Linux
+  desktop app path and continue injecting generated service URLs into the app at
+  launch time.
+- **FR-015**: Engram MUST expose client-consumable auth configuration and OIDC
+  helper endpoints so the Mind Palace app can discover the identity provider and
+  complete browser token exchange without hardcoding provider internals into the
+  web bundle.
+- **FR-016**: The packaged web UI MUST use the documented public Compose origin
+  for Reliquary and Engram API access, avoiding Docker-internal hostnames in
+  browser code.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -168,15 +183,20 @@ details are recorded.
   environment is usable for real project feedback.
 - **Failure Report**: The minimum diagnostic information a participant provides
   when a dogfood deployment path does not start or a smoke test fails.
+- **Web App Runtime**: The packaged browser UI served from the public Compose
+  entry point and built from the primary Flutter app.
+- **Auth Discovery Contract**: The Engram API endpoints that advertise OIDC
+  client configuration, discovery metadata, and token exchange behavior to the
+  Mind Palace app.
 
 ### Contracts & Integration Impact *(include if feature crosses components)*
 
 - **Affected Components**: root development workflow, root infrastructure,
   Reliquary, Engram, Synapse, primary app, and project documentation.
-- **Contracts**: Startup, shutdown, service-health, configuration, persistent
-  state, and smoke-test reporting contracts. Existing application data and event
-  contracts must remain compatible unless a later plan explicitly scopes a
-  contract change.
+- **Contracts**: Startup, shutdown, service-health, configuration, web routing,
+  OIDC discovery/token helper, persistent state, and smoke-test reporting
+  contracts. Existing application data and event contracts must remain
+  compatible unless a later plan explicitly scopes a contract change.
 - **State & Migrations**: Local runtime state and packaged persistent volumes
   must be documented. Any migration or reset requirement must be visible before
   startup changes existing data.
@@ -204,6 +224,12 @@ details are recorded.
   steps.
 - **SC-006**: New dogfooding reports include deployment path, service status,
   configuration source, and state freshness in at least 90% of submitted cases.
+- **SC-007**: A maintainer can open the packaged public entry point in a browser
+  and see the Mind Palace web UI within 2 minutes after `docker compose up -d`
+  reports healthy services.
+- **SC-008**: The packaged web smoke test can reach Engram auth config,
+  Reliquary storage routes, and Engram metadata routes through the same public
+  origin without browser CORS errors.
 
 ## Assumptions
 

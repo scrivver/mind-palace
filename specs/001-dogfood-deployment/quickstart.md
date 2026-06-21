@@ -88,11 +88,22 @@ It is not an implementation script.
    nix eval --json .#packages.x86_64-linux --apply 'builtins.attrNames'
    ```
 
-   Expected result: the output includes root-owned app/ingress targets and any
+   Expected result: the output includes a real `mind-palace-app-container`
+   target for the Flutter web UI, the root ingress target if retained, and any
    intentionally thin aliases. Engram and Synapse implementation packaging must
    not appear as root-owned placeholder container targets.
 
-3. Build the new Engram and Synapse images directly during implementation
+3. Build the primary app web image directly during implementation validation:
+
+   ```bash
+   nix build .#mind-palace-app-container --no-link --print-out-paths
+   ```
+
+   Expected result: the command prints a loadable image archive path for a Caddy
+   image serving the Nix-built Flutter web app. The image must not be a
+   placeholder sleep container.
+
+4. Build the new Engram and Synapse images directly during implementation
    validation:
 
    ```bash
@@ -106,7 +117,7 @@ It is not an implementation script.
    child-owned targets must run real component entrypoints, not placeholder
    sleep commands.
 
-4. Build and load all local images through the platform deployment command:
+5. Build and load all local images through the platform deployment command:
 
    ```bash
    nix develop
@@ -117,10 +128,11 @@ It is not an implementation script.
    into Docker or Podman. Root `bin/deploy` builds child-repo image outputs,
    loads them, and tags them to the `mind-palace-*` names expected by Compose.
 
-5. Confirm loaded image names:
+6. Confirm loaded image names:
 
    ```bash
    docker image ls \
+     mind-palace-app \
      mind-palace-engram-api \
      mind-palace-engram-ingestion \
      mind-palace-synapse-worker \
@@ -129,9 +141,9 @@ It is not an implementation script.
 
    Use the matching Podman image command when Podman is selected.
 
-   Expected result: all four images exist with the `latest` tag.
+   Expected result: all listed images exist with the `latest` tag.
 
-6. Prepare configuration:
+7. Prepare configuration:
 
    ```bash
    cp .env.example .env
@@ -139,13 +151,13 @@ It is not an implementation script.
 
    Edit `.env` and replace documented placeholder secrets before shared use.
 
-7. Validate Compose configuration before startup:
+8. Validate Compose configuration before startup:
 
    ```bash
    docker compose config --quiet
    ```
 
-8. Start packaged deployment:
+9. Start packaged deployment:
 
    ```bash
    docker compose up -d
@@ -153,18 +165,31 @@ It is not an implementation script.
 
    Use `podman compose up -d` if Podman is the selected runtime.
 
-9. Check status and health:
+10. Check status and health:
 
    ```bash
    docker compose ps
    curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/health
+   curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/
    curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/health
    ```
 
-   Expected result: only the public entry point is exposed by default and
-   service health is visible through Compose.
+   Expected result: only the public entry point is exposed by default, the
+   browser UI route returns the Flutter web shell, and service health is visible
+   through Compose.
 
-10. Run the same smoke workflow used for local dogfood:
+11. Validate Engram auth helper endpoints:
+
+   ```bash
+   curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/auth/config
+   curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/auth/oidc/discovery
+   ```
+
+   Expected result: the config endpoint returns no secrets and identifies
+   whether OIDC is enabled. Discovery returns the configured provider document
+   when OIDC is enabled, or a clear documented failure when disabled.
+
+12. Run the same smoke workflow used for local dogfood:
 
    - Open the packaged public entry point.
    - Authenticate or use the documented packaged access mode.
@@ -175,7 +200,7 @@ It is not an implementation script.
      packaging, root image tagging/loading, Compose wiring, runtime startup, or
      smoke-test workflow before filing the report.
 
-11. Inspect logs on failure:
+13. Inspect logs on failure:
 
    ```bash
    docker compose logs --tail=200
@@ -183,13 +208,13 @@ It is not an implementation script.
 
    Sanitize secrets before copying logs into a failure report.
 
-12. Stop packaged deployment:
+14. Stop packaged deployment:
 
    ```bash
    docker compose down
    ```
 
-13. Reset packaged state only when intended:
+15. Reset packaged state only when intended:
 
    ```bash
    docker compose down -v

@@ -106,6 +106,37 @@ image tarball before packaged Compose startup.
 - Secret values must be provided by Compose environment, not baked into the
   image.
 
+## WebAppRuntime
+
+**Purpose**: Describes the packaged browser UI used to dogfood Mind Palace from
+Compose.
+
+**Fields**:
+- `image_name`: stable local image name, `mind-palace-app:latest`
+- `build_target`: root flake target that produces the web image
+- `web_artifact`: Nix-built Flutter web output copied into the image
+- `public_origin`: host URL exposed by Compose, for example
+  `http://localhost:2080`
+- `api_routes`: same-origin routes proxied to Reliquary and Engram
+- `auth_routes`: same-origin routes used for auth config, OIDC discovery, and
+  token exchange
+- `healthcheck`: command that verifies both the web shell and API proxy are
+  reachable
+
+**Validation rules**:
+- Must serve a real Flutter web bundle, not a placeholder response.
+- Must not require source bind mounts or a Flutter dev server at runtime.
+- Must expose only the documented public host port by default.
+- Must proxy API routes in a way browser clients can call without Docker
+  internal hostnames.
+- Must support a browser refresh on deep links such as `/callback` by falling
+  back to `index.html`.
+
+**State transitions**:
+- `not-built` -> `building` -> `loaded`
+- `loaded` -> `serving`
+- `serving` -> `unhealthy` when the web bundle or proxied health route fails
+
 ## RuntimeConfiguration
 
 **Purpose**: Captures configuration values required to start a deployment path.
@@ -124,6 +155,48 @@ image tarball before packaged Compose startup.
 - Packaged deployment must mark secrets that require replacement before sharing.
 - Runtime state must live under `.data/` for local dev or documented volumes for
   packaged Compose.
+
+## AuthDiscoveryContract
+
+**Purpose**: Captures the auth metadata and token-helper interface exposed by
+Engram to browser clients.
+
+**Fields**:
+- `config_endpoint`: `GET /api/auth/config`
+- `discovery_endpoint`: `GET /api/auth/oidc/discovery`
+- `token_endpoint`: `POST /api/auth/oidc/token`
+- `issuer_url`: configured OIDC issuer
+- `client_id`: public OIDC client identifier
+- `redirect_uri`: browser or desktop redirect URI
+- `username_claim`: claim used to identify the user
+- `enabled_modes`: no-auth, OIDC, or future auth modes advertised to clients
+
+**Validation rules**:
+- Must not expose client secrets.
+- Must return deterministic JSON suitable for web clients.
+- Must proxy authorization-code and refresh-token exchanges to the configured
+  IdP when OIDC is enabled.
+- Must fail clearly when OIDC is disabled or misconfigured.
+- Must be reachable through the packaged public web origin.
+
+## ClientPlatformAuthFlow
+
+**Purpose**: Describes how the Mind Palace app signs in on each supported client
+platform.
+
+**Fields**:
+- `platform`: `linux-desktop` or `web`
+- `redirect_uri`: loopback callback for desktop, same-origin `/callback` for web
+- `storage`: token/state storage mechanism
+- `discovery_source`: Engram helper endpoint or direct issuer discovery
+- `token_exchange_source`: Engram helper endpoint or native AppAuth flow
+
+**Validation rules**:
+- Web compilation units must not import `dart:io`.
+- Desktop login must preserve the existing loopback/AppAuth path.
+- Web login must survive redirect back to `/callback` and clear callback query
+  parameters after processing.
+- Both platforms must attach bearer tokens to Reliquary and Engram API requests.
 
 ## DogfoodSmokeTest
 
