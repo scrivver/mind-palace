@@ -142,7 +142,7 @@ class AuthService {
 
   Future<AuthConfig> _getAuthConfig() async {
     if (_authConfig != null) return _authConfig!;
-    final response = await http.get(Uri.parse('$_engramRoot/api/auth/config'));
+    final response = await http.get(Uri.parse('$_engramRoot/auth/config'));
     if (response.statusCode != 200) {
       throw Exception('Auth config failed: ${response.statusCode}');
     }
@@ -155,7 +155,7 @@ class AuthService {
   Future<Map<String, dynamic>> _discover() async {
     if (_oidcDiscovery != null) return _oidcDiscovery!;
     final response = await http.get(
-      Uri.parse('$_engramRoot/api/auth/oidc/discovery'),
+      Uri.parse('$_engramRoot/auth/oidc/discovery'),
     );
     if (response.statusCode != 200) {
       throw Exception('OIDC discovery failed: ${response.statusCode}');
@@ -175,7 +175,7 @@ class AuthService {
 
   Future<bool> _exchangeToken(Map<String, String> payload) async {
     final response = await http.post(
-      Uri.parse('$_engramRoot/api/auth/oidc/token'),
+      Uri.parse('$_engramRoot/auth/oidc/token'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(payload),
     );

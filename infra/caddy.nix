@@ -33,17 +33,20 @@
           }
 
           # Reliquary API
-          handle_path /api/reliquary/* {
+          handle /api/reliquary/* {
+            uri replace /api/reliquary /api
             reverse_proxy ''${RELIQUARY_BACKEND}
           }
 
           # Engram API
-          handle_path /api/engram/* {
+          handle /api/engram/* {
+            uri replace /api/engram /api
             reverse_proxy ''${ENGRAM_BACKEND}
           }
 
           # Synapse API (Future)
-          handle_path /api/synapse/* {
+          handle /api/synapse/* {
+            uri replace /api/synapse /api
             reverse_proxy ''${SYNAPSE_BACKEND}
           }
 

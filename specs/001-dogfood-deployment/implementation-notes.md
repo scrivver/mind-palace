@@ -181,3 +181,38 @@
 - T082: Implementation summary: Engram and Synapse now own real child package
   and image outputs; root deploy builds from a clean staging tree, loads child
   images, tags them to Mind Palace Compose names, and Compose validation passes.
+
+## Bug Fix: Double /api prefix in URLs causing 502
+
+Two interacting bugs were found during final OIDC login testing with the local
+dev path (`./bin/dev` + `./bin/start-app`):
+
+1. **Flutter app constructed double `/api` URLs**: `engramBaseUrl` was set to
+   `/api/engram` (or `http://localhost:$PROXY_PORT/api/engram`), but all
+   endpoint paths in `EngramService`, `ReliquaryService`, and
+   `auth_service_web.dart` started with `/api/`. This produced URLs like
+   `/api/engram/api/auth/config` instead of the correct `/api/engram/auth/config`.
+
+2. **Local dev Caddy proxy used `handle_path` instead of `handle` + `uri replace`**:
+   `infra/caddy.nix` and `nix/ingress-container.nix` used Caddy's `handle_path`
+   directive, which strips the `/api/engram/` prefix but does NOT rewrite the
+   path to add `/api` back. Even with correct single-`/api` URLs, Engram would
+   receive `/auth/config` instead of `/api/auth/config`. The packaged
+   `nix/app-web-container.nix` correctly used `handle` + `uri replace /api/engram /api`,
+   which is why packaged checks passed but local dev failed.
+
+**Fixes applied**:
+- `infra/caddy.nix`: Changed `handle_path` to `handle` + `uri replace` for
+  Engram, Reliquary, and Synapse routes (matching `app-web-container.nix`).
+- `nix/ingress-container.nix`: Same fix for packaged ingress.
+- `app/lib/auth_service_web.dart`: Removed `/api` prefix from all three auth
+  endpoint paths (`auth/config`, `auth/oidc/discovery`, `auth/oidc/token`).
+- `app/lib/engram_service.dart`: Removed `/api` prefix from endpoint paths
+  (`files`, `files/$id`, `tags`).
+- `app/lib/reliquary_service.dart`: Removed `/api` prefix from endpoint paths
+  (`files`, `upload`, `files/presign`, `stats`).
+
+After fixes, the correct URL flow for Engram auth config is:
+  Flutter: `$_engramRoot/auth/config` → `/api/engram/auth/config`
+  Caddy:   `uri replace /api/engram /api` → `/api/auth/config`
+  Engram:  handles `GET /api/auth/config`

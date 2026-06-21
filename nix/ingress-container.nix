@@ -17,11 +17,13 @@ let
         respond 204
       }
 
-      handle_path /api/reliquary/* {
+      handle /api/reliquary/* {
+        uri replace /api/reliquary /api
         reverse_proxy reliquary-api:8080
       }
 
-      handle_path /api/engram/* {
+      handle /api/engram/* {
+        uri replace /api/engram /api
         reverse_proxy engram-api:8081
       }
 

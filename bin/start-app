@@ -9,7 +9,9 @@ fi
 source load-infra-env
 
 cd app
-flutter run -d linux \
+flutter run \
+  -d web-server \
+  --web-port=3000 \
   --dart-define=AUTHENTIK_URL="${AUTHENTIK_URL:-}" \
   --dart-define=RELIQUARY_URL="${RELIQUARY_URL:-}" \
   --dart-define=ENGRAM_URL="${ENGRAM_URL:-}"
