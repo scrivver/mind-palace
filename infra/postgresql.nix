@@ -1,21 +1,22 @@
 { pkgs, databases ? [ "authentik" "engram" "synapse" ] }:
 let
+  psqlCmd = "psql -h \"$DATA_DIR/postgres\" -U postgres";
   createDbCommands = builtins.concatStringsSep "\n" (map (db: ''
-    if ! psql -h "$DATA_DIR/postgres" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '${db}'" | grep -q 1; then
+    if ! ${psqlCmd} -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '${db}'" | grep -q 1; then
       echo "Creating database '${db}'..."
-      createdb -h "$DATA_DIR/postgres" "${db}"
+      createdb -h "$DATA_DIR/postgres" -U postgres "${db}"
     fi
 
     if [ "${db}" = "authentik" ]; then
       echo "Configuring permissions for '${db}'..."
       # Ensure user exists
-      psql -h "$DATA_DIR/postgres" -d postgres -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'authentik') THEN CREATE ROLE authentik WITH LOGIN PASSWORD 'authentik'; END IF; END \$\$;"
+      ${psqlCmd} -d postgres -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'authentik') THEN CREATE ROLE authentik WITH LOGIN PASSWORD 'authentik'; END IF; END \$\$;"
       # Grant database-level permissions
-      psql -h "$DATA_DIR/postgres" -d postgres -c "GRANT CONNECT ON DATABASE authentik TO authentik;"
-      psql -h "$DATA_DIR/postgres" -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE authentik TO authentik;"
-      psql -h "$DATA_DIR/postgres" -d postgres -c "ALTER DATABASE authentik OWNER TO authentik;"
+      ${psqlCmd} -d postgres -c "GRANT CONNECT ON DATABASE authentik TO authentik;"
+      ${psqlCmd} -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE authentik TO authentik;"
+      ${psqlCmd} -d postgres -c "ALTER DATABASE authentik OWNER TO authentik;"
       # Grant schema-level permissions
-      psql -h "$DATA_DIR/postgres" -d authentik -c "GRANT ALL ON SCHEMA public TO authentik;"
+      ${psqlCmd} -d authentik -c "GRANT ALL ON SCHEMA public TO authentik;"
     fi
   '') databases);
 in
@@ -49,6 +50,11 @@ in
     postgres-init = {
       command = pkgs.writeShellScript "init-databases" ''
         set -euo pipefail
+
+        # Ensure postgres superuser role exists (initdb creates a role matching the OS user, not postgres)
+        psql -h "$DATA_DIR/postgres" -d postgres -tc "SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'postgres'" | grep -q 1 || \
+          psql -h "$DATA_DIR/postgres" -d postgres -c "CREATE ROLE postgres WITH SUPERUSER LOGIN;"
+
         ${createDbCommands}
         echo "All databases ensured."
       '';
