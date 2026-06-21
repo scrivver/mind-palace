@@ -21,12 +21,12 @@ class ReliquaryService {
 
   ReliquaryService({
     required this.auth,
-    required this.baseUrl,
+    required String baseUrl,
     this.onUnauthorized,
-  }) {
-    final parsedBaseUrl = Uri.parse(baseUrl);
+  }) : baseUrl = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/' {
+    final parsedBaseUrl = Uri.parse(this.baseUrl);
     _origin = parsedBaseUrl.hasScheme ? parsedBaseUrl.origin : '';
-    dio = Dio(BaseOptions(baseUrl: baseUrl));
+    dio = Dio(BaseOptions(baseUrl: this.baseUrl));
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {

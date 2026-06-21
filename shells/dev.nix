@@ -83,8 +83,8 @@ pkgs.mkShell {
       fi
       if [ -f "$PROXY_PORT_FILE" ]; then
         export PROXY_PORT=$(cat "$PROXY_PORT_FILE")
-        export ENGRAM_URL="http://localhost:$PROXY_PORT/api/engram"
-        export RELIQUARY_URL="http://localhost:$PROXY_PORT/api/reliquary"
+        export ENGRAM_URL="http://localhost:$PROXY_PORT/api/engram/"
+        export RELIQUARY_URL="http://localhost:$PROXY_PORT/api/reliquary/"
       fi
     }
 

@@ -27,12 +27,12 @@ const String engramBaseUrl = String.fromEnvironment(
 
 String get effectiveReliquaryBaseUrl {
   if (reliquaryBaseUrl.isNotEmpty) return reliquaryBaseUrl;
-  return kIsWeb ? '/api/reliquary' : 'http://127.0.0.1:2080/api/reliquary';
+  return kIsWeb ? '/api/reliquary/' : 'http://127.0.0.1:2080/api/reliquary/';
 }
 
 String get effectiveEngramBaseUrl {
   if (engramBaseUrl.isNotEmpty) return engramBaseUrl;
-  return kIsWeb ? '/api/engram' : 'http://127.0.0.1:2080/api/engram';
+  return kIsWeb ? '/api/engram/' : 'http://127.0.0.1:2080/api/engram/';
 }
 
 void main() {

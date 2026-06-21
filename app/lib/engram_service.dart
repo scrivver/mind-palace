@@ -13,10 +13,10 @@ class EngramService {
 
   EngramService({
     required this.auth,
-    required this.baseUrl,
+    required String baseUrl,
     this.onUnauthorized,
-  }) {
-    dio = Dio(BaseOptions(baseUrl: baseUrl));
+  }) : baseUrl = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/' {
+    dio = Dio(BaseOptions(baseUrl: this.baseUrl));
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {

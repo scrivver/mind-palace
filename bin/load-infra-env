@@ -61,8 +61,8 @@ fi
 # Engram backend URL (proxied by Caddy) and presign URL template used by
 # Engram to render download_url for s3-backed files.
 if [ -n "${PROXY_PORT:-}" ]; then
-  export ENGRAM_URL="http://localhost:$PROXY_PORT/api/engram"
-  export RELIQUARY_URL="http://localhost:$PROXY_PORT/api/reliquary"
+        export ENGRAM_URL="http://localhost:$PROXY_PORT/api/engram/"
+        export RELIQUARY_URL="http://localhost:$PROXY_PORT/api/reliquary/"
   export PRESIGN_URL_TEMPLATE="$RELIQUARY_URL/api/files/presign?key={file_path}"
   export ENGRAM_API_URL="$ENGRAM_URL"
   export PROXY_BASE_URL="http://localhost:$PROXY_PORT"
