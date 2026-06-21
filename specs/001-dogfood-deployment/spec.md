@@ -8,6 +8,12 @@
 
 **Input**: User description: "the entire mind palace project development should arrive to a stage where dogfooding is needed. I need 2 ways that the project can be deploy and tested easity. 1) The dev shell, currently is using manual start-infra command, and dev command to bring the backends and frontends up. But I want to change that to follow the pattern of reliquary, which is a single dev command bring up all the services using process compose. 2) I need you to follow the pattern of reliquary, to have properly documented docker compose file, as well as the nix shells to build the container."
 
+## Clarifications
+
+### Session 2026-06-21
+
+- Q: For first packaged delivery, must Engram and Synapse run real service images or may placeholders satisfy the deployment? → A: Packaged deployment must run real Reliquary, Engram, Synapse, app, and ingress service images for first delivery.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Start Local Dogfood Environment (Priority: P1)
@@ -125,6 +131,9 @@ details are recorded.
 - **FR-005**: The packaged dogfood workflow MUST provide documented configuration
   files and commands to build, load, start, inspect, stop, and reset the packaged
   deployment.
+- **FR-005a**: The first packaged dogfood delivery MUST run real Reliquary,
+  Engram, Synapse, primary app, and ingress service images; placeholder
+  containers MUST NOT satisfy packaged deployment acceptance criteria.
 - **FR-006**: The packaged dogfood workflow MUST keep internal infrastructure
   services private by default and expose only the documented public entry point
   unless a maintainer explicitly chooses otherwise.

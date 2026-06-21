@@ -179,22 +179,6 @@
             name = "mind-palace-app";
             command = "echo 'mind-palace-app container target is a dogfood packaging placeholder'; sleep infinity";
           };
-          mind-palace-engram-api-container = simpleContainer {
-            name = "mind-palace-engram-api";
-            command = "echo 'mind-palace-engram-api container target is a dogfood packaging placeholder'; sleep infinity";
-          };
-          mind-palace-engram-ingestion-container = simpleContainer {
-            name = "mind-palace-engram-ingestion";
-            command = "echo 'mind-palace-engram-ingestion container target is a dogfood packaging placeholder'; sleep infinity";
-          };
-          mind-palace-synapse-worker-container = simpleContainer {
-            name = "mind-palace-synapse-worker";
-            command = "echo 'mind-palace-synapse-worker container target is a dogfood packaging placeholder'; sleep infinity";
-          };
-          mind-palace-synapse-reconciler-container = simpleContainer {
-            name = "mind-palace-synapse-reconciler";
-            command = "echo 'mind-palace-synapse-reconciler container target is a dogfood packaging placeholder'; sleep infinity";
-          };
           mind-palace-ingress-container = import ./nix/ingress-container.nix { inherit pkgs; };
           default = self.packages.${system}.mind-palace-ingress-container;
         };

@@ -7,7 +7,9 @@ compose="$root/docker-compose.yml"
 required_services=(
   postgres
   rabbitmq
+  rabbitmq-setup
   minio
+  minio-setup
   reliquary-api
   reliquary-thumbnail-worker
   engram-api
@@ -27,8 +29,36 @@ for service in "${required_services[@]}"; do
 done
 
 rg -q 'mind-palace-ingress:latest' "$compose"
+rg -q 'mind-palace-engram-api:latest' "$compose"
+rg -q 'mind-palace-engram-ingestion:latest' "$compose"
+rg -q 'mind-palace-synapse-worker:latest' "$compose"
+rg -q 'mind-palace-synapse-reconciler:latest' "$compose"
+rg -q 'engram-api-healthcheck' "$compose"
+rg -q 'engram-ingestion-healthcheck' "$compose"
+rg -q 'synapse-worker-healthcheck' "$compose"
+rg -q 'synapse-reconciler-healthcheck' "$compose"
+rg -q 'mc mb --ignore-existing' "$compose"
+rg -q '/api/queues/%2F/' "$compose"
+rg -q 'condition: service_completed_successfully' "$compose"
+rg -q 'ENGRAM_API_URL: http://engram-api:8081$' "$compose"
 rg -q '\$\{MIND_PALACE_PORT:-2080\}:2080' "$compose"
 rg -q '^volumes:' "$compose"
+
+rg -q 'path:\$BUILD_ROOT/engram' "$root/bin/deploy"
+rg -q 'api-container' "$root/bin/deploy"
+rg -q 'ingestion-container' "$root/bin/deploy"
+rg -q 'path:\$BUILD_ROOT/synapse' "$root/bin/deploy"
+rg -q 'worker-container' "$root/bin/deploy"
+rg -q 'reconciler-container' "$root/bin/deploy"
+rg -q 'mind-palace-engram-api:latest' "$root/bin/deploy"
+rg -q 'mind-palace-engram-ingestion:latest' "$root/bin/deploy"
+rg -q 'mind-palace-synapse-worker:latest' "$root/bin/deploy"
+rg -q 'mind-palace-synapse-reconciler:latest' "$root/bin/deploy"
+
+if rg -q 'mind-palace-engram-.*placeholder|mind-palace-synapse-.*placeholder' "$root/flake.nix"; then
+  echo "root flake still contains Engram/Synapse placeholder containers" >&2
+  exit 1
+fi
 
 published_count="$(rg -n '^[[:space:]]+ports:' "$compose" | wc -l)"
 if [ "$published_count" -ne 1 ]; then

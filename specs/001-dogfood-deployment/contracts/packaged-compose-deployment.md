@@ -36,9 +36,10 @@ the root docs must clearly map each Compose service to the image it expects.
 ## Build Job Contract
 
 `bin/deploy` must build and load every local application image before Compose is
-started. Mind Palace is the platform consumer: it invokes child-repo flake
-outputs, loads the resulting image archives, and tags them to the root Compose
-image names when necessary. Required build targets:
+started. Mind Palace is the platform consumer: it stages a clean source copy,
+invokes child-repo flake outputs from that copy, loads the resulting image
+archives, and tags them to the root Compose image names when necessary.
+Required build targets:
 
 - `mind-palace-app-container`
 - Reliquary-owned API image target, then tag or name it as
@@ -46,13 +47,17 @@ image names when necessary. Required build targets:
 - Reliquary-owned thumbnail worker image target, then tag or name it as
   `mind-palace-reliquary-thumbnail-worker:latest`
 - Engram-owned API image target, then tag or name it as
-  `mind-palace-engram-api:latest`
+  `mind-palace-engram-api:latest`. The child target is
+  `engram#api-container`, producing `engram-api:latest`.
 - Engram-owned ingestion image target, then tag or name it as
-  `mind-palace-engram-ingestion:latest`
+  `mind-palace-engram-ingestion:latest`. The child target is
+  `engram#ingestion-container`, producing `engram-ingestion:latest`.
 - Synapse-owned worker image target, then tag or name it as
-  `mind-palace-synapse-worker:latest`
+  `mind-palace-synapse-worker:latest`. The child target is
+  `synapse#worker-container`, producing `synapse-worker:latest`.
 - Synapse-owned reconciler image target, then tag or name it as
-  `mind-palace-synapse-reconciler:latest`
+  `mind-palace-synapse-reconciler:latest`. The child target is
+  `synapse#reconciler-container`, producing `synapse-reconciler:latest`.
 - `mind-palace-ingress-container`
 
 Build targets must:
@@ -98,6 +103,10 @@ Mind Palace root requirements:
 - root Nix files must not duplicate Engram or Synapse build implementation
   details such as Go module vendor hashes, Python dependency materialization, or
   component entrypoint construction
+- root `bin/deploy` must produce a clear component-owner error if
+  `engram#api-container`, `engram#ingestion-container`,
+  `synapse#worker-container`, or `synapse#reconciler-container` is missing or
+  renamed
 
 ## Compose Service Contract
 

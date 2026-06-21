@@ -77,10 +77,10 @@ It is not an implementation script.
    nix eval --json path:./synapse#packages.x86_64-linux --apply 'builtins.attrNames'
    ```
 
-   Expected result: Engram exposes image targets for its API and ingestion
-   worker, and Synapse exposes image targets for its worker and reconciler. The
-   exact names should be documented in the child repos and consumed by root
-   `bin/deploy`.
+   Expected result: Engram exposes `api-container` and `ingestion-container`.
+   Synapse exposes `worker-container` and `reconciler-container`. These
+   child-owned output names are documented in the child repos and consumed by
+   root `bin/deploy`.
 
 2. Confirm root-owned packaged image targets are present:
 
@@ -89,8 +89,8 @@ It is not an implementation script.
    ```
 
    Expected result: the output includes root-owned app/ingress targets and any
-   intentionally thin aliases, but Engram and Synapse implementation packaging
-   belongs to their own repos.
+   intentionally thin aliases. Engram and Synapse implementation packaging must
+   not appear as root-owned placeholder container targets.
 
 3. Build the new Engram and Synapse images directly during implementation
    validation:
@@ -171,6 +171,9 @@ It is not an implementation script.
    - Add a small artifact.
    - Confirm metadata discovery.
    - Confirm movement/reconciliation behavior when enabled.
+   - If behavior differs from local development, classify the failure as child
+     packaging, root image tagging/loading, Compose wiring, runtime startup, or
+     smoke-test workflow before filing the report.
 
 11. Inspect logs on failure:
 
@@ -205,3 +208,5 @@ Include the following in dogfood reports:
 - Sanitized log excerpt.
 - Configuration source, without secret values.
 - Exact smoke-test step that failed.
+- Failure category: child packaging, root image tagging/loading, Compose
+  wiring, runtime startup, or smoke test.

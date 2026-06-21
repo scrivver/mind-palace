@@ -13,33 +13,81 @@ else
   exit 1
 fi
 
-targets=(
+root_targets=(
   mind-palace-app-container
-  mind-palace-engram-api-container
-  mind-palace-engram-ingestion-container
-  mind-palace-synapse-worker-container
-  mind-palace-synapse-reconciler-container
   mind-palace-ingress-container
 )
+
+build_and_load() {
+  local owner="$1"
+  local flake_ref="$2"
+  local target="$3"
+  local source_image="$4"
+  local platform_image="$5"
+
+  echo "Building $owner#$target..."
+  if ! image_path="$(nix build "$flake_ref#$target" --no-link --print-out-paths)"; then
+    echo "ERROR: Failed to build $owner image target '$target' from $flake_ref." >&2
+    echo "       Check whether the child flake output was renamed or removed." >&2
+    exit 1
+  fi
+  "$CTR" load < "$image_path"
+
+  if [ "$source_image" != "$platform_image" ]; then
+    "$CTR" tag "$source_image" "$platform_image"
+  fi
+}
 
 echo "Using container runtime: $CTR"
 echo "=== Building Mind Palace dogfood images ==="
 
 cd "$PROJECT_ROOT"
-for target in "${targets[@]}"; do
-  echo "Building $target..."
-  image_path="$(nix build ".#$target" --no-link --print-out-paths)"
-  "$CTR" load < "$image_path"
+BUILD_ROOT="$(mktemp -d)"
+trap 'rm -rf "$BUILD_ROOT"' EXIT
+
+rsync -a \
+  --exclude .git \
+  --exclude .data \
+  --exclude .dart_tool \
+  --exclude build \
+  --exclude 'result*' \
+  "$PROJECT_ROOT/" "$BUILD_ROOT/"
+
+for target in "${root_targets[@]}"; do
+  build_and_load "mind-palace" "path:$BUILD_ROOT" "$target" "${target%-container}:latest" "${target%-container}:latest"
 done
 
 if [ -d "$PROJECT_ROOT/reliquary" ]; then
   echo "Building Reliquary component images..."
-  for target in api-container thumbnail-worker-container; do
-    image_path="$(nix build "path:$PROJECT_ROOT/reliquary#$target" --no-link --print-out-paths)"
-    "$CTR" load < "$image_path"
-  done
-  "$CTR" tag reliquary-api:latest mind-palace-reliquary-api:latest
-  "$CTR" tag reliquary-thumbnail-worker:latest mind-palace-reliquary-thumbnail-worker:latest
+  build_and_load "reliquary" "path:$BUILD_ROOT/reliquary" api-container \
+    reliquary-api:latest mind-palace-reliquary-api:latest
+  build_and_load "reliquary" "path:$BUILD_ROOT/reliquary" thumbnail-worker-container \
+    reliquary-thumbnail-worker:latest mind-palace-reliquary-thumbnail-worker:latest
+else
+  echo "ERROR: Missing Reliquary submodule at $PROJECT_ROOT/reliquary" >&2
+  exit 1
+fi
+
+if [ -d "$PROJECT_ROOT/engram" ]; then
+  echo "Building Engram component images..."
+  build_and_load "engram" "path:$BUILD_ROOT/engram" api-container \
+    engram-api:latest mind-palace-engram-api:latest
+  build_and_load "engram" "path:$BUILD_ROOT/engram" ingestion-container \
+    engram-ingestion:latest mind-palace-engram-ingestion:latest
+else
+  echo "ERROR: Missing Engram submodule at $PROJECT_ROOT/engram" >&2
+  exit 1
+fi
+
+if [ -d "$PROJECT_ROOT/synapse" ]; then
+  echo "Building Synapse component images..."
+  build_and_load "synapse" "path:$BUILD_ROOT/synapse" worker-container \
+    synapse-worker:latest mind-palace-synapse-worker:latest
+  build_and_load "synapse" "path:$BUILD_ROOT/synapse" reconciler-container \
+    synapse-reconciler:latest mind-palace-synapse-reconciler:latest
+else
+  echo "ERROR: Missing Synapse submodule at $PROJECT_ROOT/synapse" >&2
+  exit 1
 fi
 
 echo

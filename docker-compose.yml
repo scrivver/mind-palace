@@ -4,8 +4,9 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
+      POSTGRES_DB: ${POSTGRES_DB_ENGRAM:-engram}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -41,6 +42,62 @@ services:
       timeout: 5s
       retries: 12
 
+  minio-setup:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    restart: "no"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+      RELIQUARY_BUCKET: ${RELIQUARY_BUCKET:-reliquary}
+      ENGRAM_BUCKET: ${ENGRAM_BUCKET:-engram}
+      S3_HOT_BUCKET: ${S3_HOT_BUCKET:-synapse-hot}
+      S3_COLD_BUCKET: ${S3_COLD_BUCKET:-synapse-cold}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+          echo "waiting for MinIO..."
+          sleep 2
+        done
+        mc mb --ignore-existing "local/$$RELIQUARY_BUCKET"
+        mc mb --ignore-existing "local/$$ENGRAM_BUCKET"
+        mc mb --ignore-existing "local/$$S3_HOT_BUCKET"
+        mc mb --ignore-existing "local/$$S3_COLD_BUCKET"
+
+  rabbitmq-setup:
+    image: curlimages/curl:latest
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+      EVENT_QUEUE: ${EVENT_QUEUE:-engram.ingest}
+      RELIQUARY_THUMBNAIL_QUEUE: ${RELIQUARY_THUMBNAIL_QUEUE:-reliquary.thumbnail}
+      RELIQUARY_THUMBNAIL_DEAD_QUEUE: ${RELIQUARY_THUMBNAIL_DEAD_QUEUE:-reliquary.thumbnail.dead}
+      SYNAPSE_JOBS_QUEUE: ${SYNAPSE_JOBS_QUEUE:-synapse.jobs}
+      SYNAPSE_JOBS_DLQ: ${SYNAPSE_JOBS_DLQ:-synapse.jobs.dlq}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        auth="$$RABBITMQ_DEFAULT_USER:$$RABBITMQ_DEFAULT_PASS"
+        for queue in "$$EVENT_QUEUE" "$$RELIQUARY_THUMBNAIL_QUEUE" "$$RELIQUARY_THUMBNAIL_DEAD_QUEUE" "$$SYNAPSE_JOBS_QUEUE" "$$SYNAPSE_JOBS_DLQ"; do
+          curl --fail --silent --show-error -u "$$auth" \
+            -H "content-type: application/json" \
+            -X PUT "http://rabbitmq:15672/api/queues/%2F/$$queue" \
+            -d '{"durable":true,"auto_delete":false,"arguments":{}}'
+          curl --fail --silent --show-error -u "$$auth" \
+            -H "content-type: application/json" \
+            -X POST "http://rabbitmq:15672/api/bindings/%2F/e/amq.direct/q/$$queue" \
+            -d "{\"routing_key\":\"$$queue\",\"arguments\":{}}"
+        done
+
   reliquary-api:
     image: mind-palace-reliquary-api:latest
     restart: unless-stopped
@@ -49,6 +106,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
+      rabbitmq-setup:
+        condition: service_completed_successfully
+      minio-setup:
+        condition: service_completed_successfully
     environment:
       PORT: 8080
       PROXY_BASE_URL: ${PROXY_BASE_URL:-http://localhost:2080}
@@ -74,6 +135,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
+      rabbitmq-setup:
+        condition: service_completed_successfully
+      minio-setup:
+        condition: service_completed_successfully
     tmpfs:
       - /tmp:size=512m,mode=1777
     environment:
@@ -95,6 +160,16 @@ services:
     environment:
       PORT: 8081
       PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
+      PGDATABASE: ${POSTGRES_DB_ENGRAM:-engram}
+      AUTH_MODE: ${ENGRAM_AUTH_MODE:-none}
+      PRESIGN_URL_TEMPLATE: ${ENGRAM_PRESIGN_URL_TEMPLATE:-http://localhost:2080/api/reliquary/files/{file_path}}
+    healthcheck:
+      test: ["CMD", "engram-api-healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
 
   engram-ingestion:
     image: mind-palace-engram-ingestion:latest
@@ -106,14 +181,27 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
+      rabbitmq-setup:
+        condition: service_completed_successfully
+      minio-setup:
+        condition: service_completed_successfully
     environment:
       PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
+      PGDATABASE: ${POSTGRES_DB_ENGRAM:-engram}
+      RABBITMQ_HOST: rabbitmq
       RABBITMQ_AMQP_PORT: 5672
       STORAGE_BACKEND: s3
       STORAGE_S3_ENDPOINT: http://minio:9000
       STORAGE_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       STORAGE_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
       STORAGE_S3_BUCKET: ${RELIQUARY_BUCKET:-reliquary}
+    healthcheck:
+      test: ["CMD", "engram-ingestion-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
 
   synapse-worker:
     image: mind-palace-synapse-worker:latest
@@ -123,6 +211,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
+      rabbitmq-setup:
+        condition: service_completed_successfully
+      minio-setup:
+        condition: service_completed_successfully
     environment:
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
       S3_ENDPOINT: http://minio:9000
@@ -130,6 +222,12 @@ services:
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
       S3_HOT_BUCKET: ${S3_HOT_BUCKET:-synapse-hot}
       S3_COLD_BUCKET: ${S3_COLD_BUCKET:-synapse-cold}
+      STORAGE_BACKEND: s3
+    healthcheck:
+      test: ["CMD", "synapse-worker-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
 
   synapse-reconciler:
     image: mind-palace-synapse-reconciler:latest
@@ -139,9 +237,17 @@ services:
         condition: service_started
       engram-api:
         condition: service_started
+      rabbitmq-setup:
+        condition: service_completed_successfully
     environment:
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
-      ENGRAM_API_URL: http://engram-api:8081/api
+      ENGRAM_API_URL: http://engram-api:8081
+      RECONCILE_INTERVAL: ${RECONCILE_INTERVAL:-30s}
+    healthcheck:
+      test: ["CMD", "synapse-reconciler-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
 
   app:
     image: mind-palace-app:latest
@@ -157,7 +263,7 @@ services:
       reliquary-api:
         condition: service_started
       engram-api:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "${MIND_PALACE_PORT:-2080}:2080"
     healthcheck:
