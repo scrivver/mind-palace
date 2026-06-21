@@ -46,12 +46,14 @@
               ${waitForFile "$DATA_DIR/minio/api_port" "MinIO port"}
               ${waitForFile "$DATA_DIR/rabbitmq/amqp_port" "RabbitMQ port"}
               source "$PROJECT_ROOT/bin/load-infra-env"
+              ${waitForOidcDiscovery}
               export LISTEN_ADDR="$DATA_DIR/reliquary/backend.sock"
               export PORT=8080
               cd "$PROJECT_ROOT/reliquary/backend"
               exec ${pkgs.air}/bin/air
             '';
             depends_on = {
+              authentik-setup.condition = "process_completed_successfully";
               minio-setup.condition = "process_completed_successfully";
               rabbitmq.condition = "process_healthy";
             };
