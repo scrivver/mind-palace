@@ -212,7 +212,7 @@ class AuthService {
 
   String _redirectUri(OidcAuthConfig cfg) {
     if (cfg.redirectUri.startsWith('http')) return cfg.redirectUri;
-    return Uri.base.replace(path: '/callback', query: '').toString();
+    return '${Uri.base.origin}/callback';
   }
 
   String _generateCodeVerifier() {
