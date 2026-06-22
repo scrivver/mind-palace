@@ -139,16 +139,11 @@ class _UploadScreenState extends State<UploadScreen> {
 
     return Scaffold(
       body: SafeArea(
-          child: Row(
-            children: [
-              Sidebar(
-                username: widget.username,
-                onLogout: widget.onLogout,
-              ),
-            VerticalDivider(
-              width: 1,
-              thickness: 1,
-              color: theme.colorScheme.outlineVariant,
+        child: Row(
+          children: [
+            Sidebar(
+              username: widget.username,
+              onLogout: widget.onLogout,
             ),
             Expanded(
               child: Column(

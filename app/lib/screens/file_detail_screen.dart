@@ -118,19 +118,13 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       body: SafeArea(
-          child: Row(
-            children: [
-              Sidebar(
-                username: widget.username,
-                onLogout: widget.onLogout,
-              ),
-            VerticalDivider(
-              width: 1,
-              thickness: 1,
-              color: theme.colorScheme.outlineVariant,
+        child: Row(
+          children: [
+            Sidebar(
+              username: widget.username,
+              onLogout: widget.onLogout,
             ),
             Expanded(
               child: ListView(

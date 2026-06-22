@@ -174,7 +174,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildAuthenticatedShell() {
-    final theme = Theme.of(context);
     return Scaffold(
       body: SafeArea(
         child: Row(
@@ -184,11 +183,6 @@ class _HomePageState extends State<HomePage> {
               onDestinationChanged: (i) => setState(() => _navIndex = i),
               username: _username ?? '',
               onLogout: _logout,
-            ),
-            VerticalDivider(
-              width: 1,
-              thickness: 1,
-              color: theme.colorScheme.outlineVariant,
             ),
             Expanded(child: _buildScreen()),
           ],
