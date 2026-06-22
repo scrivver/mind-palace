@@ -5,21 +5,22 @@ import 'package:url_launcher/url_launcher.dart';
 import '../engram_service.dart';
 import '../models/engram_file.dart';
 import '../reliquary_service.dart';
+import '../widgets/sidebar.dart';
 
-/// Detail view for a single file. Shows full metadata, a preview (for images),
-/// and any text extracted by the ingestion worker.
-///
-/// Pops with `true` when the user deletes the file so the caller can refresh.
 class FileDetailScreen extends StatefulWidget {
   final EngramFile initial;
   final EngramService engram;
   final ReliquaryService reliquary;
+  final VoidCallback onLogout;
+  final String username;
 
   const FileDetailScreen({
     super.key,
     required this.initial,
     required this.engram,
     required this.reliquary,
+    required this.onLogout,
+    required this.username,
   });
 
   @override
@@ -47,20 +48,19 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      // Detail fetch failed; keep the list-level metadata we already have.
       setState(() => _loadingDetail = false);
     }
   }
 
   Future<void> _download() async {
     try {
-      final url = await widget.reliquary.presignDownloadForSave(_file.filePath);
+      final url =
+          await widget.reliquary.presignDownloadForSave(_file.filePath);
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to download file')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Failed to download file')));
     }
   }
 
@@ -69,37 +69,39 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       final url = await widget.reliquary.presignDownload(_file.filePath);
       await Clipboard.setData(ClipboardData(text: url));
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to get link')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Failed to get link')));
     }
   }
 
   Future<void> _delete() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete file?'),
-        content: Text('Permanently remove "${_file.filename}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.redAccent),
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return AlertDialog(
+          title: const Text('Confirm Deletion'),
+          content: Text(
+              'Are you certain you wish to purge "${_file.filename}"? This action cannot be undone within the Mind Palace architecture.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Permanent Deletion'),
             ),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+          ],
+        );
+      },
     );
     if (confirm != true) return;
 
@@ -109,9 +111,8 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       Navigator.of(context).pop(true);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to delete file')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Failed to delete file')));
     }
   }
 
@@ -119,35 +120,59 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_file.filename, overflow: TextOverflow.ellipsis),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.link),
-            tooltip: 'Copy link',
-            onPressed: _copyLink,
-          ),
-          IconButton(
-            icon: const Icon(Icons.download),
-            tooltip: 'Download',
-            onPressed: _download,
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'Delete',
-            color: theme.colorScheme.error,
-            onPressed: _delete,
-          ),
-        ],
+      body: SafeArea(
+          child: Row(
+            children: [
+              Sidebar(
+                username: widget.username,
+                onLogout: widget.onLogout,
+              ),
+            VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: theme.colorScheme.outlineVariant,
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  _buildBreadcrumb(context),
+                  const SizedBox(height: 16),
+                  _buildPreview(context),
+                  const SizedBox(height: 20),
+                  _buildExtractedText(context),
+                  const SizedBox(height: 20),
+                  _buildFileInfo(context),
+                  const SizedBox(height: 20),
+                  _buildTags(context),
+                  const SizedBox(height: 20),
+                  _buildMetadata(context),
+                  const SizedBox(height: 24),
+                  _buildActions(context),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+    );
+  }
+
+  Widget _buildBreadcrumb(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pop(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildPreview(context),
-          const SizedBox(height: 16),
-          _buildMetadata(context),
-          const SizedBox(height: 16),
-          _buildExtractedText(context),
+          Icon(Icons.arrow_back, size: 18, color: theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Text(
+            'Mind Palace',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+          ),
         ],
       ),
     );
@@ -155,10 +180,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
 
   Widget _buildPreview(BuildContext context) {
     if (_file.isImage) {
-      // Cap the preview at roughly half the viewport height so a huge image
-      // doesn't push the rest of the detail content out of view. The user can
-      // still pinch/zoom to inspect it in place.
-      final maxH = MediaQuery.of(context).size.height * 0.5;
+      final maxH = MediaQuery.of(context).size.height * 0.45;
       return ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxH),
         child: FutureBuilder<String>(
@@ -188,53 +210,29 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
   }
 
   Widget _iconPreview(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       height: 200,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: theme.colorScheme.surface,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Center(
-        child: Icon(
-          _iconForMime(_file.mimeType ?? ''),
-          size: 72,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMetadata(BuildContext context) {
-    final theme = Theme.of(context);
-    final rows = <Widget>[
-      _row('Type', _file.mimeType ?? '—'),
-      _row('Size', _file.formattedSize),
-      if (_file.pageCount != null) _row('Pages', _file.pageCount!.toString()),
-      _row('Device', _file.deviceName),
-      _row('Modified', _formatDateTime(_file.mtime)),
-      _row('Uploaded', _formatDateTime(_file.createdAt)),
-      if (_file.hash.isNotEmpty)
-        _row('SHA-256', '${_file.hash.substring(0, 16)}…'),
-    ];
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerLow,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Details', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 12),
-            ...rows,
-            if (_file.tags.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: _file.tags.map((t) => Chip(label: Text(t))).toList(),
-              ),
-            ],
+            Icon(
+              _iconForMime(_file.mimeType ?? ''),
+              size: 56,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _file.filename,
+              style: theme.textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -244,56 +242,217 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
   Widget _buildExtractedText(BuildContext context) {
     final theme = Theme.of(context);
     if (_loadingDetail) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
+      return const SizedBox(
+        height: 80,
         child: Center(child: CircularProgressIndicator()),
       );
     }
     final text = _file.extractedText;
     if (text == null || text.isEmpty) return const SizedBox.shrink();
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerLow,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Extracted text', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 12),
-            SelectableText(
-              text,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontFamily: 'monospace',
-                height: 1.4,
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Extracted Analysis',
+                  style: theme.textTheme.titleMedium),
+              const Spacer(),
+              Text(
+                'OCR Engine v4.2',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SelectableText(
+            text,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontFamily: 'Space Mono',
+              height: 1.5,
+              fontSize: 12,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _row(String label, String value) {
+  Widget _buildFileInfo(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _file.filename,
+          style: theme.textTheme.headlineMedium?.copyWith(fontSize: 20),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Last accessed ${_relativeTime(_file.mtime)}',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontFamily: 'Inter',
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTags(BuildContext context) {
+    final theme = Theme.of(context);
+    final tags = _file.tags;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        ...tags.map(
+          (t) => Chip(
+            label: Text(
+              t,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'Space Mono',
+                fontSize: 11,
+              ),
+            ),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        ActionChip(
+          avatar: const Icon(Icons.add, size: 14),
+          label: Text(
+            'Add Tag',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontFamily: 'Space Mono',
+              fontSize: 11,
+            ),
+          ),
+          onPressed: () {},
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetadata(BuildContext context) {
+    final theme = Theme.of(context);
+    final rows = <_MetaRow>[
+      _MetaRow('Type', _file.mimeType ?? '\u2014'),
+      _MetaRow('Size', _file.formattedSize),
+      if (_file.pageCount != null)
+        _MetaRow('Pages', '${_file.pageCount} Plates'),
+      _MetaRow('Device', _file.deviceName),
+      _MetaRow('Created', _formatDateTime(_file.createdAt)),
+      if (_file.hash.isNotEmpty)
+        _MetaRow('SHA-256', '${_file.hash.substring(0, 16)}\u2026'),
+    ];
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Details', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 12),
+          ...rows.map((r) => _buildMetaRow(context, r)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetaRow(BuildContext context, _MetaRow row) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 92,
+            width: 100,
             child: Text(
-              label,
+              row.label,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
+                fontFamily: 'Inter',
+                fontSize: 12,
               ),
             ),
           ),
           Expanded(
-            child: SelectableText(value, style: theme.textTheme.bodyMedium),
+            child: SelectableText(
+              row.value,
+              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActions(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Actions', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _actionButton(context, Icons.download, 'Download', _download),
+              const SizedBox(width: 12),
+              _actionButton(context, Icons.link, 'Copy Link', _copyLink),
+              const SizedBox(width: 12),
+              _actionButton(
+                context,
+                Icons.delete_outline,
+                'Delete from Vault',
+                _delete,
+                color: theme.colorScheme.error,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton(
+    BuildContext context,
+    IconData icon,
+    String label,
+    VoidCallback onPressed, {
+    Color? color,
+  }) {
+    final theme = Theme.of(context);
+    final fgColor = color ?? theme.colorScheme.primary;
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: fgColor,
+        side: BorderSide(color: fgColor.withValues(alpha: 0.4)),
       ),
     );
   }
@@ -311,11 +470,34 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
 
   String _formatDateTime(DateTime dt) {
     final local = dt.toLocal();
-    final y = local.year.toString().padLeft(4, '0');
-    final m = local.month.toString().padLeft(2, '0');
-    final d = local.day.toString().padLeft(2, '0');
-    final hh = local.hour.toString().padLeft(2, '0');
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final y = local.year;
+    final m = months[local.month - 1];
+    final d = local.day;
     final mm = local.minute.toString().padLeft(2, '0');
-    return '$y-$m-$d $hh:$mm';
+    final ampm = local.hour >= 12 ? 'PM' : 'AM';
+    final h12 = local.hour == 0 ? 12 : (local.hour > 12 ? local.hour - 12 : local.hour);
+    return '$m $d, $y \u2022 $h12:$mm $ampm';
   }
+
+  String _relativeTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt.toLocal());
+    if (diff.inMinutes < 1) return 'moments ago';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} minutes ago';
+    if (diff.inHours < 24) return '${diff.inHours} hours ago';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()} weeks ago';
+    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()} months ago';
+    return '${(diff.inDays / 365).floor()} years ago';
+  }
+}
+
+class _MetaRow {
+  final String label;
+  final String value;
+  const _MetaRow(this.label, this.value);
 }

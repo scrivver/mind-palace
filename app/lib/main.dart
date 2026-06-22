@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'auth_service.dart';
 import 'engram_service.dart';
 import 'reliquary_service.dart';
+import 'screens/login_view.dart';
 import 'screens/gallery_screen.dart';
+import 'theme/app_theme.dart';
+import 'widgets/sidebar.dart';
 
-// Configure these to match your setup.
-// In dev, run `source load-infra-env` to get the AUTHENTIK_URL.
 const _authentikBase = String.fromEnvironment(
   'AUTHENTIK_URL',
   defaultValue: 'http://127.0.0.1:9000',
@@ -47,20 +48,8 @@ class MindPalaceApp extends StatelessWidget {
     return MaterialApp(
       title: 'Mind Palace',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: MindPalaceTheme.light(),
+      darkTheme: MindPalaceTheme.dark(),
       home: const HomePage(),
     );
   }
@@ -87,6 +76,8 @@ class _HomePageState extends State<HomePage> {
 
   late final ReliquaryService _reliquary;
   late final EngramService _engram;
+
+  int _navIndex = 0;
 
   @override
   void initState() {
@@ -170,57 +161,58 @@ class _HomePageState extends State<HomePage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    if (_loggedIn) {
-      return GalleryScreen(
-        engram: _engram,
-        reliquary: _reliquary,
-        onLogout: _logout,
-        username: _username ?? '',
+    if (!_loggedIn) {
+      return LoginView(
+        onLogin: _login,
+        error: _error,
+        loading: _loading,
       );
     }
 
+    return _buildAuthenticatedShell();
+  }
+
+  Widget _buildAuthenticatedShell() {
+    final theme = Theme.of(context);
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.account_balance,
-                size: 80,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Mind Palace',
-                style: Theme.of(context).textTheme.headlineLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Cold data storage, labeling & retrieval',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 48),
-              FilledButton.icon(
-                onPressed: _login,
-                icon: const Icon(Icons.login),
-                label: const Text('Sign in with Authentik'),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ],
-          ),
+      body: SafeArea(
+        child: Row(
+          children: [
+            Sidebar(
+              selectedIndex: _navIndex,
+              onDestinationChanged: (i) => setState(() => _navIndex = i),
+              username: _username ?? '',
+              onLogout: _logout,
+            ),
+            VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: theme.colorScheme.outlineVariant,
+            ),
+            Expanded(child: _buildScreen()),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildScreen() {
+    switch (_navIndex) {
+      case 1:
+        return const Center(
+          child: Text('Status — coming soon'),
+        );
+      case 2:
+        return const Center(
+          child: Text('Settings — coming soon'),
+        );
+      default:
+        return GalleryScreen(
+          engram: _engram,
+          reliquary: _reliquary,
+          onLogout: _logout,
+          username: _username ?? '',
+        );
+    }
   }
 }
