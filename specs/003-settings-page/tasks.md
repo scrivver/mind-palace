@@ -151,3 +151,16 @@ Task: "Verify runtime state check"
 - MVP scope = Phases 1 + 2 + 3 only (US1 — theme configuration)
 - No backend changes required for any task
 - `url_launcher` may need to be added via `flutter pub add url_launcher` if not already present
+
+---
+
+## Phase 6: Convergence
+
+**Purpose**: Update feature artifacts to match the final implementation after Stitch-driven design
+evolution. All acceptance scenarios, functional requirements, and plan decisions are satisfied in
+code; the documents below have drifted from the current state.
+
+- [ ] T009 Update `spec.md` FR-002 and US1/AC2: rename section labels from "Appearance" → "Theme Preference" and "Account" → "Reset Password" to match Stitch design (partial)
+- [ ] T010 Update `spec.md` FR-003 and US1/AC3-5: replace Light/Dark/System toggle description with 4-visual-preset model (Mind Palace / Midnight / Warm / Neutral) and card-selector UI (partial)
+- [ ] T011 Update `data-model.md` ThemeSetting entity: replace 3-value enum (`light`/`dark`/`system` with `ThemeMode`) with current 4-value enum (`mindPalace`/`midnight`/`warm`/`neutral` with `seedColor`/`brightness`) (partial)
+- [ ] T012 Update `plan.md` Phase 0 research resolution #3: replace "radio-style list tiles" wording with card-based visual preset grid matching final Stitch layout (partial)
