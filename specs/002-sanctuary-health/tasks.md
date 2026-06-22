@@ -37,8 +37,8 @@ description: "Task list for Sanctuary Health Status Page feature"
 
 **Purpose**: Go response models and route registration that ALL user stories depend on
 
-- [ ] T002 Define Go `StatsResponse` and `ActivityResponse` model types in `engram/backend/internal/model/stats.go`
-- [ ] T003 [P] Register `GET /api/stats` and `GET /api/activity` routes in `engram/backend/internal/api/router.go`
+- [x] T002 Define Go `StatsResponse` and `ActivityResponse` model types in `engram/backend/internal/model/stats.go`
+- [x] T003 [P] Register `GET /api/stats` and `GET /api/activity` routes in `engram/backend/internal/api/router.go`
 
 **Checkpoint**: Foundation ready — all user stories can now begin
 
@@ -52,10 +52,10 @@ description: "Task list for Sanctuary Health Status Page feature"
 
 ### Implementation for User Story 1
 
-- [ ] T004 [P] [US1] Implement `GET /api/stats` handler with DB queries in `engram/backend/internal/api/stats.go`
-- [ ] T005 [P] [US1] Extend `EngramService` with `getStats()` in `app/lib/services/engram_service.dart`
-- [ ] T006 [US1] Create `StatusScreen` StatefulWidget with engine card, three metric tiles, and storage capacity section in `app/lib/screens/status_screen.dart`
-- [ ] T007 [US1] Wire `StatusScreen` into `app/lib/main.dart` replacing the "Status — coming soon" placeholder at nav index 1
+- [x] T004 [P] [US1] Implement `GET /api/stats` handler with DB queries in `engram/backend/internal/api/stats.go`
+- [x] T005 [P] [US1] Extend `EngramService` with `getStats()` in `app/lib/engram_service.dart`
+- [x] T006 [US1] Create `StatusScreen` StatefulWidget with engine card, three metric tiles, and storage capacity section in `app/lib/screens/status_screen.dart`
+- [x] T007 [US1] Wire `StatusScreen` into `app/lib/main.dart` with bottom navigation replacing direct GalleryScreen return
 
 **Checkpoint**: US1 complete — Status page shows engine metrics, latency/sync/uptime tiles, and storage breakdown
 
@@ -69,9 +69,9 @@ description: "Task list for Sanctuary Health Status Page feature"
 
 ### Implementation for User Story 2
 
-- [ ] T008 [P] [US2] Implement `GET /api/activity` handler with DB query and icon mapping in `engram/backend/internal/api/activity.go`
-- [ ] T009 [P] [US2] Extend `EngramService` with `getActivity(limit, offset)` in `app/lib/services/engram_service.dart`
-- [ ] T010 [US2] Add Recent Activity section with timeline entries and "View Archive" link to `StatusScreen` in `app/lib/screens/status_screen.dart`
+- [x] T008 [P] [US2] Implement `GET /api/activity` handler with DB query and icon mapping in `engram/backend/internal/api/activity.go`
+- [x] T009 [P] [US2] Extend `EngramService` with `getActivity(limit, offset)` in `app/lib/engram_service.dart`
+- [x] T010 [US2] Add Recent Activity section with timeline entries and "View Archive" link to `StatusScreen` in `app/lib/screens/status_screen.dart`
 
 **Checkpoint**: US2 complete — activity feed renders with icons, descriptions, relative timestamps, and View Archive link
 
@@ -85,9 +85,9 @@ description: "Task list for Sanctuary Health Status Page feature"
 
 ### Implementation for User Story 3
 
-- [ ] T011 [US3] Add loading indicator (shimmer/skeleton) to each Status section in `app/lib/screens/status_screen.dart`
-- [ ] T012 [US3] Add per-section error handling: degraded state for Engram card when `/api/stats` fails, fallback display when Reliquary stats fail, and error message when activity feed fails in `app/lib/screens/status_screen.dart`
-- [ ] T013 [US3] Add pull-to-refresh via `RefreshIndicator` to `StatusScreen` in `app/lib/screens/status_screen.dart`
+- [x] T011 [US3] Add loading indicator (shimmer/skeleton) to each Status section in `app/lib/screens/status_screen.dart`
+- [x] T012 [US3] Add per-section error handling: degraded state for Engram card when `/api/stats` fails, fallback display when Reliquary stats fail, and error message when activity feed fails in `app/lib/screens/status_screen.dart`
+- [x] T013 [US3] Add pull-to-refresh via `RefreshIndicator` to `StatusScreen` in `app/lib/screens/status_screen.dart`
 
 **Checkpoint**: US3 complete — page degrades gracefully per section and recovers on refresh
 
@@ -97,10 +97,10 @@ description: "Task list for Sanctuary Health Status Page feature"
 
 **Purpose**: Verification, cleanup, and documentation
 
-- [ ] T014 [P] Run `cd app && flutter analyze` — fix any static analysis issues
-- [ ] T015 [P] Run `cd engram && go test ./...` — ensure existing Go tests still pass
-- [ ] T016 Run full E2E validation per `specs/002-sanctuary-health/quickstart.md` scenarios
-- [ ] T017 Verify no runtime state, secrets, local database files, or `.data/` content are included in the diff
+- [x] T014 [P] Run `cd app && flutter analyze` — fix any static analysis issues
+- [x] T015 [P] Run `cd engram && go test ./...` — ensure existing Go tests still pass
+- [ ] T016 Run full E2E validation per `specs/002-sanctuary-health/quickstart.md` scenarios (requires running stack)
+- [x] T017 Verify no runtime state, secrets, local database files, or `.data/` content are included in the diff
 
 ---
 

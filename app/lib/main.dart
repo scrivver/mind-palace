@@ -6,6 +6,7 @@ import 'engram_service.dart';
 import 'reliquary_service.dart';
 import 'screens/login_view.dart';
 import 'screens/gallery_screen.dart';
+import 'screens/status_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/sidebar.dart';
 
@@ -74,11 +75,10 @@ class _HomePageState extends State<HomePage> {
   bool _loggedIn = false;
   String? _username;
   String? _error;
+  int _navIndex = 0;
 
   late final ReliquaryService _reliquary;
   late final EngramService _engram;
-
-  int _navIndex = 0;
 
   @override
   void initState() {
@@ -194,8 +194,9 @@ class _HomePageState extends State<HomePage> {
   Widget _buildScreen() {
     switch (_navIndex) {
       case 1:
-        return const Center(
-          child: Text('Status — coming soon'),
+        return StatusScreen(
+          engram: _engram,
+          reliquary: _reliquary,
         );
       case 2:
         return const Center(
