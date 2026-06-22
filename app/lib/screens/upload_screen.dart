@@ -167,66 +167,64 @@ class _UploadScreenState extends State<UploadScreen> {
               ),
             ),
 
-            // Drop zone
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  InkWell(
-                    onTap: _uploading || _pickingFiles ? null : _pickFiles,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 48),
+          // Upload zone
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: InkWell(
+              onTap: _uploading || _pickingFiles ? null : _pickFiles,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: theme.colorScheme.outline,
+                    width: 1,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
                       decoration: BoxDecoration(
-                        border: Border.all(
-                          color: theme.colorScheme.outlineVariant,
-                          width: 1,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
+                        color: theme.colorScheme.primaryContainer,
+                        shape: BoxShape.circle,
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.add_circle_outline,
-                            size: 28,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Click to select or drag files',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'PDF, Markdown, JSON, and high-res images (Max 100MB)',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontSize: 11,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
+                      child: Icon(
+                        Icons.add_circle,
+                        size: 36,
+                        color: theme.colorScheme.onPrimaryContainer,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: FilledButton.icon(
+                    const SizedBox(height: 16),
+                    Text(
+                      'Click to select or drag files',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'PDF, Markdown, JSON, and high-res images (Max 100MB)',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton(
                       onPressed: _uploading || _pickingFiles
                           ? null
                           : _pickFiles,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Select Files'),
+                      child: const Text('Select Files'),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
+          ),
 
             // Queue header
             if (_selectedFiles.isNotEmpty)
