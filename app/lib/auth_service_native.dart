@@ -60,6 +60,8 @@ class AuthService {
     }
   }
 
+  Future<bool> isOidc() async => true;
+
   Future<bool> login() async {
     if (_useAppAuth) {
       return _loginWithAppAuth();

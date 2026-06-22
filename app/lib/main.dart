@@ -112,6 +112,7 @@ class _HomePageState extends State<HomePage> {
 
   bool _loading = true;
   bool _loggedIn = false;
+  bool _isOidc = true;
   String? _username;
   String? _error;
   int _navIndex = 0;
@@ -144,6 +145,7 @@ class _HomePageState extends State<HomePage> {
     try {
       await _auth.completeRedirectIfPresent();
       final loggedIn = await _auth.isLoggedIn();
+      _isOidc = await _auth.isOidc();
       if (loggedIn) {
         final userInfo = await _auth.getUserInfo();
         setState(() {
@@ -234,7 +236,6 @@ class _HomePageState extends State<HomePage> {
     switch (_navIndex) {
       case 1:
         return StatusScreen(
-          engram: _engram,
           reliquary: _reliquary,
         );
       case 2:
@@ -242,6 +243,7 @@ class _HomePageState extends State<HomePage> {
           themeService: widget.themeService,
           currentTheme: widget.currentTheme,
           onThemeChanged: (setting) {},
+          isExternalIdp: _isOidc,
           authentikBase: _authentikBase,
         );
       default:

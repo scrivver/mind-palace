@@ -4,12 +4,13 @@ import 'package:mind_palace/screens/settings_screen.dart';
 import 'package:mind_palace/services/theme_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Widget createTestApp(ThemeService themeService, {ThemeSetting currentTheme = ThemeSetting.mindPalace}) {
+Widget createTestApp(ThemeService themeService, {ThemeSetting currentTheme = ThemeSetting.mindPalace, bool isExternalIdp = false}) {
   return MaterialApp(
     home: SettingsScreen(
       themeService: themeService,
       currentTheme: currentTheme,
       onThemeChanged: (_) {},
+      isExternalIdp: isExternalIdp,
       authentikBase: 'http://127.0.0.1:9000',
     ),
   );

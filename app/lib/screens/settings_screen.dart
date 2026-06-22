@@ -9,6 +9,7 @@ class SettingsScreen extends StatefulWidget {
   final ThemeService themeService;
   final ThemeSetting currentTheme;
   final ValueChanged<ThemeSetting> onThemeChanged;
+  final bool isExternalIdp;
   final String authentikBase;
 
   const SettingsScreen({
@@ -16,6 +17,7 @@ class SettingsScreen extends StatefulWidget {
     required this.themeService,
     required this.currentTheme,
     required this.onThemeChanged,
+    required this.isExternalIdp,
     required this.authentikBase,
   });
 
@@ -89,13 +91,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildResetPasswordSection() {
+    final colors = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Reset Password',
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 24),
-        SizedBox(
+        if (widget.isExternalIdp) ..._buildExternalIdpForm(colors)
+        else SizedBox(
           width: 480,
           child: OutlinedButton.icon(
             onPressed: _resetPassword,
@@ -105,6 +109,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  List<Widget> _buildExternalIdpForm(ColorScheme colors) {
+    return [
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHighest.withAlpha(128),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline,
+                size: 18, color: colors.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Password management is handled by your external identity provider.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 24),
+      SizedBox(
+        width: 480,
+        child: Column(
+          children: [
+            TextFormField(
+              enabled: false,
+              decoration: const InputDecoration(
+                labelText: 'Current Password',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              enabled: false,
+              decoration: const InputDecoration(
+                labelText: 'New Password',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              enabled: false,
+              decoration: const InputDecoration(
+                labelText: 'Confirm New Password',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: null,
+                child: const Text('Reset Password'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
   }
 
   Widget _buildThemeSection() {

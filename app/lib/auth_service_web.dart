@@ -69,6 +69,15 @@ class AuthService {
     return _refreshTokens();
   }
 
+  Future<bool> isOidc() async {
+    try {
+      final cfg = await _getAuthConfig();
+      return cfg.oidc.enabled;
+    } catch (_) {
+      return true;
+    }
+  }
+
   Future<bool> login() async {
     final cfg = await _getAuthConfig();
     if (cfg.none.enabled) return true;
