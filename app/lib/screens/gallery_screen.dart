@@ -6,13 +6,14 @@ import '../engram_service.dart';
 import '../models/engram_file.dart';
 import '../reliquary_service.dart';
 import 'file_detail_screen.dart';
-import 'upload_screen.dart';
+
 
 class GalleryScreen extends StatefulWidget {
   final EngramService engram;
   final ReliquaryService reliquary;
   final VoidCallback onLogout;
   final String username;
+  final VoidCallback? onNavigateToUpload;
 
   const GalleryScreen({
     super.key,
@@ -20,6 +21,7 @@ class GalleryScreen extends StatefulWidget {
     required this.reliquary,
     required this.onLogout,
     required this.username,
+    this.onNavigateToUpload,
   });
 
   @override
@@ -334,18 +336,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           right: 32,
           bottom: 24,
           child: FloatingActionButton(
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => UploadScreen(
-                    reliquary: widget.reliquary,
-                    onLogout: widget.onLogout,
-                    username: widget.username,
-                  ),
-                ),
-              );
-              _refreshAll();
-            },
+            onPressed: widget.onNavigateToUpload,
             child: const Icon(Icons.add),
           ),
         ),

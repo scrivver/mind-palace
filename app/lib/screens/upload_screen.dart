@@ -5,18 +5,19 @@ import 'package:mime/mime.dart';
 import '../reliquary_service.dart';
 import '../services/file_picker_service.dart' as picker;
 import '../upload_file.dart';
-import '../widgets/sidebar.dart';
 
 class UploadScreen extends StatefulWidget {
   final ReliquaryService reliquary;
   final VoidCallback onLogout;
   final String username;
+  final VoidCallback? onBack;
 
   const UploadScreen({
     super.key,
     required this.reliquary,
     required this.onLogout,
     required this.username,
+    this.onBack,
   });
 
   @override
@@ -139,150 +140,159 @@ class _UploadScreenState extends State<UploadScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Sidebar(
-              username: widget.username,
-              onLogout: widget.onLogout,
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Header with back button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 4),
+              child: Row(
                 children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 4),
-                    child: Text('Upload Manager',
-                        style: theme.textTheme.headlineMedium),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-                    child: Text(
-                      'Import your digital assets into the Vault. We support encrypted transfer of documents, images, and neural mappings.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-
-                  // Drop zone
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: InkWell(
-                      onTap: _uploading || _pickingFiles ? null : _pickFiles,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        height: 120,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: theme.colorScheme.outlineVariant,
-                            width: 1,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.cloud_upload,
-                                size: 28,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Drag and drop files\nor click to browse your local sanctuary',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  height: 1.4,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Max 250MB per file',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  fontSize: 11,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Queue header
-                  if (_selectedFiles.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-                      child: Row(
-                        children: [
-                          Text(
-                            'Queue (${_selectedFiles.length})',
-                            style: theme.textTheme.titleMedium,
-                          ),
-                          const Spacer(),
-                          if (!_uploading && !allDone)
-                            TextButton.icon(
-                              onPressed: () {
-                                setState(() {
-                                  _selectedFiles.clear();
-                                  _progress.clear();
-                                });
-                              },
-                              icon: const Icon(Icons.close, size: 16),
-                              label: const Text('Clear'),
-                            ),
-                          if (allDone)
-                            TextButton.icon(
-                              onPressed: () =>
-                                  Navigator.of(context).pop(),
-                              icon: const Icon(Icons.check, size: 16),
-                              label: const Text('Done'),
-                            ),
-                        ],
-                      ),
-                    ),
-
-                  // File list
-                  if (_selectedFiles.isNotEmpty)
-                    Expanded(
-                      child: ListView.separated(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 24),
-                        itemCount: _selectedFiles.length,
-                        separatorBuilder: (_, _) =>
-                            Divider(height: 1, color: theme.colorScheme.outlineVariant),
-                        itemBuilder: (context, index) {
-                          final file = _selectedFiles[index];
-                          final p = _progress[_key(file)];
-                          return _UploadFileTile(
-                            file: file,
-                            progress: p,
-                          );
-                        },
-                      ),
-                    ),
-
-                  // Upload button
-                  if (_selectedFiles.isNotEmpty && !allDone && !_uploading)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 44,
-                        child: FilledButton(
-                          onPressed:
-                              _uploading || _pickingFiles ? null : _uploadAll,
-                          child: Text('Process All (${_selectedFiles.length})'),
-                        ),
-                      ),
-                    ),
+                  Text('Upload Assets',
+                      style: theme.textTheme.headlineMedium),
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: Text(
+                'Integrate new knowledge into your Mind Palace. Supports documents, images, and neural mappings.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+
+            // Drop zone
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  InkWell(
+                    onTap: _uploading || _pickingFiles ? null : _pickFiles,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 48),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant,
+                          width: 1,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.add_circle_outline,
+                            size: 28,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Click to select or drag files',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'PDF, Markdown, JSON, and high-res images (Max 100MB)',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontSize: 11,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: FilledButton.icon(
+                      onPressed: _uploading || _pickingFiles
+                          ? null
+                          : _pickFiles,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Select Files'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Queue header
+            if (_selectedFiles.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                child: Row(
+                  children: [
+                    Text(
+                      'Queue (${_selectedFiles.length})',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _selectedFiles.clear();
+                          _progress.clear();
+                        });
+                      },
+                      icon: const Icon(Icons.close, size: 16),
+                      label: const Text('Clear Completed'),
+                    ),
+                    if (allDone)
+                      TextButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text('Done'),
+                      ),
+                  ],
+                ),
+              ),
+
+            // File list
+            if (_selectedFiles.isNotEmpty)
+              Expanded(
+                child: ListView.separated(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24),
+                  itemCount: _selectedFiles.length,
+                  separatorBuilder: (_, _) =>
+                      Divider(height: 1, color: theme.colorScheme.outlineVariant),
+                  itemBuilder: (context, index) {
+                    final file = _selectedFiles[index];
+                    final p = _progress[_key(file)];
+                    return _UploadFileTile(
+                      file: file,
+                      progress: p,
+                    );
+                  },
+                ),
+              ),
+
+            // Upload button
+            if (_selectedFiles.isNotEmpty && !allDone && !_uploading)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: FilledButton(
+                    onPressed:
+                        _uploading || _pickingFiles ? null : _uploadAll,
+                    child: Text('Process All (${_selectedFiles.length})'),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -341,26 +351,17 @@ class _UploadFileTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                if (progress != null)
-                  Text(
-                    progress!.status,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 12,
-                      color: isError
-                          ? theme.colorScheme.error
-                          : isDone
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
-                    ),
-                  )
-                else
-                  Text(
-                    _formatSize(file.size),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 12,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                Text(
+                  '${_formatSize(file.size)} • ${progress?.status ?? "Pending"}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 12,
+                    color: isError
+                        ? theme.colorScheme.error
+                        : isDone
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurfaceVariant,
                   ),
+                ),
                 if (isUploading && progress!.fraction != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),

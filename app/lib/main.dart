@@ -8,6 +8,7 @@ import 'screens/login_view.dart';
 import 'screens/gallery_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/status_screen.dart';
+import 'screens/upload_screen.dart';
 import 'services/theme_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/sidebar.dart';
@@ -246,12 +247,20 @@ class _HomePageState extends State<HomePage> {
           isExternalIdp: _isOidc,
           authentikBase: _authentikBase,
         );
+      case 3:
+        return UploadScreen(
+          reliquary: _reliquary,
+          onLogout: _logout,
+          username: _username ?? '',
+          onBack: () => setState(() => _navIndex = 0),
+        );
       default:
         return GalleryScreen(
           engram: _engram,
           reliquary: _reliquary,
           onLogout: _logout,
           username: _username ?? '',
+          onNavigateToUpload: () => setState(() => _navIndex = 3),
         );
     }
   }
