@@ -99,7 +99,7 @@ services:
         done
 
   reliquary-api:
-    image: mind-palace-reliquary-api:latest
+    image: ghcr.io/scrivver/reliquary-api:v0.2.0
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -128,7 +128,7 @@ services:
       EVENT_DEVICE_NAME: ${EVENT_DEVICE_NAME:-reliquary}
 
   reliquary-thumbnail-worker:
-    image: mind-palace-reliquary-thumbnail-worker:latest
+    image: ghcr.io/scrivver/reliquary-thumbnail-worker:v0.2.0
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -152,7 +152,7 @@ services:
       THUMBNAIL_DEAD_QUEUE: ${RELIQUARY_THUMBNAIL_DEAD_QUEUE:-reliquary.thumbnail.dead}
 
   engram-api:
-    image: mind-palace-engram-api:latest
+    image: ghcr.io/scrivver/engram-api:v0.1.0
     restart: unless-stopped
     depends_on:
       postgres:
@@ -176,7 +176,7 @@ services:
       retries: 12
 
   engram-ingestion:
-    image: mind-palace-engram-ingestion:latest
+    image: ghcr.io/scrivver/engram-ingestion:v0.1.0
     restart: unless-stopped
     depends_on:
       postgres:
@@ -208,7 +208,7 @@ services:
       retries: 12
 
   synapse-worker:
-    image: mind-palace-synapse-worker:latest
+    image: ghcr.io/scrivver/synapse-worker:v0.1.0
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -234,7 +234,7 @@ services:
       retries: 12
 
   synapse-reconciler:
-    image: mind-palace-synapse-reconciler:latest
+    image: ghcr.io/scrivver/synapse-reconciler:v0.1.0
     restart: unless-stopped
     depends_on:
       synapse-worker:
