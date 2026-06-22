@@ -499,7 +499,7 @@ class _UploadScreenState extends State<UploadScreen> {
                         });
                       },
                       icon: const Icon(Icons.close, size: 16),
-                      label: const Text('Clear Completed'),
+                      label: const Text('Clear All'),
                     ),
                     if (allDone)
                       TextButton.icon(
@@ -526,6 +526,15 @@ class _UploadScreenState extends State<UploadScreen> {
                     return _UploadFileTile(
                       file: file,
                       progress: p,
+                      onRemove: _uploading
+                          ? null
+                          : () {
+                              if (!mounted) return;
+                              setState(() {
+                                _selectedFiles.removeAt(index);
+                                _progress.remove(_key(file));
+                              });
+                            },
                     );
                   },
                 ),
@@ -597,10 +606,12 @@ class _DashedBorderPainter extends CustomPainter {
 class _UploadFileTile extends StatelessWidget {
   final PlatformFile file;
   final _UploadProgress? progress;
+  final VoidCallback? onRemove;
 
   const _UploadFileTile({
     required this.file,
     this.progress,
+    this.onRemove,
   });
 
   @override
@@ -682,7 +693,7 @@ class _UploadFileTile extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.close, size: 18),
               tooltip: 'Remove',
-              onPressed: () {},
+              onPressed: onRemove,
               visualDensity: VisualDensity.compact,
             ),
         ],
