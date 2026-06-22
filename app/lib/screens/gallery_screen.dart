@@ -36,36 +36,36 @@ class _GalleryScreenState extends State<GalleryScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
   Timer? _searchDebounce;
+  final ScrollController _scrollCtrl = ScrollController();
 
   List<Map<String, dynamic>> _availableTags = [];
   final Set<String> _selectedTags = {};
 
   String? _fileType;
   DateTimeRange? _dateRange;
-  String _sort = 'created_desc';
+  final String _sort = 'created_desc';
 
   static const _pageSize = 50;
   static const _fileTypes = <({String key, String label, IconData icon})>[
-    (key: 'all', label: 'All Files', icon: Icons.folder_copy),
+    (key: 'all', label: 'All Files', icon: Icons.grid_view),
     (key: 'pdf', label: 'PDF', icon: Icons.picture_as_pdf),
     (key: 'image', label: 'Images', icon: Icons.image),
     (key: 'text', label: 'Notes', icon: Icons.description),
     (key: 'code', label: 'Code', icon: Icons.terminal),
   ];
-  static const _sortOptions = <({String key, String label})>[
-    (key: 'created_desc', label: 'Newest first'),
-    (key: 'mtime_desc', label: 'Recently modified'),
-    (key: 'size_desc', label: 'Largest first'),
-    (key: 'size_asc', label: 'Smallest first'),
-  ];
+
 
   String? _activeTypeFilter;
+
+  final GlobalKey _filterButtonKey = GlobalKey();
+  final TextEditingController _filterSearchCtrl = TextEditingController();
+  OverlayEntry? _filterDropdownOverlay;
+  Set<String> _draftSelectedTags = {};
+  String? _draftTypeFilter;
 
   bool get _hasActiveFilters =>
       _selectedTags.isNotEmpty ||
       (_activeTypeFilter != null && _activeTypeFilter != 'all') ||
-      _dateRange != null ||
-      _sort != 'created_desc' ||
       _searchQuery.isNotEmpty;
 
   @override
@@ -73,12 +73,22 @@ class _GalleryScreenState extends State<GalleryScreen> {
     super.initState();
     _loadFiles();
     _loadTags();
+    _scrollCtrl.addListener(_onScroll);
+  }
+
+  void _initDraftState() {
+    _draftSelectedTags = Set.from(_selectedTags);
+    _draftTypeFilter = _activeTypeFilter;
+    _filterSearchCtrl.clear();
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
     _searchCtrl.dispose();
+    _filterSearchCtrl.dispose();
+    _scrollCtrl.dispose();
+    _closeFilterDropdown();
     super.dispose();
   }
 
@@ -172,6 +182,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
     });
   }
 
+  void _onScroll() {
+    if (_scrollCtrl.position.pixels >=
+        _scrollCtrl.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
   void _toggleTag(String name) {
     setState(() {
       if (!_selectedTags.remove(name)) _selectedTags.add(name);
@@ -179,31 +196,88 @@ class _GalleryScreenState extends State<GalleryScreen> {
     _loadFiles();
   }
 
-  void _onTypeFilterChanged(String? key) {
-    setState(() => _activeTypeFilter = key);
-    _loadFiles();
+  void _openFilterDropdown(BuildContext context) {
+    _initDraftState();
+    final renderBox =
+        _filterButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) return;
+
+    final offset = renderBox.localToGlobal(Offset.zero);
+    const dropdownWidth = 288.0;
+
+    _filterDropdownOverlay = OverlayEntry(
+      builder: (ctx) {
+        return GestureDetector(
+          onTap: _closeFilterDropdown,
+          behavior: HitTestBehavior.opaque,
+          child: Material(
+            color: Colors.black26,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: offset.dx,
+                  top: offset.dy + renderBox.size.height + 4,
+                  child: Material(
+                    elevation: 8,
+                    borderRadius: BorderRadius.circular(12),
+                    color: Theme.of(context).colorScheme.surface,
+                    surfaceTintColor:
+                        Theme.of(context).colorScheme.surfaceTint,
+                    child: SizedBox(
+                      width: dropdownWidth,
+                      child: _FilterDropdownPanel(
+                        fileTypes: _fileTypes,
+                        searchCtrl: _filterSearchCtrl,
+                        draftSelectedTags: _draftSelectedTags,
+                        draftTypeFilter: _draftTypeFilter,
+                        availableTags: _availableTags,
+                        onToggleType: (key) {
+                          setState(() => _draftTypeFilter =
+                              _draftTypeFilter == key ? null : key);
+                          _filterDropdownOverlay?.markNeedsBuild();
+                        },
+                        onToggleTag: (name) {
+                          setState(() {
+                            if (!_draftSelectedTags.remove(name)) {
+                              _draftSelectedTags.add(name);
+                            }
+                          });
+                          _filterDropdownOverlay?.markNeedsBuild();
+                        },
+                        onClearAll: () {
+                          setState(() {
+                            _draftSelectedTags.clear();
+                            _draftTypeFilter = null;
+                          });
+                          _filterDropdownOverlay?.markNeedsBuild();
+                        },
+                        onApply: () {
+                          setState(() {
+                            _activeTypeFilter = _draftTypeFilter;
+                            _selectedTags
+                              ..clear()
+                              ..addAll(_draftSelectedTags);
+                          });
+                          _closeFilterDropdown();
+                          _loadFiles();
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    Overlay.of(context).insert(_filterDropdownOverlay!);
   }
 
-  Future<void> _openFilterSheet() async {
-    final result = await showModalBottomSheet<_FilterResult>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (ctx) => _FilterSheet(
-        fileTypes: _fileTypes,
-        sortOptions: _sortOptions,
-        initialFileType: _fileType,
-        initialDateRange: _dateRange,
-        initialSort: _sort,
-      ),
-    );
-    if (result == null || !mounted) return;
-    setState(() {
-      _fileType = result.fileType;
-      _dateRange = result.dateRange;
-      _sort = result.sort;
-    });
-    _loadFiles();
+  void _closeFilterDropdown() {
+    _filterDropdownOverlay?.remove();
+    _filterDropdownOverlay = null;
   }
 
   Future<void> _openDetail(EngramFile file) async {
@@ -225,118 +299,265 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Stack(
       children: [
-        _buildHeader(context),
-        _buildSearchBar(context),
-        _buildTypeFilters(context),
-        if (_availableTags.isNotEmpty) _buildTagBar(),
-        Expanded(child: _buildBody(context)),
+        RefreshIndicator(
+          onRefresh: _refreshAll,
+          child: SingleChildScrollView(
+            controller: _scrollCtrl,
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1440),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(32, 32, 32, 0),
+                      child: _buildHeader(context),
+                    ),
+                    const SizedBox(height: 32),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: _buildSearchBar(context),
+                    ),
+                    _buildFilterSection(context),
+                    const SizedBox(height: 32),
+                    _buildBody(context),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 32,
+          bottom: 24,
+          child: FloatingActionButton(
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => UploadScreen(
+                    reliquary: widget.reliquary,
+                    onLogout: widget.onLogout,
+                    username: widget.username,
+                  ),
+                ),
+              );
+              _refreshAll();
+            },
+            child: const Icon(Icons.add),
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Knowledge Vault', style: theme.textTheme.headlineMedium),
-          const SizedBox(height: 4),
-          Text(
-            'Synchronizing your digital consciousness across ${_files.length} nodes.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Knowledge Vault',
+          style: theme.textTheme.headlineLarge,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Synchronizing your digital consciousness across ${_files.length} nodes.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildSearchBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 576,
       child: TextField(
         controller: _searchCtrl,
         onChanged: _onSearchChanged,
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
-          hintText: 'Search filenames\u2026',
-          prefixIcon: const Icon(Icons.search, size: 20),
+          hintText: 'Search your vault\u2026',
+          hintStyle: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          prefixIcon:
+              Icon(Icons.search, size: 20, color: theme.colorScheme.onSurfaceVariant),
           suffixIcon: _searchCtrl.text.isEmpty
               ? null
               : IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
+                  icon: Icon(Icons.clear, size: 18,
+                      color: theme.colorScheme.onSurfaceVariant),
                   onPressed: () {
                     _searchCtrl.clear();
                     _onSearchChanged('');
                   },
                 ),
-          isDense: true,
+          filled: true,
+          fillColor: theme.colorScheme.surfaceContainerLow,
+          contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12, vertical: 10),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide:
+                BorderSide(color: theme.colorScheme.primary, width: 2),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTypeFilters(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        scrollDirection: Axis.horizontal,
-        itemCount: _fileTypes.length + 1,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          if (i == _fileTypes.length) {
-            return IconButton(
-              icon: Badge(
-                isLabelVisible: _hasActiveFilters,
-                smallSize: 6,
-                child: const Icon(Icons.tune, size: 18),
-              ),
-              tooltip: 'More filters',
-              onPressed: _openFilterSheet,
-              visualDensity: VisualDensity.compact,
-            );
-          }
-          final t = _fileTypes[i];
-          final selected = _activeTypeFilter == t.key ||
-              (_activeTypeFilter == null && t.key == 'all');
-          return FilterChip(
-            avatar: Icon(t.icon, size: 16),
-            label: Text(t.label),
-            selected: selected,
-            showCheckmark: false,
-            onSelected: (_) => _onTypeFilterChanged(t.key == 'all' ? null : t.key),
-          );
-        },
+  Widget _buildFilterSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFilterBar(context),
+          const SizedBox(height: 16),
+          _buildQuickFilters(context),
+        ],
       ),
     );
   }
 
-  Widget _buildTagBar() {
-    return SizedBox(
-      height: 44,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
-        scrollDirection: Axis.horizontal,
-        itemCount: _availableTags.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
-        itemBuilder: (context, i) {
-          final tag = _availableTags[i];
-          final name = tag['name'] as String;
-          final count = (tag['file_count'] as num?)?.toInt() ?? 0;
-          final selected = _selectedTags.contains(name);
-          return FilterChip(
-            label: Text(count > 0 ? '$name ($count)' : name),
-            selected: selected,
-            showCheckmark: false,
-            onSelected: (_) => _toggleTag(name),
-          );
-        },
+  Widget _buildFilterBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final hasFilters = _hasActiveFilters;
+
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: cs.primary,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.grid_view, size: 18, color: cs.onPrimary),
+              const SizedBox(width: 4),
+              Text(
+                'All Files (${_files.length})',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontFamily: 'Space Grotesk',
+                  fontSize: 14,
+                  letterSpacing: 0.05,
+                  color: cs.onPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          width: 1,
+          height: 32,
+          color: cs.outlineVariant,
+        ),
+        const SizedBox(width: 8),
+        InkWell(
+          key: _filterButtonKey,
+          onTap: () => _openFilterDropdown(context),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              border: Border.all(
+                  color: hasFilters ? cs.primary : cs.outlineVariant),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.filter_list,
+                    size: 18,
+                    color: hasFilters ? cs.primary : cs.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Text(
+                  'Filter by Type',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontFamily: 'Space Grotesk',
+                    fontSize: 14,
+                    letterSpacing: 0.05,
+                    color: hasFilters ? cs.primary : cs.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.keyboard_arrow_down,
+                    size: 18,
+                    color: hasFilters ? cs.primary : cs.onSurfaceVariant),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickFilters(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final activeType = _activeTypeFilter;
+
+    if (!_hasActiveFilters) return const SizedBox.shrink();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          Text(
+            'Quick Filters:',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontFamily: 'Space Mono',
+              fontSize: 11,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 8),
+          for (final t in _fileTypes.where((ft) => ft.key != 'all')) ...[
+            _QuickFilterChip(
+              icon: t.icon,
+              label: t.label,
+              isActive: activeType == t.key,
+              onTap: () {
+                setState(() {
+                  _activeTypeFilter =
+                      _activeTypeFilter == t.key ? null : t.key;
+                });
+                _loadFiles();
+              },
+            ),
+            const SizedBox(width: 6),
+          ],
+          for (final tag in _availableTags
+              .where((t) => _selectedTags.contains(t['name']))) ...[
+            _QuickFilterChip(
+              icon: Icons.tag,
+              label: tag['name'] as String,
+              isActive: true,
+              onTap: () => _toggleTag(tag['name'] as String),
+            ),
+            const SizedBox(width: 6),
+          ],
+        ],
       ),
     );
   }
@@ -386,56 +607,78 @@ class _GalleryScreenState extends State<GalleryScreen> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _refreshAll,
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          if (notification is ScrollEndNotification &&
-              notification.metrics.extentAfter < 200) {
-            _loadMore();
-          }
-          return false;
-        },
-        child: Stack(
+    return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 80),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 300,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 0.82,
+          ),
+          itemCount: _files.length + (_hasMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index >= _files.length) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final file = _files[index];
+            return _FileTile(
+              file: file,
+              reliquary: widget.reliquary,
+              onTap: () => _openDetail(file),
+            );
+          },
+        ),
+      );
+  }
+}
+
+class _QuickFilterChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _QuickFilterChip({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final fg = isActive ? cs.primary : cs.onSurfaceVariant;
+    final bg = isActive ? cs.primaryContainer : cs.surfaceContainerLow;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          border: Border.all(
+              color: isActive ? cs.primary : cs.outlineVariant.withAlpha(76)),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            GridView.builder(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 80),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 220,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.82,
-              ),
-              itemCount: _files.length + (_hasMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index >= _files.length) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final file = _files[index];
-                return _FileTile(
-                  file: file,
-                  reliquary: widget.reliquary,
-                  onTap: () => _openDetail(file),
-                );
-              },
-            ),
-            Positioned(
-              right: 24,
-              bottom: 24,
-              child: FloatingActionButton(
-                onPressed: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => UploadScreen(
-                        reliquary: widget.reliquary,
-                        onLogout: widget.onLogout,
-                        username: widget.username,
-                      ),
-                    ),
-                  );
-                  _refreshAll();
-                },
-                child: const Icon(Icons.add),
+            Icon(icon, size: 14, color: fg),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'Space Grotesk',
+                fontSize: 11,
+                color: fg,
               ),
             ),
           ],
@@ -505,42 +748,55 @@ class _FileTileState extends State<_FileTile> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
+            AspectRatio(
+              aspectRatio: 16 / 9,
               child: ClipRRect(
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(11)),
-                child: _thumbUrl != null
-                    ? Image.network(
-                        _thumbUrl!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        errorBuilder: (_, _, _) => _fileIcon(context),
-                      )
-                    : _fileIcon(context),
+                child: Container(
+                  color: theme.colorScheme.surfaceContainer,
+                  child: _thumbUrl != null
+                      ? Image.network(
+                          _thumbUrl!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (_, _, _) => _fileIcon(context),
+                        )
+                      : _fileIcon(context),
+                ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     widget.file.filename,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       _typeBadge(context, widget.file.mimeType ?? ''),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.outlineVariant,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       Text(
                         widget.file.formattedSize,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'Inter',
+                          fontFamily: 'Space Mono',
                           fontSize: 11,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -550,6 +806,7 @@ class _FileTileState extends State<_FileTile> {
                         _relativeTime(widget.file.mtime),
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontFamily: 'Inter',
+                          fontStyle: FontStyle.italic,
                           fontSize: 11,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -579,7 +836,7 @@ class _FileTileState extends State<_FileTile> {
     final theme = Theme.of(context);
     final label = _shortType(mime);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         border: Border.all(color: theme.colorScheme.outline),
         borderRadius: BorderRadius.circular(4),
@@ -588,9 +845,9 @@ class _FileTileState extends State<_FileTile> {
         label,
         style: theme.textTheme.bodySmall?.copyWith(
           fontFamily: 'Space Mono',
-          fontSize: 9,
+          fontSize: 10,
           height: 1.3,
-          color: theme.colorScheme.onSurfaceVariant,
+          color: theme.colorScheme.primary,
         ),
       ),
     );
@@ -638,155 +895,202 @@ class _FileTileState extends State<_FileTile> {
   }
 }
 
-class _FilterResult {
-  final String? fileType;
-  final DateTimeRange? dateRange;
-  final String sort;
-  const _FilterResult(this.fileType, this.dateRange, this.sort);
-}
-
-class _FilterSheet extends StatefulWidget {
+class _FilterDropdownPanel extends StatefulWidget {
   final List<({String key, String label, IconData icon})> fileTypes;
-  final List<({String key, String label})> sortOptions;
-  final String? initialFileType;
-  final DateTimeRange? initialDateRange;
-  final String initialSort;
+  final TextEditingController searchCtrl;
+  final Set<String> draftSelectedTags;
+  final String? draftTypeFilter;
+  final List<Map<String, dynamic>> availableTags;
+  final void Function(String key) onToggleType;
+  final void Function(String name) onToggleTag;
+  final VoidCallback onClearAll;
+  final VoidCallback onApply;
 
-  const _FilterSheet({
+  const _FilterDropdownPanel({
     required this.fileTypes,
-    required this.sortOptions,
-    required this.initialFileType,
-    required this.initialDateRange,
-    required this.initialSort,
+    required this.searchCtrl,
+    required this.draftSelectedTags,
+    required this.draftTypeFilter,
+    required this.availableTags,
+    required this.onToggleType,
+    required this.onToggleTag,
+    required this.onClearAll,
+    required this.onApply,
   });
 
   @override
-  State<_FilterSheet> createState() => _FilterSheetState();
+  State<_FilterDropdownPanel> createState() => _FilterDropdownPanelState();
 }
 
-class _FilterSheetState extends State<_FilterSheet> {
-  String? _fileType;
-  DateTimeRange? _dateRange;
-  late String _sort;
+class _FilterDropdownPanelState extends State<_FilterDropdownPanel> {
+  String _searchText = '';
 
   @override
   void initState() {
     super.initState();
-    _fileType = widget.initialFileType;
-    _dateRange = widget.initialDateRange;
-    _sort = widget.initialSort;
+    widget.searchCtrl.addListener(_onSearchChanged);
   }
 
-  Future<void> _pickDateRange() async {
-    final now = DateTime.now();
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2000),
-      lastDate: now,
-      initialDateRange: _dateRange,
-    );
-    if (picked != null) setState(() => _dateRange = picked);
+  @override
+  void dispose() {
+    widget.searchCtrl.removeListener(_onSearchChanged);
+    super.dispose();
   }
 
-  String _formatRange(DateTimeRange r) {
-    String fmt(DateTime d) =>
-        '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-    return '${fmt(r.start)} \u2192 ${fmt(r.end)}';
+  void _onSearchChanged() {
+    setState(() => _searchText = widget.searchCtrl.text.toLowerCase());
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 8,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Filters', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 16),
-            Text('Type', style: theme.textTheme.labelLarge),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: widget.fileTypes.map((t) {
-                final selected = _fileType == t.key;
-                return FilterChip(
-                  avatar: Icon(t.icon, size: 18),
-                  label: Text(t.label),
-                  selected: selected,
-                  showCheckmark: false,
-                  onSelected: (_) =>
-                      setState(() => _fileType = selected ? null : t.key),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 20),
-            Text('Date modified', style: theme.textTheme.labelLarge),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.date_range, size: 18),
-                    label: Text(
-                      _dateRange == null
-                          ? 'Any date'
-                          : _formatRange(_dateRange!),
-                    ),
-                    onPressed: _pickDateRange,
-                  ),
+    final cs = theme.colorScheme;
+
+    final typeItems =
+        widget.fileTypes.where((t) => t.key != 'all').map((t) {
+      final checked = widget.draftTypeFilter == t.key;
+      final match =
+          _searchText.isEmpty || t.label.toLowerCase().contains(_searchText);
+      return (label: t.label, icon: t.icon, checked: checked, match: match);
+    }).toList();
+
+    final tagItems = widget.availableTags.map((t) {
+      final name = t['name'] as String;
+      final count = (t['file_count'] as num?)?.toInt() ?? 0;
+      final checked = widget.draftSelectedTags.contains(name);
+      final match =
+          _searchText.isEmpty || name.toLowerCase().contains(_searchText);
+      return (label: name, count: count, checked: checked, match: match);
+    }).toList();
+
+    final allItems = [
+      ...typeItems
+          .where((i) => i.match)
+          .map((i) => _buildItemRow(
+              context, i.label, i.icon, i.checked, () => widget.onToggleType(i.label.toLowerCase()))),
+      ...tagItems
+          .where((i) => i.match)
+          .map((i) => _buildItemRow(context, i.label, Icons.tag, i.checked,
+              () => widget.onToggleTag(i.label))),
+    ];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: SizedBox(
+            height: 36,
+            child: TextField(
+              controller: widget.searchCtrl,
+              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Search tags\u2026',
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: 13,
+                  color: cs.onSurfaceVariant,
                 ),
-                if (_dateRange != null)
-                  IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    tooltip: 'Clear date range',
-                    onPressed: () => setState(() => _dateRange = null),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text('Sort by', style: theme.textTheme.labelLarge),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _sort,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
+                prefixIconConstraints:
+                    const BoxConstraints(minWidth: 32, minHeight: 0),
+                prefixIcon: Icon(Icons.search,
+                    size: 16, color: cs.onSurfaceVariant),
                 isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: cs.outlineVariant),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: cs.outlineVariant),
+                ),
               ),
-              items: widget.sortOptions
-                  .map(
-                    (o) => DropdownMenuItem(value: o.key, child: Text(o.label)),
-                  )
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) setState(() => _sort = v);
-              },
             ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+          ),
+        ),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 260),
+          child: ListView(
+            shrinkWrap: true,
+            children: allItems,
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            border: Border(
+                top: BorderSide(color: cs.outlineVariant.withAlpha(76))),
+            color: cs.surfaceContainerLow,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              TextButton(
+                onPressed: widget.onClearAll,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: () => Navigator.pop(
-                    context,
-                    _FilterResult(_fileType, _dateRange, _sort),
-                  ),
-                  child: const Text('Apply'),
+                child: Text('Clear All',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurfaceVariant)),
+              ),
+              const Spacer(),
+              FilledButton(
+                onPressed: widget.onApply,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600),
                 ),
-              ],
+                child: const Text('Apply'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemRow(BuildContext context, String label, IconData icon,
+      bool checked, VoidCallback onTap) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: Checkbox(
+                value: checked,
+                onChanged: (_) => onTap(),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+                side: BorderSide(color: cs.outlineVariant),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4)),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Icon(icon, size: 16, color: cs.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
