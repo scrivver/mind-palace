@@ -50,6 +50,7 @@ class MindPalaceApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: MindPalaceTheme.light(),
       darkTheme: MindPalaceTheme.dark(),
+      themeMode: ThemeMode.light,
       home: const HomePage(),
     );
   }
