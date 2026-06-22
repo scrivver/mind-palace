@@ -108,24 +108,26 @@ class _StatusScreenState extends State<StatusScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 32),
-            _buildEngramEngineCard(),
-            const SizedBox(height: 24),
-            _buildMetricTiles(),
-            const SizedBox(height: 24),
-            _buildStorageCapacity(),
-            const SizedBox(height: 32),
-            _buildRecentActivity(),
-          ],
+    return Scaffold(
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 32),
+              _buildEngramEngineCard(),
+              const SizedBox(height: 24),
+              _buildMetricTiles(),
+              const SizedBox(height: 24),
+              _buildStorageCapacity(),
+              const SizedBox(height: 32),
+              _buildRecentActivity(),
+            ],
+          ),
         ),
       ),
     );
