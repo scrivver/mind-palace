@@ -67,7 +67,7 @@ class EngramService {
       params['sort'] = sort;
     }
     final response = await dio.get(
-      'files',
+      '/api/files',
       queryParameters: params,
       options: Options(listFormat: ListFormat.multi),
     );
@@ -78,12 +78,12 @@ class EngramService {
   }
 
   Future<EngramFile> getFile(String id) async {
-    final response = await dio.get('files/$id');
+    final response = await dio.get('/api/files/$id');
     return EngramFile.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<List<Map<String, dynamic>>> listTags() async {
-    final response = await dio.get('tags');
+    final response = await dio.get('/api/tags');
     final data = response.data as List?;
     return (data ?? []).cast<Map<String, dynamic>>();
   }

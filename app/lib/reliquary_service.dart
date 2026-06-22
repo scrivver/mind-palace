@@ -48,7 +48,7 @@ class ReliquaryService {
 
   Future<FileListResult> listFiles({int offset = 0, int limit = 50}) async {
     final response = await dio.get(
-      'files',
+      '/api/files',
       queryParameters: {'offset': offset, 'limit': limit},
     );
     final data = response.data;
@@ -85,7 +85,7 @@ class ReliquaryService {
     final formData = FormData.fromMap(map);
 
     final response = await dio.post(
-      'upload',
+      '/api/upload',
       data: formData,
       onSendProgress: onProgress,
     );
@@ -103,7 +103,7 @@ class ReliquaryService {
     }
 
     final response = await dio.get(
-      'files/presign',
+      '/api/files/presign',
       queryParameters: {'key': key},
     );
     final relativePath = response.data['url'] as String;
@@ -118,7 +118,7 @@ class ReliquaryService {
 
   Future<String> presignDownloadForSave(String key) async {
     final response = await dio.get(
-      'files/presign',
+      '/api/files/presign',
       queryParameters: {'key': key, 'download': 'true'},
     );
     final relativePath = response.data['url'] as String;
@@ -126,11 +126,11 @@ class ReliquaryService {
   }
 
   Future<void> deleteFile(String key) async {
-    await dio.delete('files', queryParameters: {'key': key});
+    await dio.delete('/api/files', queryParameters: {'key': key});
   }
 
   Future<Map<String, dynamic>> getStats() async {
-    final response = await dio.get('stats');
+    final response = await dio.get('/api/stats');
     return response.data as Map<String, dynamic>;
   }
 }

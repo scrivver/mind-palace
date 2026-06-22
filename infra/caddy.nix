@@ -34,19 +34,19 @@
 
           # Reliquary API
           handle /api/reliquary/* {
-            uri replace /api/reliquary /api
+            uri strip_prefix /api/reliquary
             reverse_proxy ''${RELIQUARY_BACKEND}
           }
 
           # Engram API
           handle /api/engram/* {
-            uri replace /api/engram /api
+            uri strip_prefix /api/engram
             reverse_proxy ''${ENGRAM_BACKEND}
           }
 
           # Synapse API (Future)
           handle /api/synapse/* {
-            uri replace /api/synapse /api
+            uri strip_prefix /api/synapse
             reverse_proxy ''${SYNAPSE_BACKEND}
           }
 
