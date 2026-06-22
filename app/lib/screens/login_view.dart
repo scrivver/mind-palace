@@ -201,48 +201,21 @@ class LoginView extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        'Privacy Policy',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '  \u00b7  ',
-                      style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        'Terms of Service',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '  \u00b7  ',
-                      style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        'Security Architecture',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
+                DefaultTextStyle(
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: theme.colorScheme.primary,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _footerLink(context, 'Privacy Policy'),
+                      _dot(theme),
+                      _footerLink(context, 'Terms of Service'),
+                      _dot(theme),
+                      _footerLink(context, 'Security Architecture'),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -251,4 +224,27 @@ class LoginView extends StatelessWidget {
       ),
     );
   }
+
+  Widget _footerLink(BuildContext context, String label) {
+    return InkWell(
+      onTap: () {},
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Text(label, style: const TextStyle(fontSize: 11)),
+      ),
+    );
+  }
+
+  Widget _dot(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Text(
+        '\u00b7',
+        style: TextStyle(
+          fontSize: 11,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+}
 }
