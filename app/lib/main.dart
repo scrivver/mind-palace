@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'auth_service.dart';
 import 'engram_service.dart';
@@ -42,6 +43,26 @@ String get effectiveEngramBaseUrl {
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // On web the desktop_drop plugin may register and attempt to invoke
+  // platform channel methods even when we don't use it. Install a no-op
+  // handler for the 'desktop_drop' channel to prevent MissingPluginException
+  // errors when desktop_drop_web invokes events.
+  if (kIsWeb) {
+    const channel = MethodChannel('desktop_drop');
+    channel.setMethodCallHandler((call) async {
+      // Accept the expected methods and no-op. Return null to signal
+      // successful handling so plugin invocations don't error.
+      switch (call.method) {
+        case 'entered':
+        case 'updated':
+        case 'exited':
+        case 'performOperation_web':
+          return null;
+        default:
+          return null;
+      }
+    });
+  }
   final themeService = ThemeService();
   runApp(MindPalaceApp(themeService: themeService));
 }

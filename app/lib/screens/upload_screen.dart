@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:desktop_drop/desktop_drop.dart';
+import 'package:desktop_drop/desktop_drop.dart'
+    if (dart.library.html) 'package:mind_palace/widgets/drop_target_stub.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:mime/mime.dart';
 import '../services/drop_item_utils.dart';
@@ -38,26 +40,28 @@ class _UploadScreenState extends State<UploadScreen> {
   bool _pickingFiles = false;
   bool _isDragging = false;
 
-  Future<void> _onDropItems(List<DropItem> items) async {
+  Future<void> _onDropItems(List<dynamic> items) async {
     final files = <PlatformFile>[];
 
     // On IO platforms we can expand directories using the native path info.
     try {
-      if (!kIsWeb) {
+        if (!kIsWeb) {
         // Use the IO helper to expand directories and files.
-        final expanded = await expandDropItemsIo(items);
+        final expanded = await expandDropItemsIo(items as dynamic);
         files.addAll(expanded);
       } else {
         // On web we fall back to reading each DropItem's bytes (no directory expansion).
         for (final item in items) {
-          final bytes = await item.readAsBytes();
-          final size = await item.length();
-          files.add(PlatformFile(
-            name: item.name,
-            size: size,
-            bytes: bytes,
-            path: item.path,
-          ));
+          try {
+            final bytes = await (item as dynamic).readAsBytes();
+            final size = await (item as dynamic).length();
+            files.add(PlatformFile(
+              name: (item as dynamic).name as String,
+              size: size as int,
+              bytes: bytes as Uint8List,
+              path: (item as dynamic).path as String?,
+            ));
+          } catch (_) {}
         }
       }
     } catch (e) {
@@ -85,7 +89,7 @@ class _UploadScreenState extends State<UploadScreen> {
       // For now, use a direct import — the helper is available on IO builds.
       // ignore: import_of_legacy_library_into_null_safe
       return {
-        'expandDropItemsIo': (List<DropItem> items) async =>
+        'expandDropItemsIo': (List<dynamic> items) async =>
             await expandDropItemsIo(items),
       };
     })());

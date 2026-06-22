@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:desktop_drop/desktop_drop.dart';
+import 'package:desktop_drop/desktop_drop.dart' as dd;
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 
@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 /// walk it recursively and return PlatformFile entries pointing to the files
 /// (path set, bytes left null). If an item is a file, return a PlatformFile
 /// with path set.
-Future<List<PlatformFile>> expandDropItemsIo(List<DropItem> items) async {
+Future<List<PlatformFile>> expandDropItemsIo(List<dynamic> items) async {
   final out = <PlatformFile>[];
   for (final item in items) {
     final path = item.path;
