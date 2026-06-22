@@ -1,3 +1,4 @@
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mime/mime.dart';
@@ -32,6 +33,27 @@ class _UploadScreenState extends State<UploadScreen> {
   String _key(PlatformFile f) => '${f.name}::${f.hashCode}';
 
   bool _pickingFiles = false;
+  bool _isDragging = false;
+
+  Future<void> _onDropItems(List<DropItem> items) async {
+    final files = <PlatformFile>[];
+    for (final item in items) {
+      final bytes = await item.readAsBytes();
+      final size = await item.length();
+      files.add(PlatformFile(
+        name: item.name,
+        size: size,
+        bytes: bytes,
+        path: item.path,
+      ));
+    }
+    if (!mounted) return;
+    setState(() {
+      _selectedFiles = files;
+      _progress.clear();
+      _isDragging = false;
+    });
+  }
 
   Future<void> _pickFiles() async {
     if (_pickingFiles) return;
@@ -170,56 +192,79 @@ class _UploadScreenState extends State<UploadScreen> {
           // Upload zone
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: InkWell(
-              onTap: _uploading || _pickingFiles ? null : _pickFiles,
-              borderRadius: BorderRadius.circular(12),
-              child: ClipRRect(
+            child: DropTarget(
+              onDragDone: (details) => _onDropItems(details.files),
+              onDragEntered: (_) {
+                if (!_uploading) setState(() => _isDragging = true);
+              },
+              onDragExited: (_) {
+                if (_isDragging) setState(() => _isDragging = false);
+              },
+              child: InkWell(
+                onTap: _uploading || _pickingFiles ? null : _pickFiles,
                 borderRadius: BorderRadius.circular(12),
-                child: CustomPaint(
-                  foregroundPainter: _DashedBorderPainter(
-                    color: theme.colorScheme.outline,
-                  ),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primaryContainer,
-                            shape: BoxShape.circle,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CustomPaint(
+                    foregroundPainter: _DashedBorderPainter(
+                      color: _isDragging
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outline,
+                    ),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: _isDragging
+                            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+                            : Colors.transparent,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: _isDragging
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.primaryContainer,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.add_circle,
+                              size: 36,
+                              color: _isDragging
+                                  ? theme.colorScheme.onPrimary
+                                  : theme.colorScheme.onPrimaryContainer,
+                            ),
                           ),
-                          child: Icon(
-                            Icons.add_circle,
-                            size: 36,
-                            color: theme.colorScheme.onPrimaryContainer,
+                          const SizedBox(height: 16),
+                          Text(
+                            _isDragging
+                                ? 'Drop files here'
+                                : 'Click to select or drag files',
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              color: theme.colorScheme.onSurface,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Click to select or drag files',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: theme.colorScheme.onSurface,
+                          const SizedBox(height: 4),
+                          Text(
+                            'PDF, Markdown, JSON, and high-res images (Max 100MB)',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'PDF, Markdown, JSON, and high-res images (Max 100MB)',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                          const SizedBox(height: 20),
+                          FilledButton(
+                            onPressed: _uploading || _pickingFiles
+                                ? null
+                                : _pickFiles,
+                            child: const Text('Select Files'),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        FilledButton(
-                          onPressed: _uploading || _pickingFiles
-                              ? null
-                              : _pickFiles,
-                          child: const Text('Select Files'),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
