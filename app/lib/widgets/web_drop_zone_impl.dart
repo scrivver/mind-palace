@@ -67,18 +67,25 @@ class _WebDropZoneState extends State<WebDropZone> {
       final itemsLen = items?.length ?? 0;
       final fileListLen = fileList?.length ?? 0;
 
-      // Prefer reading the FileList first — many browsers (including Chrome)
-      // populate dataTransfer.files with the actual files for a folder drop
-      // (often with webkitRelativePath populated). This is the simplest and
-      // most compatible path. If that yields no files, try the richer
-      // DataTransferItemList traversal which can expose FileSystemEntry
-      // objects on some browsers.
+      // Prefer entry traversal and the item-based expansion first. This
+      // ensures Chromium's FileSystemEntry/webkitGetAsEntry path is used
+      // when available and preserves folder structure automatically.
       try {
-        if (fileListLen > 0) {
+        if ((items?.length ?? 0) > 0) {
+          final files = await expandDropItemsWeb(items as html.DataTransferItemList);
+          if (files.isNotEmpty) {
+            widget.onDropFiles?.call(files);
+            return;
+          }
+        }
+
+        // Fall back to reading the FileList (files) which many browsers
+        // populate with the dropped files and may include webkitRelativePath.
+        if ((fileList?.length ?? 0) > 0) {
           final result = <PlatformFile>[];
           final futures = <Future<void>>[];
-          for (var i = 0; i < fileListLen; i++) {
-            final f = fileList![i] as html.File;
+          for (var i = 0; i < fileList!.length; i++) {
+            final f = fileList[i] as html.File;
             final completer = Completer<void>();
             final reader = html.FileReader();
             reader.onLoadEnd.listen((_) {
@@ -113,14 +120,6 @@ class _WebDropZoneState extends State<WebDropZone> {
           await Future.wait(futures);
           if (result.isNotEmpty) {
             widget.onDropFiles?.call(result);
-            return;
-          }
-        }
-
-        if (itemsLen > 0) {
-          final files = await expandDropItemsWeb(items!);
-          if (files.isNotEmpty) {
-            widget.onDropFiles?.call(files);
             return;
           }
         }
