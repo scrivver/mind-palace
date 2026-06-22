@@ -14,12 +14,12 @@ let
       }
 
       handle /api/reliquary/* {
-        uri replace /api/reliquary /api
+        uri strip_prefix /api/reliquary
         reverse_proxy reliquary-api:8080
       }
 
       handle /api/engram/* {
-        uri replace /api/engram /api
+        uri strip_prefix /api/engram
         reverse_proxy engram-api:8081
       }
 
@@ -35,7 +35,7 @@ let
     ${pkgs.curl}/bin/curl --fail --silent --show-error \
       http://127.0.0.1:2080/health >/dev/null
     ${pkgs.curl}/bin/curl --fail --silent --show-error \
-      http://127.0.0.1:2080/api/engram/health >/dev/null
+      http://127.0.0.1:2080/api/engram/api/health >/dev/null
     exec ${pkgs.curl}/bin/curl --fail --silent --show-error \
       http://127.0.0.1:2080/index.html >/dev/null
   '';

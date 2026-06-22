@@ -18,12 +18,12 @@ let
       }
 
       handle /api/reliquary/* {
-        uri replace /api/reliquary /api
+        uri strip_prefix /api/reliquary
         reverse_proxy reliquary-api:8080
       }
 
       handle /api/engram/* {
-        uri replace /api/engram /api
+        uri strip_prefix /api/engram
         reverse_proxy engram-api:8081
       }
 
