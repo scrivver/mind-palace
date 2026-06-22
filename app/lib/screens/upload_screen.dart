@@ -82,10 +82,9 @@ class _UploadScreenState extends State<UploadScreen> {
     bool _isPlaceholder(PlatformFile f) {
       final name = f.name;
       final path = f.path;
+      // Only treat explicit filesystem placeholders as placeholders.
       if (name.startsWith('.inode') || name == 'x-empty') return true;
       if (path != null && path.contains('.inode')) return true;
-      // 0-byte files without an extension are commonly folder placeholders.
-      if (f.size == 0 && !name.contains('.')) return true;
       return false;
     }
 

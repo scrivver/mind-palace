@@ -2,6 +2,7 @@
 // and converts them into PlatformFile lists using expandDropItemsWeb.
 import 'dart:async';
 import 'dart:html' as html;
+import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/drop_item_utils_web.dart';
@@ -61,21 +62,74 @@ class _WebDropZoneState extends State<WebDropZone> {
       dragCounter = 0;
       widget.onHover?.call(false);
       final items = e.dataTransfer?.items;
-      if (items == null) return;
+      final fileList = e.dataTransfer?.files;
+
+      final itemsLen = items?.length ?? 0;
+      final fileListLen = fileList?.length ?? 0;
+
+      // Prefer reading the FileList first — many browsers (including Chrome)
+      // populate dataTransfer.files with the actual files for a folder drop
+      // (often with webkitRelativePath populated). This is the simplest and
+      // most compatible path. If that yields no files, try the richer
+      // DataTransferItemList traversal which can expose FileSystemEntry
+      // objects on some browsers.
       try {
-        final files = await expandDropItemsWeb(items);
-        if (files.isNotEmpty) {
-          widget.onDropFiles?.call(files);
-        } else {
-          // No files enumerated (likely a folder drop on a browser that
-          // doesn't expose directory entries). Let the host handle folder
-          // uploads via the explicit folder picker callback.
-          widget.onDropFolder?.call();
+        if (fileListLen > 0) {
+          final result = <PlatformFile>[];
+          final futures = <Future<void>>[];
+          for (var i = 0; i < fileListLen; i++) {
+            final f = fileList![i] as html.File;
+            final completer = Completer<void>();
+            final reader = html.FileReader();
+            reader.onLoadEnd.listen((_) {
+              final r = reader.result;
+              Uint8List bytes;
+              if (r is ByteBuffer) {
+                bytes = Uint8List.view(r);
+              } else if (r is List<int>) {
+                bytes = Uint8List.fromList(r);
+              } else {
+                bytes = Uint8List(0);
+              }
+              String? rel;
+              try {
+                final dyn = f as dynamic;
+                final v = dyn.webkitRelativePath;
+                if (v is String && v.isNotEmpty) rel = v;
+              } catch (_) {
+                rel = null;
+              }
+              result.add(PlatformFile(name: rel ?? f.name, size: f.size, bytes: bytes, path: rel));
+              completer.complete();
+            });
+            reader.onError.listen((_) => completer.complete());
+            try {
+              reader.readAsArrayBuffer(f);
+            } catch (_) {
+              completer.complete();
+            }
+            futures.add(completer.future);
+          }
+          await Future.wait(futures);
+          if (result.isNotEmpty) {
+            widget.onDropFiles?.call(result);
+            return;
+          }
+        }
+
+        if (itemsLen > 0) {
+          final files = await expandDropItemsWeb(items!);
+          if (files.isNotEmpty) {
+            widget.onDropFiles?.call(files);
+            return;
+          }
         }
       } catch (_) {
-        // On error, fall back to folder handler if available.
-        widget.onDropFolder?.call();
+        // Ignore and fallback to folder handler below.
       }
+
+      // No files enumerated — likely a folder drop on an unsupported browser.
+      widget.onDropFolder?.call();
     });
 
     // No platform view registration necessary when using window-level
