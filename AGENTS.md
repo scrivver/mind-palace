@@ -45,3 +45,11 @@ For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan at
 `specs/003-settings-page/plan.md`.
 <!-- SPECKIT END -->
+
+<!-- CONVERSATION SUMMARY -->
+## Session Summary (2026-06-22)
+
+- Reviewed `specs/003-settings-page/` — plan and spec define a 4-task settings page feature.
+- **Implemented Task 2.1 (Avatar section)**: Created `Avatar` model (`app/lib/models/avatar.dart`), `GravatarService` (`app/lib/services/gravatar_service.dart`), wired `AvatarPicker` into `SettingsScreen`. Verified with `flutter analyze` — clean.
+- **Reviewed Status screen** (`app/lib/screens/status_screen.dart`): Only hardcoded value is the 100 GB storage capacity placeholder at line 343. All other data comes from real API endpoints (`engram.getStats()`, `reliquary.getStats()`, `engram.getActivity()`). `GravatarService` has a TODO for caching.
+<!-- END CONVERSATION SUMMARY -->
