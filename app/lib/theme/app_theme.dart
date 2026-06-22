@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class MindPalaceTheme {
-  static const Color seedColor = Color(0xFF6750A4);
+  static ThemeData light([Color seedColor = const Color(0xFF6750A4)]) =>
+      _build(_colorScheme(seedColor, Brightness.light));
 
-  static ThemeData light() => _build(_colorScheme(Brightness.light));
+  static ThemeData dark([Color seedColor = const Color(0xFF6750A4)]) =>
+      _build(_colorScheme(seedColor, Brightness.dark));
 
-  static ThemeData dark() => _build(_colorScheme(Brightness.dark));
-
-  static ColorScheme _colorScheme(Brightness brightness) =>
+  static ColorScheme _colorScheme(Color seedColor, Brightness brightness) =>
       ColorScheme.fromSeed(seedColor: seedColor, brightness: brightness);
 
   static ThemeData _build(ColorScheme colorScheme) {

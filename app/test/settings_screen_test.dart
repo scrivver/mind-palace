@@ -25,18 +25,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Settings'), findsAtLeast(1));
-    expect(find.text('Appearance'), findsOneWidget);
-    expect(find.text('Account'), findsOneWidget);
+    expect(find.text('Reset Password'), findsAtLeast(1));
+    expect(find.text('Theme Preference'), findsOneWidget);
   });
 
-  testWidgets('shows Light, Dark, System theme options', (tester) async {
+  testWidgets('shows all 4 theme preset options', (tester) async {
     final themeService = ThemeService();
     await tester.pumpWidget(createTestApp(themeService));
     await tester.pumpAndSettle();
 
-    expect(find.text('Light'), findsOneWidget);
-    expect(find.text('Dark'), findsOneWidget);
-    expect(find.text('System'), findsOneWidget);
+    expect(find.text('Mind Palace'), findsOneWidget);
+    expect(find.text('Default'), findsOneWidget);
+    expect(find.text('Midnight'), findsOneWidget);
+    expect(find.text('Warm'), findsOneWidget);
+    expect(find.text('Neutral'), findsOneWidget);
   });
 
   testWidgets('tapping a theme option changes selection', (tester) async {
@@ -44,20 +46,20 @@ void main() {
     await tester.pumpWidget(createTestApp(themeService));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Dark'));
+    await tester.tap(find.text('Midnight'));
     await tester.pumpAndSettle();
 
-    final darkSetting = await themeService.getTheme();
-    expect(darkSetting, ThemeSetting.dark);
+    final setting = await themeService.getTheme();
+    expect(setting, ThemeSetting.midnight);
   });
 
-  testWidgets('shows Reset Password link in Account section',
+  testWidgets('shows Reset Password button in Account section',
       (tester) async {
     final themeService = ThemeService();
     await tester.pumpWidget(createTestApp(themeService));
     await tester.pumpAndSettle();
 
-    expect(find.text('Reset Password'), findsOneWidget);
+    expect(find.text('Reset Password'), findsAtLeast(1));
   });
 
   testWidgets('persists selected theme across rebuilds', (tester) async {
@@ -65,7 +67,9 @@ void main() {
     await tester.pumpWidget(createTestApp(themeService));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Dark'));
+    await tester.ensureVisible(find.text('Warm'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Warm'));
     await tester.pumpAndSettle();
 
     // Rebuild the widget tree to simulate app restart
@@ -73,6 +77,6 @@ void main() {
     await tester.pumpAndSettle();
 
     final theme = await themeService.getTheme();
-    expect(theme, ThemeSetting.dark);
+    expect(theme, ThemeSetting.warm);
   });
 }

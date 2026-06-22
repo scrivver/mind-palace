@@ -4,29 +4,26 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum ThemeSetting {
-  light(ThemeMode.light, 'Light', Icons.light_mode),
-  dark(ThemeMode.dark, 'Dark', Icons.dark_mode),
-  system(ThemeMode.system, 'System', Icons.brightness_auto);
+  mindPalace('Mind Palace', Icons.language, Color(0xFF6750A4), Brightness.light, subtitle: 'Default'),
+  midnight('Midnight', Icons.nightlight_round, Color(0xFF7C6FF7), Brightness.dark),
+  warm('Warm', Icons.wb_sunny, Color(0xFFE63946), Brightness.light),
+  neutral('Neutral', Icons.blur_on, Color(0xFF475569), Brightness.light);
 
-  final ThemeMode themeMode;
   final String displayName;
   final IconData icon;
+  final Color seedColor;
+  final Brightness brightness;
+  final String? subtitle;
 
-  const ThemeSetting(this.themeMode, this.displayName, this.icon);
+  const ThemeSetting(this.displayName, this.icon, this.seedColor, this.brightness, {this.subtitle});
 
   String get storageValue => name;
 
   static ThemeSetting fromStorage(String? value) {
-    switch (value) {
-      case 'light':
-        return ThemeSetting.light;
-      case 'dark':
-        return ThemeSetting.dark;
-      case 'system':
-        return ThemeSetting.system;
-      default:
-        return ThemeSetting.system;
+    for (final setting in ThemeSetting.values) {
+      if (setting.storageValue == value) return setting;
     }
+    return ThemeSetting.mindPalace;
   }
 }
 
@@ -44,7 +41,7 @@ class ThemeService {
       final value = prefs.getString(_key);
       return ThemeSetting.fromStorage(value);
     } catch (_) {
-      return ThemeSetting.system;
+      return ThemeSetting.mindPalace;
     }
   }
 

@@ -55,7 +55,7 @@ class MindPalaceApp extends StatefulWidget {
 }
 
 class _MindPalaceAppState extends State<MindPalaceApp> {
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeSetting _themeSetting = ThemeSetting.mindPalace;
 
   @override
   void initState() {
@@ -63,7 +63,7 @@ class _MindPalaceAppState extends State<MindPalaceApp> {
     _loadTheme();
     widget.themeService.themeModeStream.listen((setting) {
       if (mounted) {
-        setState(() => _themeMode = setting.themeMode);
+        setState(() => _themeSetting = setting);
       }
     });
   }
@@ -71,7 +71,7 @@ class _MindPalaceAppState extends State<MindPalaceApp> {
   Future<void> _loadTheme() async {
     final theme = await widget.themeService.getTheme();
     if (mounted) {
-      setState(() => _themeMode = theme.themeMode);
+      setState(() => _themeSetting = theme);
     }
   }
 
@@ -80,9 +80,11 @@ class _MindPalaceAppState extends State<MindPalaceApp> {
     return MaterialApp(
       title: 'Mind Palace',
       debugShowCheckedModeBanner: false,
-      theme: MindPalaceTheme.light(),
-      darkTheme: MindPalaceTheme.dark(),
-      themeMode: _themeMode,
+      theme: MindPalaceTheme.light(_themeSetting.seedColor),
+      darkTheme: MindPalaceTheme.dark(_themeSetting.seedColor),
+      themeMode: _themeSetting.brightness == Brightness.dark
+          ? ThemeMode.dark
+          : ThemeMode.light,
       home: HomePage(
         themeService: widget.themeService,
       ),
