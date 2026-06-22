@@ -10,12 +10,14 @@ class WebDropZone extends StatefulWidget {
   final Widget child;
   final void Function(List<PlatformFile>)? onDropFiles;
   final void Function(bool)? onHover;
+  final void Function()? onDropFolder;
 
   const WebDropZone({
     super.key,
     required this.child,
     this.onDropFiles,
     this.onHover,
+    this.onDropFolder,
   });
 
   @override
@@ -62,8 +64,18 @@ class _WebDropZoneState extends State<WebDropZone> {
       if (items == null) return;
       try {
         final files = await expandDropItemsWeb(items);
-        if (files.isNotEmpty) widget.onDropFiles?.call(files);
-      } catch (_) {}
+        if (files.isNotEmpty) {
+          widget.onDropFiles?.call(files);
+        } else {
+          // No files enumerated (likely a folder drop on a browser that
+          // doesn't expose directory entries). Let the host handle folder
+          // uploads via the explicit folder picker callback.
+          widget.onDropFolder?.call();
+        }
+      } catch (_) {
+        // On error, fall back to folder handler if available.
+        widget.onDropFolder?.call();
+      }
     });
 
     // No platform view registration necessary when using window-level

@@ -76,8 +76,34 @@ class _UploadScreenState extends State<UploadScreen> {
     }
 
     if (!mounted) return;
+    // Filter out known placeholder files (e.g. .inode/x-empty) which some
+    // file managers include when a folder is dragged. These should not be
+    // presented to the user as real files.
+    bool _isPlaceholder(PlatformFile f) {
+      final name = f.name;
+      final path = f.path;
+      if (name.startsWith('.inode') || name == 'x-empty') return true;
+      if (path != null && path.contains('.inode')) return true;
+      // 0-byte files without an extension are commonly folder placeholders.
+      if (f.size == 0 && !name.contains('.')) return true;
+      return false;
+    }
+
+    final nonPlaceholders = files.where((f) => !_isPlaceholder(f)).toList();
+    if (nonPlaceholders.isEmpty && files.isNotEmpty) {
+      // All dropped entries looked like placeholders — likely a folder drop
+      // on a browser that doesn't expose children. Inform the user.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Folder drop is not supported in this browser or produced no files. Please use "Select Folder".')),
+      );
+      setState(() {
+        _isDragging = false;
+      });
+      return;
+    }
+
     setState(() {
-      _selectedFiles = List<PlatformFile>.from(_selectedFiles)..addAll(files);
+      _selectedFiles = List<PlatformFile>.from(_selectedFiles)..addAll(nonPlaceholders);
       _isDragging = false;
     });
   }
@@ -269,6 +295,15 @@ class _UploadScreenState extends State<UploadScreen> {
                       },
                       onHover: (hovering) {
                         if (!_uploading) setState(() => _isDragging = hovering);
+                      },
+                      onDropFolder: () async {
+                        // Browser dropped a folder but we couldn't enumerate
+                        // its children from the drop event. Inform the user
+                        // and ask them to use the Select Folder button.
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Folder drop is not supported in this browser. Please use "Select Folder" to add folder contents.')),
+                        );
                       },
                       child: InkWell(
                         onTap: _uploading || _pickingFiles ? null : _pickFiles,

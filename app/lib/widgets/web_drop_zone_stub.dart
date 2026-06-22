@@ -7,12 +7,14 @@ class WebDropZone extends StatelessWidget {
   final Widget child;
   final void Function(List<PlatformFile>)? onDropFiles;
   final void Function(bool)? onHover;
+  final void Function()? onDropFolder;
 
   const WebDropZone({
     super.key,
     required this.child,
     this.onDropFiles,
     this.onHover,
+    this.onDropFolder,
   });
 
   @override
