@@ -48,10 +48,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
   static const _pageSize = 50;
   static const _fileTypes = <({String key, String label, IconData icon})>[
     (key: 'all', label: 'All Files', icon: Icons.grid_view),
-    (key: 'pdf', label: 'PDF', icon: Icons.picture_as_pdf),
     (key: 'image', label: 'Images', icon: Icons.image),
-    (key: 'text', label: 'Notes', icon: Icons.description),
-    (key: 'code', label: 'Code', icon: Icons.terminal),
+    (key: 'video', label: 'Video', icon: Icons.videocam),
+    (key: 'audio', label: 'Audio', icon: Icons.audiotrack),
+    (key: 'pdf', label: 'PDF', icon: Icons.picture_as_pdf),
+    (key: 'other', label: 'Other', icon: Icons.insert_drive_file),
   ];
 
 
@@ -190,9 +191,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   void _toggleTag(String name) {
-    setState(() {
-      if (!_selectedTags.remove(name)) _selectedTags.add(name);
-    });
+    if (!_selectedTags.remove(name)) _selectedTags.add(name);
     _loadFiles();
   }
 
@@ -252,12 +251,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
                           _filterDropdownOverlay?.markNeedsBuild();
                         },
                         onApply: () {
-                          setState(() {
-                            _activeTypeFilter = _draftTypeFilter;
-                            _selectedTags
-                              ..clear()
-                              ..addAll(_draftSelectedTags);
-                          });
+                          _activeTypeFilter = _draftTypeFilter;
+                          _selectedTags
+                            ..clear()
+                            ..addAll(_draftSelectedTags);
                           _closeFilterDropdown();
                           _loadFiles();
                         },
@@ -300,13 +297,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
   @override
   Widget build(BuildContext context) {
     return Stack(
+      fit: StackFit.expand,
       children: [
-        RefreshIndicator(
-          onRefresh: _refreshAll,
-          child: SingleChildScrollView(
-            controller: _scrollCtrl,
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Center(
+        Positioned.fill(
+          child: RefreshIndicator(
+            onRefresh: _refreshAll,
+            child: SingleChildScrollView(
+              controller: _scrollCtrl,
+              physics: const AlwaysScrollableScrollPhysics(),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1440),
                 child: Column(
@@ -321,6 +319,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 32),
                       child: _buildSearchBar(context),
                     ),
+                    const SizedBox(height: 24),
                     _buildFilterSection(context),
                     const SizedBox(height: 32),
                     _buildBody(context),
@@ -376,47 +375,80 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   Widget _buildSearchBar(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      width: 576,
-      child: TextField(
-        controller: _searchCtrl,
-        onChanged: _onSearchChanged,
-        textInputAction: TextInputAction.search,
-        decoration: InputDecoration(
-          hintText: 'Search your vault\u2026',
-          hintStyle: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          prefixIcon:
-              Icon(Icons.search, size: 20, color: theme.colorScheme.onSurfaceVariant),
-          suffixIcon: _searchCtrl.text.isEmpty
-              ? null
-              : IconButton(
-                  icon: Icon(Icons.clear, size: 18,
-                      color: theme.colorScheme.onSurfaceVariant),
-                  onPressed: () {
-                    _searchCtrl.clear();
-                    _onSearchChanged('');
-                  },
-                ),
-          filled: true,
-          fillColor: theme.colorScheme.surfaceContainerLow,
-          contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12, vertical: 10),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide:
-                BorderSide(color: theme.colorScheme.primary, width: 2),
+    final cs = theme.colorScheme;
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _searchCtrl,
+            onChanged: _onSearchChanged,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Search your vault\u2026',
+              hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+              prefixIcon:
+                  Icon(Icons.search, size: 20, color: cs.onSurfaceVariant),
+              suffixIcon: _searchCtrl.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: Icon(Icons.clear, size: 18,
+                          color: cs.onSurfaceVariant),
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        _onSearchChanged('');
+                      },
+                    ),
+              filled: true,
+              fillColor: cs.surfaceContainerLow,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: cs.outlineVariant),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: cs.outlineVariant),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide:
+                    BorderSide(color: cs.primary, width: 2),
+              ),
+            ),
           ),
         ),
+        const SizedBox(width: 12),
+        _allFilesChip(context),
+      ],
+    );
+  }
+
+  Widget _allFilesChip(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: cs.primary,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.grid_view, size: 16, color: cs.onPrimary),
+          const SizedBox(width: 6),
+          Text(
+            'All Files (${_files.length})',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontFamily: 'Space Grotesk',
+                  fontSize: 14,
+                  letterSpacing: 0.05,
+                  color: cs.onPrimary,
+                ),
+          ),
+        ],
       ),
     );
   }
@@ -442,36 +474,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: cs.primary,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.grid_view, size: 18, color: cs.onPrimary),
-              const SizedBox(width: 4),
-              Text(
-                'All Files (${_files.length})',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontFamily: 'Space Grotesk',
-                  fontSize: 14,
-                  letterSpacing: 0.05,
-                  color: cs.onPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          width: 1,
-          height: 32,
-          color: cs.outlineVariant,
-        ),
-        const SizedBox(width: 8),
         InkWell(
           key: _filterButtonKey,
           onTap: () => _openFilterDropdown(context),
@@ -538,10 +540,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
               label: t.label,
               isActive: activeType == t.key,
               onTap: () {
-                setState(() {
-                  _activeTypeFilter =
-                      _activeTypeFilter == t.key ? null : t.key;
-                });
+                _activeTypeFilter =
+                    _activeTypeFilter == t.key ? null : t.key;
                 _loadFiles();
               },
             ),
@@ -564,13 +564,17 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   Widget _buildBody(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Padding(
+        padding: EdgeInsets.only(top: 48),
+        child: CircularProgressIndicator(),
+      );
     }
 
     if (_error != null) {
-      return Center(
+      return Padding(
+        padding: const EdgeInsets.only(top: 48),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(_error!),
             const SizedBox(height: 12),
@@ -581,23 +585,27 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
 
     if (_files.isEmpty) {
-      return Center(
+      final hasFilters = _hasActiveFilters || _searchCtrl.text.isNotEmpty;
+      return Padding(
+        padding: const EdgeInsets.only(top: 48),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
-              Icons.cloud_upload,
-              size: 56,
+              hasFilters ? Icons.search_off : Icons.cloud_upload,
+              size: 48,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 12),
             Text(
-              'No files yet',
+              hasFilters ? 'No matches' : 'No files yet',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
             Text(
-              'Tap + to upload',
+              hasFilters
+                  ? 'Try adjusting your filters or search query'
+                  : 'Tap + to upload',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -617,7 +625,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             maxCrossAxisExtent: 300,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 0.82,
+            childAspectRatio: 1.1,
           ),
           itemCount: _files.length + (_hasMore ? 1 : 0),
           itemBuilder: (context, index) {
