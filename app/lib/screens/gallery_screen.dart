@@ -565,14 +565,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Widget _buildBody(BuildContext context) {
     if (_loading) {
       return const Padding(
-        padding: EdgeInsets.only(top: 48),
+        padding: EdgeInsets.fromLTRB(32, 48, 32, 0),
         child: CircularProgressIndicator(),
       );
     }
 
     if (_error != null) {
       return Padding(
-        padding: const EdgeInsets.only(top: 48),
+        padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -587,7 +587,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     if (_files.isEmpty) {
       final hasFilters = _hasActiveFilters || _searchCtrl.text.isNotEmpty;
       return Padding(
-        padding: const EdgeInsets.only(top: 48),
+        padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
