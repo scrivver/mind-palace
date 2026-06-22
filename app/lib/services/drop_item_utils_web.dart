@@ -68,12 +68,13 @@ Future<List<PlatformFile>> expandDropItemsWeb(html.DataTransferItemList items) a
       // - a name that looks like a placeholder (e.g. startsWith('.inode'))
       // - no file extension
       final typeVal = (file as dynamic).type as String?;
-      // More aggressive placeholder detection: skip known placeholder
-      // filenames like 'x-empty' or names that start with '.inode',
-      // or entries with 0 size and an 'empty' mime type and no extension.
+      // Treat as directory-placeholder only for explicit placeholder
+      // filenames/paths (e.g. '.inode/*', 'x-empty'). Avoid treating files
+      // with no extension as placeholders because many valid files lack
+      // extensions (especially on Linux/macOS).
       final looksLikeDirectory = (sizeVal == 0 &&
           ((typeVal == null || typeVal.isEmpty) || typeVal.contains('empty')) &&
-          (name.startsWith('.inode') || name == 'x-empty' || !name.contains('.')));
+          (name.startsWith('.inode') || name == 'x-empty' || relativePath.contains('.inode')));
       if (!looksLikeDirectory) {
         out.add(PlatformFile(name: name, size: sizeVal, bytes: bytes, path: relativePath));
       }
@@ -188,9 +189,12 @@ Future<List<PlatformFile>> expandDropItemsWeb(html.DataTransferItemList items) a
             return;
           }
 
+          // Treat as directory-placeholder only for explicit placeholder
+          // filenames/paths; do not treat files without an extension as
+          // placeholders.
           final looksLikeDirectory = (sizeVal == 0 &&
               ((typeVal == null || typeVal.isEmpty) || typeVal.contains('empty')) &&
-              (f.name.startsWith('.inode') || f.name == 'x-empty' || !f.name.contains('.')));
+              ((f.name.startsWith('.inode') || f.name == 'x-empty') || (rel != null && rel.contains('.inode'))));
           if (!looksLikeDirectory) {
             // Prefer to include the relative path when available
             final path = rel ?? null;
