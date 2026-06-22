@@ -52,4 +52,8 @@ shell commands, and other important information, read the current plan at
 - Reviewed `specs/003-settings-page/` — plan and spec define a 4-task settings page feature.
 - **Implemented Task 2.1 (Avatar section)**: Created `Avatar` model (`app/lib/models/avatar.dart`), `GravatarService` (`app/lib/services/gravatar_service.dart`), wired `AvatarPicker` into `SettingsScreen`. Verified with `flutter analyze` — clean.
 - **Reviewed Status screen** (`app/lib/screens/status_screen.dart`): Only hardcoded value is the 100 GB storage capacity placeholder at line 343. All other data comes from real API endpoints (`engram.getStats()`, `reliquary.getStats()`, `engram.getActivity()`). `GravatarService` has a TODO for caching.
+- **Stripped Engram stats endpoint**: Removed hardcoded lore fields (`efficiency_pct`, `active_process`, `sync_frequency`, `latency_ms`, `sync_speed_mbps`, `uptime_pct`) from Engram's `GET /api/stats` — kept only real `status`, `total_files`, `files_by_status`. (`engram/backend/internal/model/stats.go`, `engram/backend/internal/api/stats.go`)
+- **Cleaned up Status screen**: Removed Engram Engine card, Metric Tiles, and Recent Activity sections; removed unused `EngramService` dependency. Screen now shows only Storage Capacity from Reliquary.
+- **Fixed Storage Capacity bug**: Was summing file counts as bytes — now uses `total_size` from Reliquary. (`app/lib/screens/status_screen.dart`)
+- **Updated Upload screen to match Stitch design**: Added back arrow button, replaced drop zone icon/text/button to match "Upload Manager (Updated Nav)" design, updated file tiles to show "size • status" format. (`app/lib/screens/upload_screen.dart`)
 <!-- END CONVERSATION SUMMARY -->
