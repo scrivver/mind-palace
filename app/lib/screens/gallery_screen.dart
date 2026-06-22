@@ -959,7 +959,7 @@ class _FilterDropdownPanelState extends State<_FilterDropdownPanel> {
       final checked = widget.draftTypeFilter == t.key;
       final match =
           _searchText.isEmpty || t.label.toLowerCase().contains(_searchText);
-      return (label: t.label, icon: t.icon, checked: checked, match: match);
+      return (key: t.key, label: t.label, icon: t.icon, checked: checked, match: match);
     }).toList();
 
     final tagItems = widget.availableTags.map((t) {
@@ -975,7 +975,7 @@ class _FilterDropdownPanelState extends State<_FilterDropdownPanel> {
       ...typeItems
           .where((i) => i.match)
           .map((i) => _buildItemRow(
-              context, i.label, i.icon, i.checked, () => widget.onToggleType(i.label.toLowerCase()))),
+              context, i.label, i.icon, i.checked, () => widget.onToggleType(i.key))),
       ...tagItems
           .where((i) => i.match)
           .map((i) => _buildItemRow(context, i.label, Icons.tag, i.checked,
@@ -1041,11 +1041,11 @@ class _FilterDropdownPanelState extends State<_FilterDropdownPanel> {
                       horizontal: 12, vertical: 6),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600),
                 ),
                 child: Text('Clear All',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: cs.onSurfaceVariant)),
+                    style: TextStyle(color: cs.onSurfaceVariant)),
               ),
               const Spacer(),
               FilledButton(
@@ -1055,7 +1055,7 @@ class _FilterDropdownPanelState extends State<_FilterDropdownPanel> {
                       horizontal: 16, vertical: 6),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: theme.textTheme.bodySmall?.copyWith(
+                  textStyle: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600),
                 ),
                 child: const Text('Apply'),
