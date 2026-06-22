@@ -1,0 +1,3 @@
+// Conditional export: web implementation when compiled for web, otherwise stub.
+export 'web_drop_zone_stub.dart'
+    if (dart.library.html) 'web_drop_zone_impl.dart';

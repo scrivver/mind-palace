@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mime/mime.dart';
+import '../services/drop_item_utils.dart';
+import '../widgets/web_drop_zone.dart' as web_drop;
 
 import '../reliquary_service.dart';
 import '../services/file_picker_service.dart' as picker;
@@ -37,22 +40,55 @@ class _UploadScreenState extends State<UploadScreen> {
 
   Future<void> _onDropItems(List<DropItem> items) async {
     final files = <PlatformFile>[];
-    for (final item in items) {
-      final bytes = await item.readAsBytes();
-      final size = await item.length();
-      files.add(PlatformFile(
-        name: item.name,
-        size: size,
-        bytes: bytes,
-        path: item.path,
-      ));
+
+    // On IO platforms we can expand directories using the native path info.
+    try {
+      if (!kIsWeb) {
+        // Use the IO helper to expand directories and files.
+        final expanded = await expandDropItemsIo(items);
+        files.addAll(expanded);
+      } else {
+        // On web we fall back to reading each DropItem's bytes (no directory expansion).
+        for (final item in items) {
+          final bytes = await item.readAsBytes();
+          final size = await item.length();
+          files.add(PlatformFile(
+            name: item.name,
+            size: size,
+            bytes: bytes,
+            path: item.path,
+          ));
+        }
+      }
+    } catch (e) {
+      // If platform-specific helpers fail, gracefully fall back to reading bytes.
+      for (final item in items) {
+        try {
+          final bytes = await item.readAsBytes();
+          final size = await item.length();
+          files.add(PlatformFile(name: item.name, size: size, bytes: bytes, path: item.path));
+        } catch (_) {}
+      }
     }
+
     if (!mounted) return;
     setState(() {
-      _selectedFiles = files;
-      _progress.clear();
+      _selectedFiles = List<PlatformFile>.from(_selectedFiles)..addAll(files);
       _isDragging = false;
     });
+  }
+
+  // Dynamically import the IO helper to avoid referencing it in web builds.
+  Future<dynamic> importDropItemUtilsIo() async {
+    return await Future.value((() async {
+      // This block will be replaced by conditional imports in a follow-up if desired.
+      // For now, use a direct import — the helper is available on IO builds.
+      // ignore: import_of_legacy_library_into_null_safe
+      return {
+        'expandDropItemsIo': (List<DropItem> items) async =>
+            await expandDropItemsIo(items),
+      };
+    })());
   }
 
   Future<void> _pickFiles() async {
@@ -64,19 +100,19 @@ class _UploadScreenState extends State<UploadScreen> {
         if (!mounted) return;
         final result = await picker.pickFiles(allowMultiple: true);
         if (result != null && result.isNotEmpty) {
+          if (!mounted) return;
           setState(() {
             _selectedFiles = result;
             _progress.clear();
-            _pickingFiles = false;
           });
           return;
         }
         if (!mounted) return;
       }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-              'No files selected. Tap "Select files" to try again.'),
+          content: Text('No files selected. Tap "Select files" to try again.'),
         ),
       );
     } catch (e) {
@@ -84,10 +120,35 @@ class _UploadScreenState extends State<UploadScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick files: $e')),
       );
+    } finally {
+      if (!mounted) return;
+      setState(() => _pickingFiles = false);
     }
+  }
 
-    if (!mounted) return;
-    setState(() => _pickingFiles = false);
+  Future<void> _pickFolder() async {
+    if (_pickingFiles) return;
+    setState(() => _pickingFiles = true);
+
+    try {
+      final result = await picker.pickFolder();
+      if (result != null && result.isNotEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _selectedFiles = result;
+          _progress.clear();
+        });
+        return;
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick folder: $e')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _pickingFiles = false);
+    }
   }
 
   Future<void> _uploadAll() async {
@@ -189,88 +250,197 @@ class _UploadScreenState extends State<UploadScreen> {
               ),
             ),
 
-          // Upload zone
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: DropTarget(
-              onDragDone: (details) => _onDropItems(details.files),
-              onDragEntered: (_) {
-                if (!_uploading) setState(() => _isDragging = true);
-              },
-              onDragExited: (_) {
-                if (_isDragging) setState(() => _isDragging = false);
-              },
-              child: InkWell(
-                onTap: _uploading || _pickingFiles ? null : _pickFiles,
-                borderRadius: BorderRadius.circular(12),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: CustomPaint(
-                    foregroundPainter: _DashedBorderPainter(
-                      color: _isDragging
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outline,
-                    ),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(32),
-                      decoration: BoxDecoration(
-                        color: _isDragging
-                            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-                            : Colors.transparent,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
+            // Upload zone
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: kIsWeb
+                  ? web_drop.WebDropZone(
+                      onDropFiles: (files) async {
+                        // Convert PlatformFile list from web drop into queue
+                        if (!mounted) return;
+                        setState(() {
+                          _selectedFiles = List<PlatformFile>.from(_selectedFiles)..addAll(files);
+                          _isDragging = false;
+                        });
+                      },
+                      onHover: (hovering) {
+                        if (!_uploading) setState(() => _isDragging = hovering);
+                      },
+                      child: InkWell(
+                        onTap: _uploading || _pickingFiles ? null : _pickFiles,
+                        borderRadius: BorderRadius.circular(12),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: CustomPaint(
+                            foregroundPainter: _DashedBorderPainter(
                               color: _isDragging
                                   ? theme.colorScheme.primary
-                                  : theme.colorScheme.primaryContainer,
-                              shape: BoxShape.circle,
+                                  : theme.colorScheme.outline,
                             ),
-                            child: Icon(
-                              Icons.add_circle,
-                              size: 36,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(32),
+                              decoration: BoxDecoration(
+                                color: _isDragging
+                                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                    : Colors.transparent,
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 64,
+                                    height: 64,
+                                    decoration: BoxDecoration(
+                                      color: _isDragging
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.primaryContainer,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.add_circle,
+                                      size: 36,
+                                      color: _isDragging
+                                          ? theme.colorScheme.onPrimary
+                                          : theme.colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _isDragging
+                                        ? 'Drop files here'
+                                        : 'Click to select or drag files',
+                                    style: theme.textTheme.headlineSmall?.copyWith(
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'PDF, Markdown, JSON, and high-res images (Max 100MB)',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                const SizedBox(height: 20),
+                                Wrap(
+                                  spacing: 8,
+                                  alignment: WrapAlignment.center,
+                                  children: [
+                                    FilledButton(
+                                      onPressed: _uploading || _pickingFiles
+                                          ? null
+                                          : _pickFiles,
+                                      child: const Text('Select Files'),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: _uploading || _pickingFiles
+                                          ? null
+                                          : _pickFolder,
+                                      icon: const Icon(Icons.folder_open, size: 18),
+                                      label: const Text('Select Folder'),
+                                    ),
+                                  ],
+                                ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : DropTarget(
+                      onDragDone: (details) => _onDropItems(details.files),
+                      onDragEntered: (_) {
+                        if (!_uploading) setState(() => _isDragging = true);
+                      },
+                      onDragExited: (_) {
+                        if (_isDragging) setState(() => _isDragging = false);
+                      },
+                      child: InkWell(
+                        onTap: _uploading || _pickingFiles ? null : _pickFiles,
+                        borderRadius: BorderRadius.circular(12),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: CustomPaint(
+                            foregroundPainter: _DashedBorderPainter(
                               color: _isDragging
-                                  ? theme.colorScheme.onPrimary
-                                  : theme.colorScheme.onPrimaryContainer,
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.outline,
+                            ),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(32),
+                              decoration: BoxDecoration(
+                                color: _isDragging
+                                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                    : Colors.transparent,
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 64,
+                                    height: 64,
+                                    decoration: BoxDecoration(
+                                      color: _isDragging
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.primaryContainer,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.add_circle,
+                                      size: 36,
+                                      color: _isDragging
+                                          ? theme.colorScheme.onPrimary
+                                          : theme.colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _isDragging
+                                        ? 'Drop files here'
+                                        : 'Click to select or drag files',
+                                    style: theme.textTheme.headlineSmall?.copyWith(
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'PDF, Markdown, JSON, and high-res images (Max 100MB)',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                const SizedBox(height: 20),
+                                Wrap(
+                                  spacing: 8,
+                                  alignment: WrapAlignment.center,
+                                  children: [
+                                    FilledButton(
+                                      onPressed: _uploading || _pickingFiles
+                                          ? null
+                                          : _pickFiles,
+                                      child: const Text('Select Files'),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: _uploading || _pickingFiles
+                                          ? null
+                                          : _pickFolder,
+                                      icon: const Icon(Icons.folder_open, size: 18),
+                                      label: const Text('Select Folder'),
+                                    ),
+                                  ],
+                                ),
+                                ],
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _isDragging
-                                ? 'Drop files here'
-                                : 'Click to select or drag files',
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'PDF, Markdown, JSON, and high-res images (Max 100MB)',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          FilledButton(
-                            onPressed: _uploading || _pickingFiles
-                                ? null
-                                : _pickFiles,
-                            child: const Text('Select Files'),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
             ),
-          ),
 
             // Queue header
             if (_selectedFiles.isNotEmpty)
