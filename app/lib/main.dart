@@ -6,7 +6,9 @@ import 'engram_service.dart';
 import 'reliquary_service.dart';
 import 'screens/login_view.dart';
 import 'screens/gallery_screen.dart';
+import 'screens/settings_screen.dart';
 import 'screens/status_screen.dart';
+import 'services/theme_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/sidebar.dart';
 
@@ -38,11 +40,40 @@ String get effectiveEngramBaseUrl {
 }
 
 void main() {
-  runApp(const MindPalaceApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  final themeService = ThemeService();
+  runApp(MindPalaceApp(themeService: themeService));
 }
 
-class MindPalaceApp extends StatelessWidget {
-  const MindPalaceApp({super.key});
+class MindPalaceApp extends StatefulWidget {
+  final ThemeService themeService;
+
+  const MindPalaceApp({super.key, required this.themeService});
+
+  @override
+  State<MindPalaceApp> createState() => _MindPalaceAppState();
+}
+
+class _MindPalaceAppState extends State<MindPalaceApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+    widget.themeService.themeModeStream.listen((setting) {
+      if (mounted) {
+        setState(() => _themeMode = setting.themeMode);
+      }
+    });
+  }
+
+  Future<void> _loadTheme() async {
+    final theme = await widget.themeService.getTheme();
+    if (mounted) {
+      setState(() => _themeMode = theme.themeMode);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,14 +82,18 @@ class MindPalaceApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: MindPalaceTheme.light(),
       darkTheme: MindPalaceTheme.dark(),
-      themeMode: ThemeMode.light,
-      home: const HomePage(),
+      themeMode: _themeMode,
+      home: HomePage(
+        themeService: widget.themeService,
+      ),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final ThemeService themeService;
+
+  const HomePage({super.key, required this.themeService});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -199,8 +234,10 @@ class _HomePageState extends State<HomePage> {
           reliquary: _reliquary,
         );
       case 2:
-        return const Center(
-          child: Text('Settings — coming soon'),
+        return SettingsScreen(
+          themeService: widget.themeService,
+          onThemeChanged: (setting) {},
+          authentikBase: _authentikBase,
         );
       default:
         return GalleryScreen(

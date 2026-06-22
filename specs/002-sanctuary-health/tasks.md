@@ -104,6 +104,17 @@ description: "Task list for Sanctuary Health Status Page feature"
 
 ---
 
+## Phase 7: Convergence
+
+**Purpose**: Close test-coverage gaps identified during convergence assessment
+
+- [ ] T018 Write `StatusScreen` widget test in `app/test/status_screen_test.dart` covering render, loading, error, and populated states per plan.md testing section (partial)
+- [ ] T019 Write `EngramService` unit test for `getStats()` and `getActivity()` in `app/test/engram_service_test.dart` per plan.md testing section (partial)
+- [ ] T020 Fix "View Archive" hidden when `entries` empty but `total > 0` in `app/lib/screens/status_screen.dart` per FR-010 (partial)
+- [ ] T021 Write Go unit tests for `handleStats` and `handleActivity` handlers in `engram/backend/internal/api/stats_test.go` and `engram/backend/internal/api/activity_test.go` per plan.md testing section and Constitution IV (partial)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
