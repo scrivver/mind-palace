@@ -108,27 +108,24 @@ class _StatusScreenState extends State<StatusScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sanctuary Health')),
-      body: RefreshIndicator(
-        onRefresh: _loadData,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 32),
-              _buildEngramEngineCard(),
-              const SizedBox(height: 24),
-              _buildMetricTiles(),
-              const SizedBox(height: 24),
-              _buildStorageCapacity(),
-              const SizedBox(height: 32),
-              _buildRecentActivity(),
-            ],
-          ),
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 32),
+            _buildEngramEngineCard(),
+            const SizedBox(height: 24),
+            _buildMetricTiles(),
+            const SizedBox(height: 24),
+            _buildStorageCapacity(),
+            const SizedBox(height: 32),
+            _buildRecentActivity(),
+          ],
         ),
       ),
     );
@@ -139,11 +136,11 @@ class _StatusScreenState extends State<StatusScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Sanctuary Health',
-            style: Theme.of(context).textTheme.headlineMedium),
+            style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 8),
         Text(
           'Real-time optimization metrics for your personal digital sanctuary',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),

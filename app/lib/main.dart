@@ -87,6 +87,7 @@ class _MindPalaceAppState extends State<MindPalaceApp> {
           : ThemeMode.light,
       home: HomePage(
         themeService: widget.themeService,
+        currentTheme: _themeSetting,
       ),
     );
   }
@@ -94,8 +95,9 @@ class _MindPalaceAppState extends State<MindPalaceApp> {
 
 class HomePage extends StatefulWidget {
   final ThemeService themeService;
+  final ThemeSetting currentTheme;
 
-  const HomePage({super.key, required this.themeService});
+  const HomePage({super.key, required this.themeService, required this.currentTheme});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -238,6 +240,7 @@ class _HomePageState extends State<HomePage> {
       case 2:
         return SettingsScreen(
           themeService: widget.themeService,
+          currentTheme: widget.currentTheme,
           onThemeChanged: (setting) {},
           authentikBase: _authentikBase,
         );

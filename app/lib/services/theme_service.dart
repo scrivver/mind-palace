@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'theme_store.dart';
 
 enum ThemeSetting {
   mindPalace('Mind Palace', Icons.language, Color(0xFF6750A4), Brightness.light, subtitle: 'Default'),
@@ -29,16 +30,18 @@ enum ThemeSetting {
 
 class ThemeService {
   static const _key = 'theme_mode';
+  final ThemeStore _store;
 
   final StreamController<ThemeSetting> _controller =
       StreamController<ThemeSetting>.broadcast();
 
   Stream<ThemeSetting> get themeModeStream => _controller.stream;
 
+  ThemeService({ThemeStore? store}) : _store = store ?? createThemeStore();
+
   Future<ThemeSetting> getTheme() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final value = prefs.getString(_key);
+      final value = await _store.read(_key);
       return ThemeSetting.fromStorage(value);
     } catch (_) {
       return ThemeSetting.mindPalace;
@@ -47,8 +50,7 @@ class ThemeService {
 
   Future<void> setTheme(ThemeSetting setting) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_key, setting.storageValue);
+      await _store.write(_key, setting.storageValue);
     } catch (_) {
       // Persistence unavailable — still apply theme for this session
     }

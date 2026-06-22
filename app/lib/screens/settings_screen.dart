@@ -7,12 +7,14 @@ import '../services/theme_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final ThemeService themeService;
+  final ThemeSetting currentTheme;
   final ValueChanged<ThemeSetting> onThemeChanged;
   final String authentikBase;
 
   const SettingsScreen({
     super.key,
     required this.themeService,
+    required this.currentTheme,
     required this.onThemeChanged,
     required this.authentikBase,
   });
@@ -22,14 +24,13 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  ThemeSetting _selectedTheme = ThemeSetting.mindPalace;
-  bool _loading = true;
+  late ThemeSetting _selectedTheme;
   StreamSubscription<ThemeSetting>? _themeSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadTheme();
+    _selectedTheme = widget.currentTheme;
     _themeSubscription = widget.themeService.themeModeStream.listen((setting) {
       if (mounted) {
         setState(() => _selectedTheme = setting);
@@ -43,16 +44,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadTheme() async {
-    final theme = await widget.themeService.getTheme();
-    if (mounted) {
-      setState(() {
-        _selectedTheme = theme;
-        _loading = false;
-      });
-    }
-  }
-
   Future<void> _resetPassword() async {
     final uri = Uri.parse(
         '${widget.authentikBase}/if/flow/password-reset/');
@@ -63,20 +54,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 32),
-            _buildResetPasswordSection(),
-            const SizedBox(height: 48),
-            _buildThemeSection(),
-          ],
-        ),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 32),
+          _buildResetPasswordSection(),
+          const SizedBox(height: 48),
+          _buildThemeSection(),
+        ],
       ),
     );
   }
@@ -86,11 +74,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Settings',
-            style: Theme.of(context).textTheme.headlineMedium),
+            style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 8),
         Text(
           'Manage your sanctuary preferences and security settings.',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
@@ -131,22 +119,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
         ),
         const SizedBox(height: 24),
-        if (_loading)
-          const SizedBox(
-            height: 112,
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          )
-        else
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: ThemeSetting.values
-                .map((setting) => SizedBox(
-                      width: 180,
-                      child: _buildThemeCard(setting),
-                    ))
-                .toList(),
-          ),
+        Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: ThemeSetting.values
+              .map((setting) => SizedBox(
+                    width: 180,
+                    child: _buildThemeCard(setting),
+                  ))
+              .toList(),
+        ),
       ],
     );
   }

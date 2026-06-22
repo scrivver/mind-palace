@@ -4,10 +4,11 @@ import 'package:mind_palace/screens/settings_screen.dart';
 import 'package:mind_palace/services/theme_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Widget createTestApp(ThemeService themeService) {
+Widget createTestApp(ThemeService themeService, {ThemeSetting currentTheme = ThemeSetting.mindPalace}) {
   return MaterialApp(
     home: SettingsScreen(
       themeService: themeService,
+      currentTheme: currentTheme,
       onThemeChanged: (_) {},
       authentikBase: 'http://127.0.0.1:9000',
     ),
@@ -72,11 +73,13 @@ void main() {
     await tester.tap(find.text('Warm'));
     await tester.pumpAndSettle();
 
-    // Rebuild the widget tree to simulate app restart
-    await tester.pumpWidget(createTestApp(themeService));
+    // Simulate app restart by reading the persisted value for currentTheme
+    final persisted = await themeService.getTheme();
+    await tester.pumpWidget(
+        createTestApp(themeService, currentTheme: persisted));
     await tester.pumpAndSettle();
 
-    final theme = await themeService.getTheme();
-    expect(theme, ThemeSetting.warm);
+    expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    expect(themeService.getTheme(), completion(ThemeSetting.warm));
   });
 }
