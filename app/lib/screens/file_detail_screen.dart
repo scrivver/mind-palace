@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
-import 'package:pdfrx/pdfrx.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../engram_service.dart';
 import '../models/engram_file.dart';
 import '../reliquary_service.dart';
 import '../utils/format.dart';
+import '../widgets/file_detail/delete_dialog.dart';
+import '../widgets/file_detail/extracted_text_dialog.dart';
+import '../widgets/file_detail/image_preview.dart';
+import '../widgets/file_detail/pdf_preview.dart';
 
 class FileDetailScreen extends StatefulWidget {
   final EngramFile initial;
@@ -74,10 +76,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
   }
 
   Future<void> _delete() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => _DeleteDialog(filename: _file.filename),
-    );
+    final confirm = await showDeleteDialog(context, _file.filename);
     if (confirm != true) return;
 
     try {
@@ -175,12 +174,6 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     );
   }
 
-  Future<Uint8List> _fetchPdfBytes() async {
-    final url = await widget.reliquary.presignDownload(_file.filePath);
-    final response = await http.get(Uri.parse(url));
-    return response.bodyBytes;
-  }
-
   Widget _buildPreview(BuildContext context) {
     final theme = Theme.of(context);
     final isPdf = (_file.mimeType ?? '').contains('pdf');
@@ -194,100 +187,14 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       ),
       clipBehavior: Clip.antiAlias,
       child: isPdf
-          ? _buildPdfPreview(context)
-          : _buildImagePreview(context),
-    );
-  }
-
-  Widget _buildPdfPreview(BuildContext context) {
-    return FutureBuilder<Uint8List>(
-      future: _fetchPdfBytes(),
-      builder: (context, snap) {
-        if (!snap.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        return PdfViewer(
-          PdfDocumentRefData(
-            snap.data!,
-            sourceName: _file.filePath,
-          ),
-          params: PdfViewerParams(
-            backgroundColor: const Color(0xFFFAFAFA),
-            errorBannerBuilder: (_, error, stackTrace, ref) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.picture_as_pdf,
-                      size: 48,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Failed to load PDF',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
+          ? PdfPreview(filePath: _file.filePath, reliquary: widget.reliquary)
+          : ImagePreview(
+              filePath: _file.filePath,
+              isImage: _file.isImage,
+              mimeType: _file.mimeType,
+              filename: _file.filename,
+              reliquary: widget.reliquary,
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildImagePreview(BuildContext context) {
-    if (_file.isImage) {
-      return FutureBuilder<String>(
-        future: widget.reliquary.presignDownload(_file.filePath),
-        builder: (context, snap) {
-          if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              return InteractiveViewer(
-                constrained: false,
-                child: SizedBox(
-                  width: constraints.maxWidth,
-                  height: constraints.maxHeight,
-                  child: Image.network(
-                    snap.data!,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) => _iconPreview(context),
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      );
-    }
-    return Center(child: _iconPreview(context));
-  }
-
-  Widget _iconPreview(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            iconForMime(_file.mimeType ?? ''),
-            size: 56,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _file.filename,
-            style: theme.textTheme.bodyMedium,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 
@@ -296,7 +203,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        onPressed: () => _showExtractedTextDialog(context),
+        onPressed: () => showExtractedTextDialog(context, _file.extractedText ?? ''),
         icon: const Icon(Icons.description_outlined, size: 18),
         label: const Text('View Extracted Text'),
         style: OutlinedButton.styleFrom(
@@ -308,81 +215,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     );
   }
 
-  void _showExtractedTextDialog(BuildContext context) {
-    final theme = Theme.of(context);
-    final screenH = MediaQuery.of(context).size.height;
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: theme.colorScheme.outlineVariant),
-        ),
-        child: SizedBox(
-          width: 560,
-          height: screenH * 0.55,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Extracted Analysis',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'OCR Engine v4.2',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: SingleChildScrollView(
-                      child: SelectableText(
-                        _file.extractedText!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'Space Mono',
-                          height: 1.5,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Close'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildRightColumn(BuildContext context) {
     final theme = Theme.of(context);
@@ -589,76 +422,3 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
 
 }
 
-class _DeleteDialog extends StatelessWidget {
-  final String filename;
-
-  const _DeleteDialog({required this.filename});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Dialog(
-      backgroundColor: cs.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: cs.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Confirm Deletion',
-              style: theme.textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Are you certain you wish to purge "$filename"? This action cannot be undone within the Mind Palace architecture.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: cs.error,
-                ),
-                child: Text(
-                  'Permanent Deletion',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: cs.onError,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context, false),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: cs.outline),
-                ),
-                child: Text(
-                  'Cancel',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

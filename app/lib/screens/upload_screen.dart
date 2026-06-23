@@ -11,7 +11,9 @@ import '../widgets/web_drop_zone.dart' as web_drop;
 import '../reliquary_service.dart';
 import '../services/file_picker_service.dart' as picker;
 import '../upload_file.dart';
-import '../utils/format.dart';
+import '../widgets/upload/dashed_border_painter.dart';
+import '../widgets/upload/upload_file_tile.dart';
+import '../widgets/upload/upload_progress.dart';
 
 class UploadScreen extends StatefulWidget {
   final ReliquaryService reliquary;
@@ -33,7 +35,7 @@ class UploadScreen extends StatefulWidget {
 
 class _UploadScreenState extends State<UploadScreen> {
   List<PlatformFile> _selectedFiles = [];
-  final Map<String, _UploadProgress> _progress = {};
+  final Map<String, UploadProgress> _progress = {};
   bool _uploading = false;
 
   String _key(PlatformFile f) => '${f.name}::${f.hashCode}';
@@ -170,7 +172,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
       if (!mounted) return;
       setState(() {
-        _progress[k] = _UploadProgress(status: 'Initializing...', fraction: 0);
+        _progress[k] = UploadProgress(status: 'Initializing...', fraction: 0);
       });
 
       try {
@@ -182,7 +184,7 @@ class _UploadScreenState extends State<UploadScreen> {
         if (!mounted) return;
         setState(() {
           _progress[k] =
-              _UploadProgress(status: 'Uploading...', fraction: 0);
+              UploadProgress(status: 'Uploading...', fraction: 0);
         });
 
         final result = await widget.reliquary.uploadFile(
@@ -193,7 +195,7 @@ class _UploadScreenState extends State<UploadScreen> {
             if (!mounted) return;
             if (total > 0) {
               setState(() {
-                _progress[k] = _UploadProgress(
+                _progress[k] = UploadProgress(
                   status: 'Uploading...',
                   fraction: sent / total,
                 );
@@ -204,7 +206,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
         if (!mounted) return;
         setState(() {
-          _progress[k] = _UploadProgress(
+          _progress[k] = UploadProgress(
             status: result.duplicate ? 'Duplicate skipped' : 'Synced',
             fraction: 1.0,
             done: true,
@@ -215,7 +217,7 @@ class _UploadScreenState extends State<UploadScreen> {
         if (!mounted) return;
         setState(() {
           _progress[k] =
-              _UploadProgress(status: 'Failed: $e', error: true);
+              UploadProgress(status: 'Failed: $e', error: true);
         });
       }
     }
@@ -290,7 +292,7 @@ class _UploadScreenState extends State<UploadScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: CustomPaint(
-                            foregroundPainter: _DashedBorderPainter(
+                            foregroundPainter: DashedBorderPainter(
                               color: _isDragging
                                   ? theme.colorScheme.primary
                                   : theme.colorScheme.outline,
@@ -381,7 +383,7 @@ class _UploadScreenState extends State<UploadScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: CustomPaint(
-                            foregroundPainter: _DashedBorderPainter(
+                            foregroundPainter: DashedBorderPainter(
                               color: _isDragging
                                   ? theme.colorScheme.primary
                                   : theme.colorScheme.outline,
@@ -503,7 +505,7 @@ class _UploadScreenState extends State<UploadScreen> {
                   itemBuilder: (context, index) {
                     final file = _selectedFiles[index];
                     final p = _progress[_key(file)];
-                    return _UploadFileTile(
+                    return UploadFileTile(
                       file: file,
                       progress: p,
                       onRemove: _uploading
@@ -541,190 +543,4 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 }
 
-class _DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double strokeWidth;
-  final double dashLength;
-  final double gapLength;
 
-  const _DashedBorderPainter({
-    required this.color,
-    this.strokeWidth = 1.5,
-    this.dashLength = 6,
-    this.gapLength = 4,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
-
-    final rrect =
-        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(12));
-    final path = Path()..addRRect(rrect);
-
-    for (final metric in path.computeMetrics()) {
-      double distance = 0;
-      while (distance < metric.length) {
-        final end = (distance + dashLength).clamp(0, metric.length) as double;
-        canvas.drawPath(metric.extractPath(distance, end), paint);
-        distance += dashLength + gapLength;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
-      oldDelegate.color != color ||
-      oldDelegate.strokeWidth != strokeWidth ||
-      oldDelegate.dashLength != dashLength ||
-      oldDelegate.gapLength != gapLength;
-}
-
-class _UploadFileTile extends StatelessWidget {
-  final PlatformFile file;
-  final _UploadProgress? progress;
-  final VoidCallback? onRemove;
-
-  const _UploadFileTile({
-    required this.file,
-    this.progress,
-    this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDone = progress?.done == true;
-    final isError = progress?.error == true;
-    final isDuplicate = progress?.isDuplicate == true;
-    final isUploading = progress != null && !isDone && !isError;
-
-    IconData leadingIcon;
-    Color? iconColor;
-    if (isDone) {
-      leadingIcon = isDuplicate ? Icons.content_copy : Icons.check_circle;
-      iconColor = isDuplicate
-          ? theme.colorScheme.tertiary
-          : theme.colorScheme.primary;
-    } else if (isError) {
-      leadingIcon = Icons.error;
-      iconColor = theme.colorScheme.error;
-    } else {
-      leadingIcon = _iconForName(file.name);
-      iconColor = theme.colorScheme.onSurfaceVariant;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(leadingIcon, size: 22, color: iconColor),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  file.name,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${FormatUtils.formatBytes(file.size)} • ${progress?.status ?? "Pending"}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 12,
-                    color: isError
-                        ? theme.colorScheme.error
-                        : isDone
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                if (isUploading && progress!.fraction != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: LinearProgressIndicator(
-                      value: progress!.fraction,
-                      minHeight: 3,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (isDone)
-            Icon(Icons.more_vert,
-                size: 16, color: theme.colorScheme.onSurfaceVariant)
-          else if (isError)
-            IconButton(
-              icon: const Icon(Icons.refresh, size: 18),
-              tooltip: 'Retry',
-              onPressed: () {},
-              visualDensity: VisualDensity.compact,
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.close, size: 18),
-              tooltip: 'Remove',
-              onPressed: onRemove,
-              visualDensity: VisualDensity.compact,
-            ),
-        ],
-      ),
-    );
-  }
-
-  IconData _iconForName(String name) {
-    final lower = name.toLowerCase();
-    if (lower.endsWith('.pdf')) {
-      return Icons.picture_as_pdf;
-    }
-    if (lower.endsWith('.png') ||
-        lower.endsWith('.jpg') ||
-        lower.endsWith('.jpeg') ||
-        lower.endsWith('.gif') ||
-        lower.endsWith('.svg')) {
-      return Icons.image;
-    }
-    if (lower.endsWith('.md') || lower.endsWith('.txt')) {
-      return Icons.description;
-    }
-    if (lower.endsWith('.json') ||
-        lower.endsWith('.js') ||
-        lower.endsWith('.py') ||
-        lower.endsWith('.dart') ||
-        lower.endsWith('.html')) {
-      return Icons.terminal;
-    }
-    if (lower.endsWith('.xlsx') ||
-        lower.endsWith('.csv') ||
-        lower.endsWith('.numbers')) {
-      return Icons.table_chart;
-    }
-    return Icons.insert_drive_file;
-  }
-
-}
-
-class _UploadProgress {
-  final String status;
-  final double? fraction;
-  final bool done;
-  final bool error;
-  final bool isDuplicate;
-
-  _UploadProgress({
-    required this.status,
-    this.fraction,
-    this.done = false,
-    this.error = false,
-    this.isDuplicate = false,
-  });
-}
