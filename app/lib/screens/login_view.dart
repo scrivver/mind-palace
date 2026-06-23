@@ -1,18 +1,49 @@
 import 'package:flutter/material.dart';
 
-class LoginView extends StatelessWidget {
+class LoginView extends StatefulWidget {
   final VoidCallback onLogin;
+  final Future<void> Function(String username, String password)? onPasswordLogin;
   final String? error;
   final bool loading;
+  final bool isPasswordMode;
   final VoidCallback? onConfigureServer;
 
   const LoginView({
     super.key,
     required this.onLogin,
+    this.onPasswordLogin,
     this.error,
     this.loading = false,
+    this.isPasswordMode = false,
     this.onConfigureServer,
   });
+
+  @override
+  State<LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends State<LoginView> {
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _usernameFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _usernameFocus.dispose();
+    _passwordFocus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitPassword() async {
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text;
+    if (username.isEmpty || password.isEmpty) return;
+    await widget.onPasswordLogin?.call(username, password);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,42 +111,86 @@ class LoginView extends StatelessWidget {
         children: [
           Text('Enter your sanctuary.', style: theme.textTheme.headlineMedium),
           const SizedBox(height: 24),
+          if (widget.isPasswordMode) ...[
+            TextField(
+              controller: _usernameController,
+              focusNode: _usernameFocus,
+              enabled: !widget.loading,
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) => _passwordFocus.requestFocus(),
+              decoration: const InputDecoration(
+                labelText: 'Username',
+                prefixIcon: Icon(Icons.person_outline),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _passwordController,
+              focusNode: _passwordFocus,
+              enabled: !widget.loading,
+              obscureText: _obscurePassword,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submitPassword(),
+              decoration: InputDecoration(
+                labelText: 'Password',
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  onPressed:
+                      widget.loading
+                          ? null
+                          : () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
           SizedBox(
             width: double.infinity,
             height: 48,
             child: FilledButton(
-              onPressed: loading ? null : onLogin,
-              child: loading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+              onPressed:
+                  widget.loading
+                      ? null
+                      : (widget.isPasswordMode ? _submitPassword : widget.onLogin),
+              child:
+                  widget.loading
+                      ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                      : Text(
+                        widget.isPasswordMode ? 'Sign In' : 'Sign in with SSO',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: cs.onPrimary,
+                        ),
                       ),
-                    )
-                  : Text(
-                      'Sign In',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: cs.onPrimary,
-                      ),
-                    ),
             ),
           ),
-          if (error != null) ...[
+          if (widget.error != null) ...[
             const SizedBox(height: 16),
             Text(
-              error!,
+              widget.error!,
               style: TextStyle(color: cs.error),
               textAlign: TextAlign.center,
             ),
           ],
-          if (onConfigureServer != null) ...[
+          if (widget.onConfigureServer != null) ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: TextButton.icon(
-                onPressed: onConfigureServer,
+                onPressed: widget.onConfigureServer,
                 icon: const Icon(Icons.settings, size: 18),
                 label: const Text('Change Server'),
               ),

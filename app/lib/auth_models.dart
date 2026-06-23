@@ -1,11 +1,19 @@
 class AuthConfig {
+  final PasswordAuthConfig password;
   final OidcAuthConfig oidc;
   final NoneAuthConfig none;
 
-  const AuthConfig({required this.oidc, required this.none});
+  const AuthConfig({
+    required this.password,
+    required this.oidc,
+    required this.none,
+  });
 
   factory AuthConfig.fromJson(Map<String, dynamic> json) {
     return AuthConfig(
+      password: PasswordAuthConfig.fromJson(
+        (json['password'] as Map?)?.cast<String, dynamic>() ?? const {},
+      ),
       oidc: OidcAuthConfig.fromJson(
         (json['oidc'] as Map?)?.cast<String, dynamic>() ?? const {},
       ),
@@ -13,6 +21,16 @@ class AuthConfig {
         (json['none'] as Map?)?.cast<String, dynamic>() ?? const {},
       ),
     );
+  }
+}
+
+class PasswordAuthConfig {
+  final bool enabled;
+
+  const PasswordAuthConfig({required this.enabled});
+
+  factory PasswordAuthConfig.fromJson(Map<String, dynamic> json) {
+    return PasswordAuthConfig(enabled: json['enabled'] == true);
   }
 }
 

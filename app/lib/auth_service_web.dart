@@ -15,6 +15,8 @@ class AuthService {
   final String clientId;
   final String mobileRedirectUrl;
   final String engramBaseUrl;
+  final String reliquaryBaseUrl;
+  final bool passwordMode;
 
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
@@ -22,6 +24,7 @@ class AuthService {
   static const _usernameKey = 'username';
   static const _stateKey = 'oidc_state';
   static const _verifierKey = 'oidc_code_verifier';
+  static const _passwordTokenKey = 'password_token';
 
   AuthConfig? _authConfig;
   Map<String, dynamic>? _oidcDiscovery;
@@ -31,6 +34,8 @@ class AuthService {
     required this.clientId,
     this.mobileRedirectUrl = 'com.mindpalace.app://callback',
     this.engramBaseUrl = '/api/engram',
+    this.reliquaryBaseUrl = '/api/reliquary',
+    this.passwordMode = false,
   });
 
   Future<bool> completeRedirectIfPresent() async {
@@ -57,6 +62,7 @@ class AuthService {
       'code': code,
       'redirect_uri': _redirectUri(cfg.oidc),
       'code_verifier': verifier,
+      'client_id': cfg.oidc.clientId.isEmpty ? clientId : cfg.oidc.clientId,
     });
     await _storage.delete(key: _stateKey);
     await _storage.delete(key: _verifierKey);
@@ -64,6 +70,8 @@ class AuthService {
   }
 
   Future<bool> isLoggedIn() async {
+    final passwordToken = await _storage.read(key: _passwordTokenKey);
+    if (passwordToken != null) return true;
     final token = await _storage.read(key: _accessTokenKey);
     if (token != null) return true;
     return _refreshTokens();
@@ -78,9 +86,19 @@ class AuthService {
     }
   }
 
+  Future<bool> isPasswordMode() async {
+    try {
+      final cfg = await _getAuthConfig();
+      return cfg.password.enabled;
+    } catch (_) {
+      return passwordMode;
+    }
+  }
+
   Future<bool> login() async {
     final cfg = await _getAuthConfig();
     if (cfg.none.enabled) return true;
+    if (cfg.password.enabled) return false;
     if (!cfg.oidc.enabled) return false;
 
     final discovery = await _discover();
@@ -111,6 +129,33 @@ class AuthService {
     return launchUrl(authUrl, webOnlyWindowName: '_self');
   }
 
+  Future<bool> loginWithPassword(String username, String password) async {
+    try {
+      final base = reliquaryBaseUrl.endsWith('/')
+          ? reliquaryBaseUrl
+          : '$reliquaryBaseUrl/';
+      final response = await http.post(
+        Uri.parse('${base}api/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'password': password}),
+      );
+      if (response.statusCode != 200) return false;
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final token = body['token'] as String?;
+      if (token == null || token.isEmpty) return false;
+
+      await _storage.write(key: _passwordTokenKey, value: token);
+      final returnedUsername = body['username'] as String?;
+      if (returnedUsername != null && returnedUsername.isNotEmpty) {
+        await _storage.write(key: _usernameKey, value: returnedUsername);
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     await _storage.delete(key: _accessTokenKey);
     await _storage.delete(key: _refreshTokenKey);
@@ -118,11 +163,14 @@ class AuthService {
     await _storage.delete(key: _usernameKey);
     await _storage.delete(key: _stateKey);
     await _storage.delete(key: _verifierKey);
+    await _storage.delete(key: _passwordTokenKey);
   }
 
   Future<String?> getAccessToken() async {
-    final token = await _storage.read(key: _accessTokenKey);
+    final token = await _storage.read(key: _passwordTokenKey);
     if (token != null) return token;
+    final oidcToken = await _storage.read(key: _accessTokenKey);
+    if (oidcToken != null) return oidcToken;
     if (await _refreshTokens()) {
       return _storage.read(key: _accessTokenKey);
     }
@@ -151,7 +199,10 @@ class AuthService {
 
   Future<AuthConfig> _getAuthConfig() async {
     if (_authConfig != null) return _authConfig!;
-    final response = await http.get(Uri.parse('$_engramRoot/api/auth/config'));
+    final base = reliquaryBaseUrl.endsWith('/')
+        ? reliquaryBaseUrl
+        : '$reliquaryBaseUrl/';
+    final response = await http.get(Uri.parse('${base}api/auth/config'));
     if (response.statusCode != 200) {
       throw Exception('Auth config failed: ${response.statusCode}');
     }
@@ -163,9 +214,10 @@ class AuthService {
 
   Future<Map<String, dynamic>> _discover() async {
     if (_oidcDiscovery != null) return _oidcDiscovery!;
-    final response = await http.get(
-      Uri.parse('$_engramRoot/api/auth/oidc/discovery'),
-    );
+    final url = issuer.endsWith('/')
+        ? '$issuer.well-known/openid-configuration'
+        : '$issuer/.well-known/openid-configuration';
+    final response = await http.get(Uri.parse(url));
     if (response.statusCode != 200) {
       throw Exception('OIDC discovery failed: ${response.statusCode}');
     }
@@ -176,17 +228,23 @@ class AuthService {
   Future<bool> _refreshTokens() async {
     final refreshToken = await _storage.read(key: _refreshTokenKey);
     if (refreshToken == null) return false;
+    final cfg = await _getAuthConfig();
     return _exchangeToken({
       'grant_type': 'refresh_token',
       'refresh_token': refreshToken,
+      'client_id': cfg.oidc.clientId.isEmpty ? clientId : cfg.oidc.clientId,
     });
   }
 
   Future<bool> _exchangeToken(Map<String, String> payload) async {
+    final discovery = await _discover();
+    final tokenEndpoint = discovery['token_endpoint'] as String?;
+    if (tokenEndpoint == null || tokenEndpoint.isEmpty) return false;
+
     final response = await http.post(
-      Uri.parse('$_engramRoot/api/auth/oidc/token'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
+      Uri.parse(tokenEndpoint),
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: payload,
     );
     if (response.statusCode != 200) {
       return false;
@@ -210,13 +268,6 @@ class AuthService {
       await _storage.write(key: _usernameKey, value: username);
     }
     return true;
-  }
-
-  String get _engramRoot {
-    if (engramBaseUrl.endsWith('/')) {
-      return engramBaseUrl.substring(0, engramBaseUrl.length - 1);
-    }
-    return engramBaseUrl;
   }
 
   String _redirectUri(OidcAuthConfig cfg) {

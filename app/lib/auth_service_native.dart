@@ -18,10 +18,14 @@ class AuthService {
   String clientId;
   final String mobileRedirectUrl;
   final String engramBaseUrl;
+  final String reliquaryBaseUrl;
+  final bool passwordMode;
 
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
   static const _idTokenKey = 'id_token';
+  static const _usernameKey = 'username';
+  static const _passwordTokenKey = 'password_token';
 
   Map<String, dynamic>? _oidcConfig;
 
@@ -30,11 +34,13 @@ class AuthService {
     required this.clientId,
     this.mobileRedirectUrl = 'com.mindpalace.app://callback',
     this.engramBaseUrl = '',
+    this.reliquaryBaseUrl = '',
+    this.passwordMode = false,
   });
 
-  /// Probe an Engram server for its auth configuration.
-  static Future<AuthConfig> probe(String engramUrl) async {
-    final url = engramUrl.endsWith('/') ? engramUrl : '$engramUrl/';
+  /// Probe a Reliquary server for its auth configuration.
+  static Future<AuthConfig> probe(String reliquaryUrl) async {
+    final url = reliquaryUrl.endsWith('/') ? reliquaryUrl : '$reliquaryUrl/';
     final response = await http.get(Uri.parse('${url}api/auth/config'));
     if (response.statusCode != 200) {
       throw Exception('Failed to get auth config: ${response.statusCode}');
@@ -63,6 +69,8 @@ class AuthService {
   }
 
   Future<bool> isLoggedIn() async {
+    final passwordToken = await _secureStorage.read(key: _passwordTokenKey);
+    if (passwordToken != null) return true;
     final token = await _secureStorage.read(key: _accessTokenKey);
     if (token == null) return false;
 
@@ -76,11 +84,41 @@ class AuthService {
 
   Future<bool> isOidc() async => issuer.isNotEmpty;
 
+  Future<bool> isPasswordMode() async => passwordMode;
+
   Future<bool> login() async {
+    if (passwordMode) return false;
     if (_useAppAuth) {
       return _loginWithAppAuth();
     }
     return _loginWithLoopback();
+  }
+
+  Future<bool> loginWithPassword(String username, String password) async {
+    try {
+      final base = reliquaryBaseUrl.endsWith('/')
+          ? reliquaryBaseUrl
+          : '$reliquaryBaseUrl/';
+      final response = await http.post(
+        Uri.parse('${base}api/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'password': password}),
+      );
+      if (response.statusCode != 200) return false;
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final token = body['token'] as String?;
+      if (token == null || token.isEmpty) return false;
+
+      await _secureStorage.write(key: _passwordTokenKey, value: token);
+      final returnedUsername = body['username'] as String?;
+      if (returnedUsername != null && returnedUsername.isNotEmpty) {
+        await _secureStorage.write(key: _usernameKey, value: returnedUsername);
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> logout() async {
@@ -90,6 +128,8 @@ class AuthService {
     await _secureStorage.delete(key: _accessTokenKey);
     await _secureStorage.delete(key: _refreshTokenKey);
     await _secureStorage.delete(key: _idTokenKey);
+    await _secureStorage.delete(key: _usernameKey);
+    await _secureStorage.delete(key: _passwordTokenKey);
 
     // End the session on authentik
     try {
@@ -112,6 +152,8 @@ class AuthService {
   /// Returns the current access token, refreshing if needed.
   /// Returns null if not logged in and refresh fails.
   Future<String?> getAccessToken() async {
+    final passwordToken = await _secureStorage.read(key: _passwordTokenKey);
+    if (passwordToken != null) return passwordToken;
     final token = await _secureStorage.read(key: _accessTokenKey);
     if (token != null) return token;
     if (await _refreshTokens()) {
@@ -121,6 +163,10 @@ class AuthService {
   }
 
   Future<Map<String, dynamic>?> getUserInfo() async {
+    final passwordUsername = await _secureStorage.read(key: _usernameKey);
+    if (passwordUsername != null) {
+      return {'preferred_username': passwordUsername};
+    }
     final accessToken = await _secureStorage.read(key: _accessTokenKey);
     if (accessToken == null) return null;
 

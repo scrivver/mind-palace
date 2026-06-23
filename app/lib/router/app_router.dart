@@ -47,7 +47,7 @@ GoRouter _createRouter(
 ) {
   void _invalidateServices() {
     ref.invalidate(authServiceProvider);
-    ref.invalidate(authConfigProvider);
+    ref.invalidate(reliquaryAuthConfigProvider);
     ref.invalidate(engramServiceProvider);
     ref.invalidate(reliquaryServiceProvider);
   }
@@ -88,8 +88,19 @@ GoRouter _createRouter(
       GoRoute(
         path: '/login',
         builder: (context, state) {
+          final authAsyncValue = ref.read(authServiceProvider);
+          final isPasswordMode = authAsyncValue.whenOrNull(
+                data: (auth) => auth.passwordMode,
+              ) ??
+              false;
           return LoginView(
             onLogin: () => ref.read(appAuthProvider.notifier).login(),
+            onPasswordLogin: (username, password) async {
+              await ref
+                  .read(appAuthProvider.notifier)
+                  .loginWithPassword(username, password);
+            },
+            isPasswordMode: isPasswordMode,
             error: authState.error,
             loading: authState.isLoading,
             onConfigureServer: kIsWeb ? null : () => context.go('/setup'),

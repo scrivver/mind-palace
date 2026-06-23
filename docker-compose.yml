@@ -99,7 +99,7 @@ services:
         done
 
   reliquary-api:
-    image: ghcr.io/scrivver/reliquary-api:v0.2.0
+    image: mind-palace-reliquary-api:latest
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -130,7 +130,7 @@ services:
       EVENT_DEVICE_NAME: ${EVENT_DEVICE_NAME:-reliquary}
 
   reliquary-thumbnail-worker:
-    image: ghcr.io/scrivver/reliquary-thumbnail-worker:v0.2.0
+    image: mind-palace-reliquary-thumbnail-worker:latest
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -154,7 +154,7 @@ services:
       THUMBNAIL_DEAD_QUEUE: ${RELIQUARY_THUMBNAIL_DEAD_QUEUE:-reliquary.thumbnail.dead}
 
   engram-api:
-    image: ghcr.io/scrivver/engram-api:sha-fb465add1187
+    image: mind-palace-engram-api:latest
     restart: unless-stopped
     depends_on:
       postgres:
@@ -165,12 +165,9 @@ services:
       PGUSER: postgres
       PGPASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
       PGDATABASE: ${POSTGRES_DB_ENGRAM:-engram}
-      AUTH_MODE: ${ENGRAM_AUTH_MODE:-none}
-      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-http://app:2080/application/o/mind-palace/}
-      OIDC_PUBLIC_ISSUER_URL: ${OIDC_PUBLIC_ISSUER_URL:-http://localhost:2080/application/o/mind-palace/}
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-mind-palace}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-shared-use}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
       OIDC_USERNAME_CLAIM: ${OIDC_USERNAME_CLAIM:-preferred_username}
-      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-http://localhost:2080/callback}
       PRESIGN_URL_TEMPLATE: ${ENGRAM_PRESIGN_URL_TEMPLATE:-http://localhost:2080/api/reliquary/files/{file_path}}
     healthcheck:
       test: ["CMD", "engram-api-healthcheck"]
@@ -179,7 +176,7 @@ services:
       retries: 12
 
   engram-ingestion:
-    image: ghcr.io/scrivver/engram-ingestion:sha-fb465add1187
+    image: mind-palace-engram-ingestion:latest
     restart: unless-stopped
     depends_on:
       postgres:
@@ -211,7 +208,7 @@ services:
       retries: 12
 
   synapse-worker:
-    image: ghcr.io/scrivver/synapse-worker:v0.1.0
+    image: mind-palace-synapse-worker:latest
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -237,7 +234,7 @@ services:
       retries: 12
 
   synapse-reconciler:
-    image: ghcr.io/scrivver/synapse-reconciler:v0.1.0
+    image: mind-palace-synapse-reconciler:latest
     restart: unless-stopped
     depends_on:
       synapse-worker:
@@ -256,15 +253,6 @@ services:
       timeout: 3s
       retries: 12
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-
   postgres-setup:
     image: postgres:18-alpine
     restart: "no"
@@ -273,13 +261,12 @@ services:
         condition: service_healthy
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
-      AUTHENTIK_DB: authentik
       SYNAPSE_DB: ${POSTGRES_DB_SYNAPSE:-synapse}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         set -eu
-        for db in "$$AUTHENTIK_DB" "$$SYNAPSE_DB"; do
+        for db in "$$SYNAPSE_DB"; do
           psql -h postgres -U postgres -tc \
             "SELECT 1 FROM pg_database WHERE datname='$$db'" \
             | grep -q 1 \
@@ -287,147 +274,14 @@ services:
           echo "created database: $$db"
         done
 
-  authentik-server:
-    image: ghcr.io/goauthentik/server:${AUTHENTIK_VERSION:-2025.2.1}
-    restart: unless-stopped
-    depends_on:
-      postgres-setup:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-    environment:
-      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-change-me-in-shared-use}
-      AUTHENTIK_REDIS__HOST: redis
-      AUTHENTIK_POSTGRESQL__HOST: postgres
-      AUTHENTIK_POSTGRESQL__PORT: 5432
-      AUTHENTIK_POSTGRESQL__NAME: authentik
-      AUTHENTIK_POSTGRESQL__USER: postgres
-      AUTHENTIK_POSTGRESQL__PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
-      AUTHENTIK_LISTEN__HTTP: 0.0.0.0:9000
-      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-change-me-in-shared-use}
-      AUTHENTIK_BOOTSTRAP_EMAIL: admin@mind-palace.local
-      AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:-change-me-in-shared-use}
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://127.0.0.1:9000/-/health/live/"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 60s
-
-  authentik-worker:
-    image: ghcr.io/goauthentik/worker:${AUTHENTIK_VERSION:-2025.2.1}
-    restart: unless-stopped
-    depends_on:
-      postgres-setup:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-    environment:
-      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-change-me-in-shared-use}
-      AUTHENTIK_REDIS__HOST: redis
-      AUTHENTIK_POSTGRESQL__HOST: postgres
-      AUTHENTIK_POSTGRESQL__PORT: 5432
-      AUTHENTIK_POSTGRESQL__NAME: authentik
-      AUTHENTIK_POSTGRESQL__USER: postgres
-      AUTHENTIK_POSTGRESQL__PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
-
-  authentik-setup:
-    image: python:3-alpine
-    restart: "no"
-    depends_on:
-      authentik-server:
-        condition: service_healthy
-      authentik-worker:
-        condition: service_started
-    environment:
-      AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:-change-me-in-shared-use}
-    entrypoint: ["python3", "-c"]
-    command:
-      - |
-        import os, sys, json, time, urllib.request, urllib.error
-
-        base = "http://authentik-server:9000"
-        api = f"{base}/api/v3"
-        token = os.environ["AUTHENTIK_BOOTSTRAP_TOKEN"]
-
-        def api_call(method, path, data=None):
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            }
-            body = json.dumps(data).encode() if data else None
-            req = urllib.request.Request(f"{api}{path}", data=body, headers=headers, method=method)
-            try:
-                with urllib.request.urlopen(req) as resp:
-                    raw = resp.read()
-                    return json.loads(raw) if raw else {}
-            except urllib.error.HTTPError as e:
-                print(f"HTTP {e.code} on {method} {path}: {e.read().decode()}", file=sys.stderr)
-                raise
-
-        # Wait for API
-        for attempt in range(30):
-            try:
-                api_call("GET", "/core/applications/")
-                break
-            except Exception:
-                if attempt == 0:
-                    print("Waiting for authentik API...")
-                time.sleep(5)
-        else:
-            print("ERROR: authentik API not ready after 150s")
-            sys.exit(1)
-
-        apps = api_call("GET", "/core/applications/?slug=mind-palace")
-        if apps["pagination"]["count"] > 0:
-            print("Mind Palace OAuth2 app already exists, skipping")
-            sys.exit(0)
-
-        auth_flows = api_call("GET", "/flows/instances/?slug=default-provider-authorization-implicit-consent")
-        auth_flow_pk = auth_flows["results"][0]["pk"]
-
-        inv_flows = api_call("GET", "/flows/instances/?slug=default-provider-invalidation-flow")
-        inv_flow_pk = inv_flows["results"][0]["pk"] if inv_flows.get("results") else None
-
-        scopes = api_call("GET", "/propertymappings/provider/scope/?ordering=scope_name")
-        scope_pks = [s["pk"] for s in scopes.get("results", []) if s["scope_name"] in ("openid", "email", "profile")]
-
-        redirect_uris = [
-            {"matching_mode": "regex", "url": "http://localhost:.*/callback"},
-            {"matching_mode": "regex", "url": "http://127.0.0.1:.*/callback"},
-            {"matching_mode": "regex", "url": "http://[^:]+:2080/callback"},
-            {"matching_mode": "regex", "url": "com\\.mindpalace\\.app://callback"},
-        ]
-
-        provider = api_call("POST", "/providers/oauth2/", {
-            "name": "Mind Palace OAuth2",
-            "authorization_flow": auth_flow_pk,
-            "invalidation_flow": inv_flow_pk,
-            "client_type": "public",
-            "client_id": "mind-palace",
-            "redirect_uris": redirect_uris,
-            "property_mappings": scope_pks,
-        })
-        print(f"Created OAuth2 provider (pk={provider['pk']})")
-
-        api_call("POST", "/core/applications/", {
-            "name": "Mind Palace",
-            "slug": "mind-palace",
-            "provider": provider["pk"],
-            "meta_launch_url": "http://localhost:2080",
-        })
-        print("Setup complete! Mind Palace OAuth2 application ready.")
-
   app:
-    image: ghcr.io/scrivver/mind-palace-app:sha-d8a4a71
+    image: mind-palace-app:latest
     restart: unless-stopped
     depends_on:
       reliquary-api:
         condition: service_started
       engram-api:
         condition: service_healthy
-      authentik-setup:
-        condition: service_completed_successfully
     ports:
       - "${MIND_PALACE_PORT:-2080}:2080"
     healthcheck:
@@ -437,15 +291,13 @@ services:
       retries: 12
 
   ingress:
-    image: ghcr.io/scrivver/mind-palace-ingress:sha-d8a4a71
+    image: mind-palace-ingress:latest
     restart: unless-stopped
     depends_on:
       reliquary-api:
         condition: service_started
       engram-api:
         condition: service_healthy
-      authentik-setup:
-        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "mind-palace-ingress-healthcheck"]
       interval: 5s

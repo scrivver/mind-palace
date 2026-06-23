@@ -23,27 +23,6 @@ let
         reverse_proxy engram-api:8081
       }
 
-      handle /application/* {
-        reverse_proxy authentik-server:9000 {
-          header_up X-Forwarded-Proto {scheme}
-          header_up X-Forwarded-Host {host}
-        }
-      }
-
-      handle /if/* {
-        reverse_proxy authentik-server:9000 {
-          header_up X-Forwarded-Proto {scheme}
-          header_up X-Forwarded-Host {host}
-        }
-      }
-
-      handle /static/* {
-        reverse_proxy authentik-server:9000 {
-          header_up X-Forwarded-Proto {scheme}
-          header_up X-Forwarded-Host {host}
-        }
-      }
-
       handle {
         root * /srv/web
         try_files {path} /index.html

@@ -12,10 +12,10 @@ final serverUrlReadyProvider = FutureProvider<void>((ref) async {
   await ServerUrlStore.load();
 });
 
-final authConfigProvider = FutureProvider<AuthConfig>((ref) async {
+final reliquaryAuthConfigProvider = FutureProvider<AuthConfig>((ref) async {
   await ref.watch(serverUrlReadyProvider.future);
   final configResp = await http.get(
-    Uri.parse('${ServerUrlStore.engramBaseUrl}api/auth/config'),
+    Uri.parse('${ServerUrlStore.reliquaryBaseUrl}api/auth/config'),
   );
   if (configResp.statusCode == 200) {
     return AuthConfig.fromJson(
@@ -23,6 +23,7 @@ final authConfigProvider = FutureProvider<AuthConfig>((ref) async {
     );
   }
   return AuthConfig(
+    password: PasswordAuthConfig(enabled: false),
     oidc: OidcAuthConfig(
       enabled: false,
       issuerUrl: '',
@@ -37,9 +38,10 @@ final authConfigProvider = FutureProvider<AuthConfig>((ref) async {
 final authServiceProvider = FutureProvider<AuthService>((ref) async {
   AuthConfig config;
   try {
-    config = await ref.watch(authConfigProvider.future);
+    config = await ref.watch(reliquaryAuthConfigProvider.future);
   } catch (_) {
     config = AuthConfig(
+      password: PasswordAuthConfig(enabled: false),
       oidc: OidcAuthConfig(
         enabled: true,
         issuerUrl: '',
@@ -55,7 +57,9 @@ final authServiceProvider = FutureProvider<AuthService>((ref) async {
   return AuthService(
     issuer: issuer,
     clientId: clientId,
+    passwordMode: config.password.enabled,
     engramBaseUrl: ServerUrlStore.engramBaseUrl,
+    reliquaryBaseUrl: ServerUrlStore.reliquaryBaseUrl,
   );
 });
 
@@ -149,6 +153,30 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
         state = state.copyWith(
           isLoading: false,
           error: 'Login was cancelled or failed',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> loginWithPassword(String username, String password) async {
+    final auth = state.authService;
+    if (auth == null) return;
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final success = await auth.loginWithPassword(username, password);
+      if (success) {
+        final userInfo = await auth.getUserInfo();
+        state = state.copyWith(
+          isLoading: false,
+          isLoggedIn: true,
+          username: userInfo?['preferred_username'] as String? ?? 'unknown',
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Invalid username or password',
         );
       }
     } catch (e) {

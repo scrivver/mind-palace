@@ -15,7 +15,7 @@ Mind Palace is split into three composable Go services plus a Flutter client:
 | **Synapse** | Storage-tier reconciliation and transfer worker | Go, RabbitMQ |
 | **app** | Flutter web/desktop client | Flutter, Riverpod, go_router |
 
-Shared infrastructure: PostgreSQL 18, RabbitMQ, MinIO, Caddy, Authentik (OIDC).
+Shared infrastructure: PostgreSQL 18, RabbitMQ, MinIO, Caddy.
 
 ## Quickstart
 
@@ -59,17 +59,15 @@ docker compose up -d
 ```
 
 The Compose stack includes:
-- **PostgreSQL** (shared across Engram, Synapse, and Authentik)
+- **PostgreSQL** (shared across Engram and Synapse)
 - **RabbitMQ** (event bus for Reliquary, Engram, Synapse)
 - **MinIO** (S3-compatible object storage)
-- **Redis** (Authentik cache/websocket)
-- **Authentik** (OIDC provider — server + worker, auto-bootstrapped with a Mind Palace OAuth2 application)
-- **Reliquary** (storage API + thumbnail worker)
+- **Reliquary** (storage API + thumbnail worker, also handles user login)
 - **Engram** (metadata API + ingestion worker)
 - **Synapse** (transfer worker + reconciler)
-- **app** (Flutter web assets behind Caddy, proxies APIs and Authentik on the same origin)
+- **app** (Flutter web assets behind Caddy, proxies APIs on the same origin)
 
-Open `http://localhost:2080` — you'll be redirected to the bundled Authentik instance to sign in. Default admin credentials printed by `docker compose logs authentik-setup`. Add an artifact, confirm it appears, then `docker compose down` to stop.
+Open `http://localhost:2080` — the default admin user is created automatically from `AUTH_USERNAME`/`AUTH_PASSWORD` in your `.env`. Sign in, add an artifact, confirm it appears, then `docker compose down` to stop.
 
 ### Reset state
 
