@@ -35,13 +35,24 @@ This starts the full stack — infrastructure, all three backends, and the Flutt
 
 Use `start-infra` for infrastructure-only startup, then `source load-infra-env` to load dynamic ports, and `start-app` to launch the Flutter client separately for hot-reload workflows. Stop with `shutdown-infra`.
 
-### Packaged Compose (dogfood)
-
-Build Docker images and start the full stack through Compose:
+### Building the app container image
 
 ```bash
 nix develop
-./bin/deploy        # build and load images
+./bin/update-pubspec-lock-json   # ensure pubspec.lock.json matches pubspec.lock
+nix build .#mind-palace-app-container
+docker load < result
+```
+
+The image bundles a Caddy server serving the compiled Flutter web assets on port 2080, with `/api/reliquary/*` and `/api/engram/*` reverse-proxied to backend services.
+
+### Packaged Compose (dogfood)
+
+Build all Docker images and start the full stack through Compose:
+
+```bash
+nix develop
+./bin/deploy        # build and load all images
 cp .env.example .env
 $EDITOR .env        # set secrets (look for change-me-in-shared-use)
 docker compose up -d

@@ -1,0 +1,60 @@
+name: publish-app
+
+on:
+  push:
+    branches: [main]
+    tags: [v*]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: scrivver/mind-palace-app
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: DeterminateSystems/nix-installer-action@v16
+        with:
+          extra-conf: |
+            accept-flake-config = true
+
+      - name: Regenerate pubspec.lock.json
+        run: ./bin/update-pubspec-lock-json
+
+      - name: Build container image
+        run: |
+          image_path=$(nix build .#mind-palace-app-container --no-link --print-out-paths)
+          docker load < "$image_path"
+
+      - name: Tag image
+        run: |
+          short_sha="${GITHUB_SHA:0:7}"
+          docker tag mind-palace-app:latest \
+            "$REGISTRY/$IMAGE_NAME:sha-$short_sha"
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF#refs/tags/}"
+            docker tag mind-palace-app:latest \
+              "$REGISTRY/$IMAGE_NAME:$version"
+          fi
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push tags
+        run: |
+          docker push --all-tags "$REGISTRY/$IMAGE_NAME"
