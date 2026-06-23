@@ -99,8 +99,9 @@ class FileListNotifier extends StateNotifier<FileListState> {
   }
 }
 
-final fileListProvider =
-    StateNotifierProvider<FileListNotifier, FileListState>((ref) {
-  final engram = ref.watch(engramServiceProvider).valueOrNull;
-  return FileListNotifier(engram);
-});
+final fileListProvider = StateNotifierProvider<FileListNotifier, FileListState>(
+  (ref) {
+    final engram = ref.watch(engramServiceProvider).valueOrNull;
+    return FileListNotifier(engram);
+  },
+);

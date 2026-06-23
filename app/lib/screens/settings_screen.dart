@@ -52,8 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _resetPassword() async {
     if (widget.authentikBase.isEmpty) return;
-    final uri = Uri.parse(
-        '${widget.authentikBase}/if/flow/password-reset/');
+    final uri = Uri.parse('${widget.authentikBase}/if/flow/password-reset/');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -103,10 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 
@@ -135,14 +131,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Settings',
-            style: Theme.of(context).textTheme.headlineLarge),
+        Text('Settings', style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 8),
         Text(
           'Manage your sanctuary preferences and security settings.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -153,14 +148,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Server Connection',
-            style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Server Connection',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 8),
         Text(
           'Configure the Mind Palace server endpoint.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colors.onSurfaceVariant,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
         ),
         const SizedBox(height: 16),
         Container(
@@ -178,8 +175,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Text(
                       'Server URL',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: colors.onSurfaceVariant,
-                          ),
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -206,18 +203,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Reset Password',
-            style: Theme.of(context).textTheme.titleMedium),
+        Text('Reset Password', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 24),
-        if (widget.isExternalIdp) ..._buildExternalIdpForm(colors)
-        else SizedBox(
-          width: 480,
-          child: OutlinedButton.icon(
-            onPressed: widget.authentikBase.isNotEmpty ? _resetPassword : null,
-            icon: const Icon(Icons.open_in_new, size: 18),
-            label: const Text('Open password reset'),
+        if (widget.isExternalIdp)
+          ..._buildExternalIdpForm(colors)
+        else
+          SizedBox(
+            width: 480,
+            child: OutlinedButton.icon(
+              onPressed: widget.authentikBase.isNotEmpty
+                  ? _resetPassword
+                  : null,
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: const Text('Open password reset'),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -232,15 +232,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         child: Row(
           children: [
-            Icon(Icons.info_outline,
-                size: 18, color: colors.onSurfaceVariant),
+            Icon(Icons.info_outline, size: 18, color: colors.onSurfaceVariant),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 'Password management is handled by your external identity provider.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
               ),
             ),
           ],
@@ -292,24 +291,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Theme Preference',
-            style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Theme Preference',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 8),
         Text(
           'Select a visual atmosphere for your digital sanctuary.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 24),
         Wrap(
           spacing: 16,
           runSpacing: 16,
           children: ThemeSetting.values
-              .map((setting) => SizedBox(
-                    width: 180,
-                    child: _buildThemeCard(setting),
-                  ))
+              .map(
+                (setting) =>
+                    SizedBox(width: 180, child: _buildThemeCard(setting)),
+              )
               .toList(),
         ),
       ],
@@ -346,19 +347,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   _buildColorPreview(setting),
                   const SizedBox(height: 12),
-                  Text(setting.displayName,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          )),
+                  Text(
+                    setting.displayName,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   if (setting.subtitle != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
                         setting.subtitle!,
-                        style:
-                            Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: colors.primary,
-                                ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: colors.primary),
                       ),
                     ),
                 ],
@@ -367,8 +369,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Positioned(
                   top: 0,
                   right: 0,
-                  child: Icon(Icons.check_circle,
-                      color: colors.primary, size: 20),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: colors.primary,
+                    size: 20,
+                  ),
                 ),
             ],
           ),

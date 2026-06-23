@@ -31,10 +31,7 @@ class PdfPreview extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         return PdfViewer(
-          PdfDocumentRefData(
-            snap.data!,
-            sourceName: filePath,
-          ),
+          PdfDocumentRefData(snap.data!, sourceName: filePath),
           params: PdfViewerParams(
             backgroundColor: const Color(0xFFFAFAFA),
             errorBannerBuilder: (_, error, stackTrace, ref) => Center(

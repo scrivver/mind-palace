@@ -128,10 +128,7 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
         state = state.copyWith(isLoading: false, isLoggedIn: false);
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -149,7 +146,10 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
           username: userInfo?['preferred_username'] as String? ?? 'unknown',
         );
       } else {
-        state = state.copyWith(isLoading: false, error: 'Login was cancelled or failed');
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Login was cancelled or failed',
+        );
       }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -162,7 +162,8 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
   }
 }
 
-final appAuthProvider =
-    StateNotifierProvider<AppAuthNotifier, AppAuthState>((ref) {
+final appAuthProvider = StateNotifierProvider<AppAuthNotifier, AppAuthState>((
+  ref,
+) {
   return AppAuthNotifier();
 });

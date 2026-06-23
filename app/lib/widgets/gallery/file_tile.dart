@@ -68,8 +68,9 @@ class _FileTileState extends State<FileTile> {
             AspectRatio(
               aspectRatio: 16 / 9,
               child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(11)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(11),
+                ),
                 child: Container(
                   color: theme.colorScheme.surfaceContainer,
                   child: _thumbUrl != null
@@ -178,11 +179,16 @@ class _FileTileState extends State<FileTile> {
     if (mime.contains('zip') || mime.contains('tar') || mime.contains('rar')) {
       return 'ARC';
     }
-    if (mime.contains('text') || mime.contains('markdown') || mime.contains('md')) {
+    if (mime.contains('text') ||
+        mime.contains('markdown') ||
+        mime.contains('md')) {
       return 'TXT';
     }
-    if (mime.contains('javascript') || mime.contains('python') ||
-        mime.contains('json') || mime.contains('html') || mime.contains('xml')) {
+    if (mime.contains('javascript') ||
+        mime.contains('python') ||
+        mime.contains('json') ||
+        mime.contains('html') ||
+        mime.contains('xml')) {
       return 'CODE';
     }
     return 'FILE';

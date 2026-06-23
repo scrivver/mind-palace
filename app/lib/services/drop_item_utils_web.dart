@@ -60,7 +60,8 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
   }
 
   Future<List<web.FileSystemEntry>> _readOneBatch(
-      web.FileSystemDirectoryReader reader) async {
+    web.FileSystemDirectoryReader reader,
+  ) async {
     final c = Completer<List<web.FileSystemEntry>>();
     reader.readEntries(
       ((JSAny? entries) {
@@ -77,7 +78,8 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
   }
 
   Future<List<web.FileSystemEntry>> _readAllEntries(
-      web.FileSystemDirectoryReader reader) async {
+    web.FileSystemDirectoryReader reader,
+  ) async {
     final collected = <web.FileSystemEntry>[];
     while (true) {
       final batch = await _readOneBatch(reader);
@@ -107,8 +109,9 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
         final rel = '$basePath${e.name}';
         if (_looksLikePlaceholder(rel)) return;
         if (seen.add(rel)) {
-          out.add(PlatformFile(
-              name: rel, size: file.size, bytes: bytes, path: rel));
+          out.add(
+            PlatformFile(name: rel, size: file.size, bytes: bytes, path: rel),
+          );
         }
       } else if (e.isDirectory) {
         final dir = e as web.FileSystemDirectoryEntry;
@@ -128,18 +131,26 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
   }
 
   for (final f in captured.files) {
-    tasks.add((() async {
-      try {
-        final file = f as web.File;
-        final bytes = await _readFileBytes(file);
-        final name = file.name;
-        if (_looksLikePlaceholder(name)) return;
-        if (seen.add(name)) {
-          out.add(PlatformFile(
-              name: name, size: file.size, bytes: bytes, path: null));
-        }
-      } catch (_) {}
-    })());
+    tasks.add(
+      (() async {
+        try {
+          final file = f as web.File;
+          final bytes = await _readFileBytes(file);
+          final name = file.name;
+          if (_looksLikePlaceholder(name)) return;
+          if (seen.add(name)) {
+            out.add(
+              PlatformFile(
+                name: name,
+                size: file.size,
+                bytes: bytes,
+                path: null,
+              ),
+            );
+          }
+        } catch (_) {}
+      })(),
+    );
   }
 
   await Future.wait(tasks);

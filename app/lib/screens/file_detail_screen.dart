@@ -51,13 +51,13 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
 
   Future<void> _download() async {
     try {
-      final url =
-          await widget.reliquary.presignDownloadForSave(_file.filePath);
+      final url = await widget.reliquary.presignDownloadForSave(_file.filePath);
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Failed to download file')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to download file')));
     }
   }
 
@@ -66,12 +66,14 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       final url = await widget.reliquary.presignDownload(_file.filePath);
       await Clipboard.setData(ClipboardData(text: url));
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Failed to get link')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to get link')));
     }
   }
 
@@ -85,8 +87,9 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       widget.onBack(deleted: true);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Failed to delete file')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to delete file')));
     }
   }
 
@@ -165,8 +168,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(child: _buildPreview(context)),
-        if (_file.extractedText != null &&
-            _file.extractedText!.isNotEmpty) ...[
+        if (_file.extractedText != null && _file.extractedText!.isNotEmpty) ...[
           const SizedBox(height: 16),
           _buildExtractedTextButton(context),
         ],
@@ -203,7 +205,8 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        onPressed: () => showExtractedTextDialog(context, _file.extractedText ?? ''),
+        onPressed: () =>
+            showExtractedTextDialog(context, _file.extractedText ?? ''),
         icon: const Icon(Icons.description_outlined, size: 18),
         label: const Text('View Extracted Text'),
         style: OutlinedButton.styleFrom(
@@ -215,8 +218,6 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     );
   }
 
-
-
   Widget _buildRightColumn(BuildContext context) {
     final theme = Theme.of(context);
 
@@ -225,10 +226,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _file.filename,
-            style: theme.textTheme.headlineMedium,
-          ),
+          Text(_file.filename, style: theme.textTheme.headlineMedium),
           const SizedBox(height: 4),
           Text(
             'Last accessed ${FormatUtils.relativeTime(_file.mtime)}',
@@ -407,18 +405,27 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
   String _formatDateTime(DateTime dt) {
     final local = dt.toLocal();
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final y = local.year;
     final m = months[local.month - 1];
     final d = local.day;
     final mm = local.minute.toString().padLeft(2, '0');
     final ampm = local.hour >= 12 ? 'PM' : 'AM';
-    final h12 =
-        local.hour == 0 ? 12 : (local.hour > 12 ? local.hour - 12 : local.hour);
+    final h12 = local.hour == 0
+        ? 12
+        : (local.hour > 12 ? local.hour - 12 : local.hour);
     return '$m $d, $y \u2022 $h12:$mm $ampm';
   }
-
 }
-

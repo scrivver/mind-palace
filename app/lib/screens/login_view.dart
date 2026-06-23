@@ -49,10 +49,7 @@ class LoginView extends StatelessWidget {
       children: [
         Icon(Icons.castle, size: 48, color: theme.colorScheme.primary),
         const SizedBox(height: 8),
-        Text(
-          'Mind Palace',
-          style: theme.textTheme.headlineLarge,
-        ),
+        Text('Mind Palace', style: theme.textTheme.headlineLarge),
         const SizedBox(height: 4),
         Text(
           'Digital Sanctuary',
@@ -81,10 +78,7 @@ class LoginView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Enter your sanctuary.',
-            style: theme.textTheme.headlineMedium,
-          ),
+          Text('Enter your sanctuary.', style: theme.textTheme.headlineMedium),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -143,14 +137,9 @@ class LoginView extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: cs.surface,
-          border: Border(
-            top: BorderSide(color: cs.outlineVariant),
-          ),
+          border: Border(top: BorderSide(color: cs.outlineVariant)),
         ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: SafeArea(
           top: false,
           child: LayoutBuilder(

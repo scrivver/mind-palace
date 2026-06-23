@@ -4,7 +4,11 @@ import 'package:mind_palace/screens/settings_screen.dart';
 import 'package:mind_palace/services/theme_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Widget createTestApp(ThemeService themeService, {ThemeSetting currentTheme = ThemeSetting.mindPalace, bool isExternalIdp = false}) {
+Widget createTestApp(
+  ThemeService themeService, {
+  ThemeSetting currentTheme = ThemeSetting.mindPalace,
+  bool isExternalIdp = false,
+}) {
   return MaterialApp(
     home: SettingsScreen(
       themeService: themeService,
@@ -62,8 +66,7 @@ void main() {
     expect(setting, ThemeSetting.midnight);
   });
 
-  testWidgets('shows Reset Password button in Account section',
-      (tester) async {
+  testWidgets('shows Reset Password button in Account section', (tester) async {
     final themeService = ThemeService();
     await tester.pumpWidget(createTestApp(themeService));
     await tester.pumpAndSettle();
@@ -84,7 +87,8 @@ void main() {
     // Simulate app restart by reading the persisted value for currentTheme
     final persisted = await themeService.getTheme();
     await tester.pumpWidget(
-        createTestApp(themeService, currentTheme: persisted));
+      createTestApp(themeService, currentTheme: persisted),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byIcon(Icons.check_circle), findsOneWidget);

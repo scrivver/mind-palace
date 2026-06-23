@@ -65,8 +65,8 @@ class UploadFileTile extends StatelessWidget {
                     color: isError
                         ? theme.colorScheme.error
                         : isDone
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurfaceVariant,
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
                 if (isUploading && progress!.fraction != null)
@@ -82,8 +82,11 @@ class UploadFileTile extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           if (isDone)
-            Icon(Icons.more_vert,
-                size: 16, color: theme.colorScheme.onSurfaceVariant)
+            Icon(
+              Icons.more_vert,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant,
+            )
           else if (isError)
             IconButton(
               icon: const Icon(Icons.refresh, size: 18),

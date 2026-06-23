@@ -30,7 +30,8 @@ class QuickFilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: bg,
           border: Border.all(
-              color: isActive ? cs.primary : cs.outlineVariant.withAlpha(76)),
+            color: isActive ? cs.primary : cs.outlineVariant.withAlpha(76),
+          ),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Row(

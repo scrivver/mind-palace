@@ -43,15 +43,9 @@ class UploadState {
   final List<UploadTask> queue;
   final bool isUploading;
 
-  const UploadState({
-    this.queue = const [],
-    this.isUploading = false,
-  });
+  const UploadState({this.queue = const [], this.isUploading = false});
 
-  UploadState copyWith({
-    List<UploadTask>? queue,
-    bool? isUploading,
-  }) {
+  UploadState copyWith({List<UploadTask>? queue, bool? isUploading}) {
     return UploadState(
       queue: queue ?? this.queue,
       isUploading: isUploading ?? this.isUploading,
@@ -73,7 +67,8 @@ class UploadNotifier extends StateNotifier<UploadState> {
   }
 }
 
-final uploadProvider =
-    StateNotifierProvider<UploadNotifier, UploadState>((ref) {
+final uploadProvider = StateNotifierProvider<UploadNotifier, UploadState>((
+  ref,
+) {
   return UploadNotifier();
 });

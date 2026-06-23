@@ -10,7 +10,13 @@ class LoggerService {
   }
 
   void error(String message, {Object? error, StackTrace? stackTrace}) {
-    developer.log(message, level: 1000, name: 'error', error: error, stackTrace: stackTrace);
+    developer.log(
+      message,
+      level: 1000,
+      name: 'error',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   void debug(String message) {

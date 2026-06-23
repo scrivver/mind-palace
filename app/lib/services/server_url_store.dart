@@ -18,8 +18,7 @@ class ServerUrlStore {
     return '${_norm(baseServerUrl)}api/reliquary/';
   }
 
-  static String get _defaultBaseUrl =>
-      kIsWeb ? '' : 'http://127.0.0.1:2080';
+  static String get _defaultBaseUrl => kIsWeb ? '' : 'http://127.0.0.1:2080';
 
   static Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();

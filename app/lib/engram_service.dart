@@ -93,11 +93,14 @@ class EngramService {
     return response.data as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> getActivity({int limit = 20, int offset = 0}) async {
-    final response = await dio.get('/api/activity', queryParameters: {
-      'limit': limit,
-      'offset': offset,
-    });
+  Future<Map<String, dynamic>> getActivity({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final response = await dio.get(
+      '/api/activity',
+      queryParameters: {'limit': limit, 'offset': offset},
+    );
     return response.data as Map<String, dynamic>;
   }
 }

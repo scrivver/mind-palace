@@ -9,7 +9,6 @@ import '../widgets/gallery/file_tile.dart';
 import '../widgets/gallery/filter_dropdown_panel.dart';
 import '../widgets/gallery/quick_filter_chip.dart';
 
-
 class GalleryScreen extends StatefulWidget {
   final EngramService engram;
   final ReliquaryService reliquary;
@@ -62,7 +61,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
     (key: 'pdf', label: 'PDF', icon: Icons.picture_as_pdf),
     (key: 'other', label: 'Other', icon: Icons.insert_drive_file),
   ];
-
 
   String? _activeTypeFilter;
 
@@ -132,10 +130,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
     });
 
     try {
-      final fileType =
-          (_activeTypeFilter != null && _activeTypeFilter != 'all')
-              ? _activeTypeFilter
-              : _fileType;
+      final fileType = (_activeTypeFilter != null && _activeTypeFilter != 'all')
+          ? _activeTypeFilter
+          : _fileType;
       final files = await widget.engram.listFiles(
         offset: 0,
         limit: _pageSize,
@@ -236,8 +233,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     elevation: 8,
                     borderRadius: BorderRadius.circular(12),
                     color: Theme.of(context).colorScheme.surface,
-                    surfaceTintColor:
-                        Theme.of(context).colorScheme.surfaceTint,
+                    surfaceTintColor: Theme.of(context).colorScheme.surfaceTint,
                     child: SizedBox(
                       width: dropdownWidth,
                       child: FilterDropdownPanel(
@@ -247,8 +243,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         draftTypeFilter: _draftTypeFilter,
                         availableTags: _availableTags,
                         onToggleType: (key) {
-                          setState(() => _draftTypeFilter =
-                              _draftTypeFilter == key ? null : key);
+                          setState(
+                            () => _draftTypeFilter = _draftTypeFilter == key
+                                ? null
+                                : key,
+                          );
                           _filterDropdownOverlay?.markNeedsBuild();
                         },
                         onToggleTag: (name) {
@@ -350,10 +349,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Knowledge Vault',
-          style: theme.textTheme.headlineLarge,
-        ),
+        Text('Knowledge Vault', style: theme.textTheme.headlineLarge),
         const SizedBox(height: 8),
         Text(
           'Synchronizing your digital consciousness across ${_files.length} nodes.',
@@ -380,13 +376,19 @@ class _GalleryScreenState extends State<GalleryScreen> {
               hintStyle: theme.textTheme.bodyMedium?.copyWith(
                 color: cs.onSurfaceVariant,
               ),
-              prefixIcon:
-                  Icon(Icons.search, size: 20, color: cs.onSurfaceVariant),
+              prefixIcon: Icon(
+                Icons.search,
+                size: 20,
+                color: cs.onSurfaceVariant,
+              ),
               suffixIcon: _searchCtrl.text.isEmpty
                   ? null
                   : IconButton(
-                      icon: Icon(Icons.clear, size: 18,
-                          color: cs.onSurfaceVariant),
+                      icon: Icon(
+                        Icons.clear,
+                        size: 18,
+                        color: cs.onSurfaceVariant,
+                      ),
                       onPressed: () {
                         _searchCtrl.clear();
                         _onSearchChanged('');
@@ -394,8 +396,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     ),
               filled: true,
               fillColor: cs.surfaceContainerLow,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: cs.outlineVariant),
@@ -406,8 +410,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide:
-                    BorderSide(color: cs.primary, width: 2),
+                borderSide: BorderSide(color: cs.primary, width: 2),
               ),
             ),
           ),
@@ -434,11 +437,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
           Text(
             'All Files (${_files.length})',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontFamily: 'Space Grotesk',
-                  fontSize: 14,
-                  letterSpacing: 0.05,
-                  color: cs.onPrimary,
-                ),
+              fontFamily: 'Space Grotesk',
+              fontSize: 14,
+              letterSpacing: 0.05,
+              color: cs.onPrimary,
+            ),
           ),
         ],
       ),
@@ -475,15 +478,18 @@ class _GalleryScreenState extends State<GalleryScreen> {
             decoration: BoxDecoration(
               color: cs.surface,
               border: Border.all(
-                  color: hasFilters ? cs.primary : cs.outlineVariant),
+                color: hasFilters ? cs.primary : cs.outlineVariant,
+              ),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.filter_list,
-                    size: 18,
-                    color: hasFilters ? cs.primary : cs.onSurfaceVariant),
+                Icon(
+                  Icons.filter_list,
+                  size: 18,
+                  color: hasFilters ? cs.primary : cs.onSurfaceVariant,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Filter by Type',
@@ -495,9 +501,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(Icons.keyboard_arrow_down,
-                    size: 18,
-                    color: hasFilters ? cs.primary : cs.onSurfaceVariant),
+                Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 18,
+                  color: hasFilters ? cs.primary : cs.onSurfaceVariant,
+                ),
               ],
             ),
           ),
@@ -532,15 +540,15 @@ class _GalleryScreenState extends State<GalleryScreen> {
               label: t.label,
               isActive: activeType == t.key,
               onTap: () {
-                _activeTypeFilter =
-                    _activeTypeFilter == t.key ? null : t.key;
+                _activeTypeFilter = _activeTypeFilter == t.key ? null : t.key;
                 _loadFiles();
               },
             ),
             const SizedBox(width: 6),
           ],
-          for (final tag in _availableTags
-              .where((t) => _selectedTags.contains(t['name']))) ...[
+          for (final tag in _availableTags.where(
+            (t) => _selectedTags.contains(t['name']),
+          )) ...[
             QuickFilterChip(
               icon: Icons.tag,
               label: tag['name'] as String,
@@ -608,30 +616,30 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
 
     return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 80),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 300,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 1.1,
-          ),
-          itemCount: _files.length + (_hasMore ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index >= _files.length) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final file = _files[index];
-            return FileTile(
-              file: file,
-              reliquary: widget.reliquary,
-              onTap: () => _openDetail(file),
-            );
-          },
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 80),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 300,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.1,
         ),
-      );
+        itemCount: _files.length + (_hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index >= _files.length) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final file = _files[index];
+          return FileTile(
+            file: file,
+            reliquary: widget.reliquary,
+            onTap: () => _openDetail(file),
+          );
+        },
+      ),
+    );
   }
 }

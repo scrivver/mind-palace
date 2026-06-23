@@ -1,5 +1,4 @@
-import 'theme_store_native.dart'
-    if (dart.library.html) 'theme_store_web.dart';
+import 'theme_store_native.dart' if (dart.library.html) 'theme_store_web.dart';
 
 abstract class ThemeStore {
   Future<String?> read(String key);

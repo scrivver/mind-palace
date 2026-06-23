@@ -52,12 +52,17 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    final typeItems =
-        widget.fileTypes.where((t) => t.key != 'all').map((t) {
+    final typeItems = widget.fileTypes.where((t) => t.key != 'all').map((t) {
       final checked = widget.draftTypeFilter == t.key;
       final match =
           _searchText.isEmpty || t.label.toLowerCase().contains(_searchText);
-      return (key: t.key, label: t.label, icon: t.icon, checked: checked, match: match);
+      return (
+        key: t.key,
+        label: t.label,
+        icon: t.icon,
+        checked: checked,
+        match: match,
+      );
     }).toList();
 
     final tagItems = widget.availableTags.map((t) {
@@ -72,12 +77,26 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
     final allItems = [
       ...typeItems
           .where((i) => i.match)
-          .map((i) => _buildItemRow(
-              context, i.label, i.icon, i.checked, () => widget.onToggleType(i.key))),
+          .map(
+            (i) => _buildItemRow(
+              context,
+              i.label,
+              i.icon,
+              i.checked,
+              () => widget.onToggleType(i.key),
+            ),
+          ),
       ...tagItems
           .where((i) => i.match)
-          .map((i) => _buildItemRow(context, i.label, Icons.tag, i.checked,
-              () => widget.onToggleTag(i.label))),
+          .map(
+            (i) => _buildItemRow(
+              context,
+              i.label,
+              Icons.tag,
+              i.checked,
+              () => widget.onToggleTag(i.label),
+            ),
+          ),
     ];
 
     return Column(
@@ -97,13 +116,20 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
                   fontSize: 13,
                   color: cs.onSurfaceVariant,
                 ),
-                prefixIconConstraints:
-                    const BoxConstraints(minWidth: 32, minHeight: 0),
-                prefixIcon: Icon(Icons.search,
-                    size: 16, color: cs.onSurfaceVariant),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 0,
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 16,
+                  color: cs.onSurfaceVariant,
+                ),
                 isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 8,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(color: cs.outlineVariant),
@@ -118,15 +144,13 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
         ),
         ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 260),
-          child: ListView(
-            shrinkWrap: true,
-            children: allItems,
-          ),
+          child: ListView(shrinkWrap: true, children: allItems),
         ),
         Container(
           decoration: BoxDecoration(
             border: Border(
-                top: BorderSide(color: cs.outlineVariant.withAlpha(76))),
+              top: BorderSide(color: cs.outlineVariant.withAlpha(76)),
+            ),
             color: cs.surfaceContainerLow,
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -136,25 +160,33 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
                 onPressed: widget.onClearAll,
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   textStyle: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                child: Text('Clear All',
-                    style: TextStyle(color: cs.onSurfaceVariant)),
+                child: Text(
+                  'Clear All',
+                  style: TextStyle(color: cs.onSurfaceVariant),
+                ),
               ),
               const Spacer(),
               FilledButton(
                 onPressed: widget.onApply,
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 6),
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   textStyle: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 child: const Text('Apply'),
               ),
@@ -165,8 +197,13 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
     );
   }
 
-  Widget _buildItemRow(BuildContext context, String label, IconData icon,
-      bool checked, VoidCallback onTap) {
+  Widget _buildItemRow(
+    BuildContext context,
+    String label,
+    IconData icon,
+    bool checked,
+    VoidCallback onTap,
+  ) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return InkWell(
@@ -185,7 +222,8 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
                 visualDensity: VisualDensity.compact,
                 side: BorderSide(color: cs.outlineVariant),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4)),
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
             ),
             const SizedBox(width: 10),

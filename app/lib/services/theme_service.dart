@@ -5,8 +5,19 @@ import 'package:flutter/material.dart';
 import 'theme_store.dart';
 
 enum ThemeSetting {
-  mindPalace('Mind Palace', Icons.language, Color(0xFF6750A4), Brightness.light, subtitle: 'Default'),
-  midnight('Midnight', Icons.nightlight_round, Color(0xFF7C6FF7), Brightness.dark),
+  mindPalace(
+    'Mind Palace',
+    Icons.language,
+    Color(0xFF6750A4),
+    Brightness.light,
+    subtitle: 'Default',
+  ),
+  midnight(
+    'Midnight',
+    Icons.nightlight_round,
+    Color(0xFF7C6FF7),
+    Brightness.dark,
+  ),
   warm('Warm', Icons.wb_sunny, Color(0xFFE63946), Brightness.light),
   neutral('Neutral', Icons.blur_on, Color(0xFF475569), Brightness.light);
 
@@ -16,7 +27,13 @@ enum ThemeSetting {
   final Brightness brightness;
   final String? subtitle;
 
-  const ThemeSetting(this.displayName, this.icon, this.seedColor, this.brightness, {this.subtitle});
+  const ThemeSetting(
+    this.displayName,
+    this.icon,
+    this.seedColor,
+    this.brightness, {
+    this.subtitle,
+  });
 
   String get storageValue => name;
 

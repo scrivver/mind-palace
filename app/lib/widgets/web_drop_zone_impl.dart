@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:html' as html;
 import 'package:flutter/widgets.dart';
 import 'package:file_picker/file_picker.dart';
-import '../services/drop_item_utils_web.dart' show captureDropEntries, expandCapturedDrop;
+import '../services/drop_item_utils_web.dart'
+    show captureDropEntries, expandCapturedDrop;
 
 class WebDropZone extends StatefulWidget {
   final Widget child;
@@ -90,11 +91,6 @@ class _WebDropZoneState extends State<WebDropZone> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.passthrough,
-      children: [
-        widget.child,
-      ],
-    );
+    return Stack(fit: StackFit.passthrough, children: [widget.child]);
   }
 }

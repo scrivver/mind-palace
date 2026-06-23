@@ -45,7 +45,9 @@ void showExtractedTextDialog(BuildContext context, String text) {
                     color: theme.colorScheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.3,
+                      ),
                     ),
                   ),
                   child: SingleChildScrollView(

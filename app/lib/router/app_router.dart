@@ -59,8 +59,10 @@ GoRouter _createRouter(
       if (needsSetup && path != '/setup') {
         return '/setup';
       }
-      if (!needsSetup && !authState.isLoggedIn &&
-          path != '/login' && path != '/setup') {
+      if (!needsSetup &&
+          !authState.isLoggedIn &&
+          path != '/login' &&
+          path != '/setup') {
         return '/login';
       }
       if (authState.isLoggedIn && path == '/login') {
@@ -90,9 +92,7 @@ GoRouter _createRouter(
             onLogin: () => ref.read(appAuthProvider.notifier).login(),
             error: authState.error,
             loading: authState.isLoading,
-            onConfigureServer: kIsWeb
-                ? null
-                : () => context.go('/setup'),
+            onConfigureServer: kIsWeb ? null : () => context.go('/setup'),
           );
         },
       ),
@@ -137,9 +137,7 @@ GoRouter _createRouter(
           GoRoute(
             path: '/status',
             builder: (context, state) {
-              return StatusScreen(
-                reliquary: reliquaryAsync.valueOrNull!,
-              );
+              return StatusScreen(reliquary: reliquaryAsync.valueOrNull!);
             },
           ),
           GoRoute(

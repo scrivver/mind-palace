@@ -20,8 +20,10 @@ class DashedBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
 
-    final rrect =
-        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(12));
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(12),
+    );
     final path = Path()..addRRect(rrect);
 
     for (final metric in path.computeMetrics()) {

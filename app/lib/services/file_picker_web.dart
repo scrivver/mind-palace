@@ -92,8 +92,14 @@ Future<List<PlatformFile>?> pickFolder() async {
         relative = null;
       }
 
-      result.add(PlatformFile(
-          name: file.name, size: file.size, bytes: bytes, path: relative));
+      result.add(
+        PlatformFile(
+          name: file.name,
+          size: file.size,
+          bytes: bytes,
+          path: relative,
+        ),
+      );
     }
 
     if (!completer.isCompleted) completer.complete(result);

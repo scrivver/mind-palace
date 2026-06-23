@@ -17,10 +17,7 @@ Future<bool?> showDeleteDialog(BuildContext context, String filename) {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Confirm Deletion',
-              style: theme.textTheme.headlineMedium,
-            ),
+            Text('Confirm Deletion', style: theme.textTheme.headlineMedium),
             const SizedBox(height: 8),
             Text(
               'Are you certain you wish to purge "$filename"? This action cannot be undone within the Mind Palace architecture.',
@@ -35,9 +32,7 @@ Future<bool?> showDeleteDialog(BuildContext context, String filename) {
               height: 44,
               child: FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: cs.error,
-                ),
+                style: FilledButton.styleFrom(backgroundColor: cs.error),
                 child: Text(
                   'Permanent Deletion',
                   style: theme.textTheme.labelLarge?.copyWith(

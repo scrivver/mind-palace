@@ -21,11 +21,13 @@ Future<List<PlatformFile>?> pickFolder() async {
   await for (final entity in dir.list(recursive: true)) {
     if (entity is File) {
       final stat = await entity.stat();
-      files.add(PlatformFile(
-        name: p.basename(entity.path),
-        size: stat.size,
-        path: entity.path,
-      ));
+      files.add(
+        PlatformFile(
+          name: p.basename(entity.path),
+          size: stat.size,
+          path: entity.path,
+        ),
+      );
     }
   }
 

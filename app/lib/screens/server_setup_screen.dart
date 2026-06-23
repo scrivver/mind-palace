@@ -88,16 +88,9 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.castle,
-                  size: 56,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.castle, size: 56, color: theme.colorScheme.primary),
                 const SizedBox(height: 20),
-                Text(
-                  'Mind Palace',
-                  style: theme.textTheme.headlineLarge,
-                ),
+                Text('Mind Palace', style: theme.textTheme.headlineLarge),
                 const SizedBox(height: 4),
                 Text(
                   'Server Connection',

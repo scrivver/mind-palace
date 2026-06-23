@@ -47,7 +47,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
     // On IO platforms we can expand directories using the native path info.
     try {
-        if (!kIsWeb) {
+      if (!kIsWeb) {
         // Use the IO helper to expand directories and files.
         final expanded = await expandDropItemsIo(items as dynamic);
         files.addAll(expanded);
@@ -57,12 +57,14 @@ class _UploadScreenState extends State<UploadScreen> {
           try {
             final bytes = await (item as dynamic).readAsBytes();
             final size = await (item as dynamic).length();
-            files.add(PlatformFile(
-              name: (item as dynamic).name as String,
-              size: size as int,
-              bytes: bytes as Uint8List,
-              path: (item as dynamic).path as String?,
-            ));
+            files.add(
+              PlatformFile(
+                name: (item as dynamic).name as String,
+                size: size as int,
+                bytes: bytes as Uint8List,
+                path: (item as dynamic).path as String?,
+              ),
+            );
           } catch (_) {}
         }
       }
@@ -72,7 +74,14 @@ class _UploadScreenState extends State<UploadScreen> {
         try {
           final bytes = await item.readAsBytes();
           final size = await item.length();
-          files.add(PlatformFile(name: item.name, size: size, bytes: bytes, path: item.path));
+          files.add(
+            PlatformFile(
+              name: item.name,
+              size: size,
+              bytes: bytes,
+              path: item.path,
+            ),
+          );
         } catch (_) {}
       }
     }
@@ -95,7 +104,11 @@ class _UploadScreenState extends State<UploadScreen> {
       // All dropped entries looked like placeholders — likely a folder drop
       // on a browser that doesn't expose children. Inform the user.
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Folder drop is not supported in this browser or produced no files. Please use "Select Folder".')),
+        const SnackBar(
+          content: Text(
+            'Folder drop is not supported in this browser or produced no files. Please use "Select Folder".',
+          ),
+        ),
       );
       setState(() {
         _isDragging = false;
@@ -104,22 +117,25 @@ class _UploadScreenState extends State<UploadScreen> {
     }
 
     setState(() {
-      _selectedFiles = List<PlatformFile>.from(_selectedFiles)..addAll(nonPlaceholders);
+      _selectedFiles = List<PlatformFile>.from(_selectedFiles)
+        ..addAll(nonPlaceholders);
       _isDragging = false;
     });
   }
 
   // Dynamically import the IO helper to avoid referencing it in web builds.
   Future<dynamic> importDropItemUtilsIo() async {
-    return await Future.value((() async {
-      // This block will be replaced by conditional imports in a follow-up if desired.
-      // For now, use a direct import — the helper is available on IO builds.
-      // ignore: import_of_legacy_library_into_null_safe
-      return {
-        'expandDropItemsIo': (List<dynamic> items) async =>
-            await expandDropItemsIo(items),
-      };
-    })());
+    return await Future.value(
+      (() async {
+        // This block will be replaced by conditional imports in a follow-up if desired.
+        // For now, use a direct import — the helper is available on IO builds.
+        // ignore: import_of_legacy_library_into_null_safe
+        return {
+          'expandDropItemsIo': (List<dynamic> items) async =>
+              await expandDropItemsIo(items),
+        };
+      })(),
+    );
   }
 
   Future<void> _pickFiles() async {
@@ -137,9 +153,9 @@ class _UploadScreenState extends State<UploadScreen> {
       // cancelled silently — button stays available
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick files: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to pick files: $e')));
     }
   }
 
@@ -156,9 +172,9 @@ class _UploadScreenState extends State<UploadScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick folder: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to pick folder: $e')));
     }
   }
 
@@ -183,8 +199,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
         if (!mounted) return;
         setState(() {
-          _progress[k] =
-              UploadProgress(status: 'Uploading...', fraction: 0);
+          _progress[k] = UploadProgress(status: 'Uploading...', fraction: 0);
         });
 
         final result = await widget.reliquary.uploadFile(
@@ -216,8 +231,7 @@ class _UploadScreenState extends State<UploadScreen> {
       } catch (e) {
         if (!mounted) return;
         setState(() {
-          _progress[k] =
-              UploadProgress(status: 'Failed: $e', error: true);
+          _progress[k] = UploadProgress(status: 'Failed: $e', error: true);
         });
       }
     }
@@ -244,10 +258,10 @@ class _UploadScreenState extends State<UploadScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
-                    onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
+                    onPressed:
+                        widget.onBack ?? () => Navigator.of(context).pop(),
                   ),
-                  Text('Upload Assets',
-                      style: theme.textTheme.headlineMedium),
+                  Text('Upload Assets', style: theme.textTheme.headlineMedium),
                 ],
               ),
             ),
@@ -270,7 +284,9 @@ class _UploadScreenState extends State<UploadScreen> {
                         // Convert PlatformFile list from web drop into queue
                         if (!mounted) return;
                         setState(() {
-                          _selectedFiles = List<PlatformFile>.from(_selectedFiles)..addAll(files);
+                          _selectedFiles = List<PlatformFile>.from(
+                            _selectedFiles,
+                          )..addAll(files);
                           _isDragging = false;
                         });
                       },
@@ -283,7 +299,11 @@ class _UploadScreenState extends State<UploadScreen> {
                         // Edge, and Safari — this path is a last resort.
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Drag-and-drop is not fully supported in this browser. Please use "Select Folder" to add folder contents.')),
+                          const SnackBar(
+                            content: Text(
+                              'Drag-and-drop is not fully supported in this browser. Please use "Select Folder" to add folder contents.',
+                            ),
+                          ),
                         );
                       },
                       child: InkWell(
@@ -303,7 +323,8 @@ class _UploadScreenState extends State<UploadScreen> {
                               padding: const EdgeInsets.all(32),
                               decoration: BoxDecoration(
                                 color: _isDragging
-                                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                    ? theme.colorScheme.primaryContainer
+                                          .withValues(alpha: 0.3)
                                     : Colors.transparent,
                               ),
                               child: Column(
@@ -323,7 +344,9 @@ class _UploadScreenState extends State<UploadScreen> {
                                       size: 36,
                                       color: _isDragging
                                           ? theme.colorScheme.onPrimary
-                                          : theme.colorScheme.onPrimaryContainer,
+                                          : theme
+                                                .colorScheme
+                                                .onPrimaryContainer,
                                     ),
                                   ),
                                   const SizedBox(height: 16),
@@ -331,9 +354,10 @@ class _UploadScreenState extends State<UploadScreen> {
                                     _isDragging
                                         ? 'Drop files here'
                                         : 'Click to select or drag files',
-                                    style: theme.textTheme.headlineSmall?.copyWith(
-                                      color: theme.colorScheme.onSurface,
-                                    ),
+                                    style: theme.textTheme.headlineSmall
+                                        ?.copyWith(
+                                          color: theme.colorScheme.onSurface,
+                                        ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -342,26 +366,29 @@ class _UploadScreenState extends State<UploadScreen> {
                                       color: theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
-                                const SizedBox(height: 20),
-                                Wrap(
-                                  spacing: 8,
-                                  alignment: WrapAlignment.center,
-                                  children: [
-                                    FilledButton(
-                                      onPressed: _uploading
-                                          ? null
-                                          : _pickFiles,
-                                      child: const Text('Select Files'),
-                                    ),
-                                    OutlinedButton.icon(
-                                      onPressed: _uploading
-                                          ? null
-                                          : _pickFolder,
-                                      icon: const Icon(Icons.folder_open, size: 18),
-                                      label: const Text('Select Folder'),
-                                    ),
-                                  ],
-                                ),
+                                  const SizedBox(height: 20),
+                                  Wrap(
+                                    spacing: 8,
+                                    alignment: WrapAlignment.center,
+                                    children: [
+                                      FilledButton(
+                                        onPressed: _uploading
+                                            ? null
+                                            : _pickFiles,
+                                        child: const Text('Select Files'),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: _uploading
+                                            ? null
+                                            : _pickFolder,
+                                        icon: const Icon(
+                                          Icons.folder_open,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Select Folder'),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -394,7 +421,8 @@ class _UploadScreenState extends State<UploadScreen> {
                               padding: const EdgeInsets.all(32),
                               decoration: BoxDecoration(
                                 color: _isDragging
-                                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                    ? theme.colorScheme.primaryContainer
+                                          .withValues(alpha: 0.3)
                                     : Colors.transparent,
                               ),
                               child: Column(
@@ -414,7 +442,9 @@ class _UploadScreenState extends State<UploadScreen> {
                                       size: 36,
                                       color: _isDragging
                                           ? theme.colorScheme.onPrimary
-                                          : theme.colorScheme.onPrimaryContainer,
+                                          : theme
+                                                .colorScheme
+                                                .onPrimaryContainer,
                                     ),
                                   ),
                                   const SizedBox(height: 16),
@@ -422,9 +452,10 @@ class _UploadScreenState extends State<UploadScreen> {
                                     _isDragging
                                         ? 'Drop files here'
                                         : 'Click to select or drag files',
-                                    style: theme.textTheme.headlineSmall?.copyWith(
-                                      color: theme.colorScheme.onSurface,
-                                    ),
+                                    style: theme.textTheme.headlineSmall
+                                        ?.copyWith(
+                                          color: theme.colorScheme.onSurface,
+                                        ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -433,26 +464,29 @@ class _UploadScreenState extends State<UploadScreen> {
                                       color: theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
-                                const SizedBox(height: 20),
-                                Wrap(
-                                  spacing: 8,
-                                  alignment: WrapAlignment.center,
-                                  children: [
-                                    FilledButton(
-                                      onPressed: _uploading
-                                          ? null
-                                          : _pickFiles,
-                                      child: const Text('Select Files'),
-                                    ),
-                                    OutlinedButton.icon(
-                                      onPressed: _uploading
-                                          ? null
-                                          : _pickFolder,
-                                      icon: const Icon(Icons.folder_open, size: 18),
-                                      label: const Text('Select Folder'),
-                                    ),
-                                  ],
-                                ),
+                                  const SizedBox(height: 20),
+                                  Wrap(
+                                    spacing: 8,
+                                    alignment: WrapAlignment.center,
+                                    children: [
+                                      FilledButton(
+                                        onPressed: _uploading
+                                            ? null
+                                            : _pickFiles,
+                                        child: const Text('Select Files'),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: _uploading
+                                            ? null
+                                            : _pickFolder,
+                                        icon: const Icon(
+                                          Icons.folder_open,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Select Folder'),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -497,11 +531,12 @@ class _UploadScreenState extends State<UploadScreen> {
             if (_selectedFiles.isNotEmpty)
               Expanded(
                 child: ListView.separated(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   itemCount: _selectedFiles.length,
-                  separatorBuilder: (_, _) =>
-                      Divider(height: 1, color: theme.colorScheme.outlineVariant),
+                  separatorBuilder: (_, _) => Divider(
+                    height: 1,
+                    color: theme.colorScheme.outlineVariant,
+                  ),
                   itemBuilder: (context, index) {
                     final file = _selectedFiles[index];
                     final p = _progress[_key(file)];
@@ -530,8 +565,7 @@ class _UploadScreenState extends State<UploadScreen> {
                   width: double.infinity,
                   height: 44,
                   child: FilledButton(
-                    onPressed:
-                        _uploading ? null : _uploadAll,
+                    onPressed: _uploading ? null : _uploadAll,
                     child: Text('Process All (${_selectedFiles.length})'),
                   ),
                 ),
@@ -542,5 +576,3 @@ class _UploadScreenState extends State<UploadScreen> {
     );
   }
 }
-
-

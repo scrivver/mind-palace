@@ -6,10 +6,7 @@ import '../utils/format.dart';
 class StatusScreen extends StatefulWidget {
   final ReliquaryService reliquary;
 
-  const StatusScreen({
-    super.key,
-    required this.reliquary,
-  });
+  const StatusScreen({super.key, required this.reliquary});
 
   @override
   State<StatusScreen> createState() => _StatusScreenState();
@@ -79,14 +76,16 @@ class _StatusScreenState extends State<StatusScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Sanctuary Health',
-            style: Theme.of(context).textTheme.headlineLarge),
+        Text(
+          'Sanctuary Health',
+          style: Theme.of(context).textTheme.headlineLarge,
+        ),
         const SizedBox(height: 8),
         Text(
           'Overview of your personal digital sanctuary',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -106,12 +105,16 @@ class _StatusScreenState extends State<StatusScreen> {
       return _buildCard(
         child: Row(
           children: [
-            Icon(Icons.error_outline,
-                color: Theme.of(context).colorScheme.error),
+            Icon(
+              Icons.error_outline,
+              color: Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text('Storage data unavailable',
-                  style: Theme.of(context).textTheme.bodyMedium),
+              child: Text(
+                'Storage data unavailable',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ),
           ],
         ),
@@ -126,8 +129,9 @@ class _StatusScreenState extends State<StatusScreen> {
 
     final categories = _buildStorageCategories(byType);
     final usedBytes = totalSize;
-    final capacityFraction =
-        usedBytes > 0 ? (usedBytes / displayCapacity).clamp(0.0, 1.0) : 0.0;
+    final capacityFraction = usedBytes > 0
+        ? (usedBytes / displayCapacity).clamp(0.0, 1.0)
+        : 0.0;
 
     return _buildCard(
       child: Column(
@@ -135,11 +139,12 @@ class _StatusScreenState extends State<StatusScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.storage,
-                  color: Theme.of(context).colorScheme.primary),
+              Icon(Icons.storage, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
-              Text('Storage Capacity',
-                  style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Storage Capacity',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -148,8 +153,9 @@ class _StatusScreenState extends State<StatusScreen> {
             child: LinearProgressIndicator(
               value: capacityFraction,
               minHeight: 8,
-              backgroundColor:
-                  Theme.of(context).colorScheme.surfaceContainerHighest,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
             ),
           ),
           const SizedBox(height: 8),
@@ -158,28 +164,32 @@ class _StatusScreenState extends State<StatusScreen> {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 8),
-          Text('Total files: $fileCount',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  )),
+          Text(
+            'Total files: $fileCount',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 12),
-          ...categories.map(
-              (c) => _buildCategoryRow(c.$1, c.$2, c.$3)),
+          ...categories.map((c) => _buildCategoryRow(c.$1, c.$2, c.$3)),
         ],
       ),
     );
   }
 
   List<(String, IconData, int)> _buildStorageCategories(
-      Map<String, dynamic> byType) {
+    Map<String, dynamic> byType,
+  ) {
     final image = (byType['image'] as num?)?.toInt() ?? 0;
     final video = (byType['video'] as num?)?.toInt() ?? 0;
     final audio = (byType['audio'] as num?)?.toInt() ?? 0;
     final application = (byType['application'] as num?)?.toInt() ?? 0;
     final text = (byType['text'] as num?)?.toInt() ?? 0;
     final otherKeys = byType.keys
-        .where((k) => !['image', 'video', 'audio', 'application', 'text']
-            .contains(k))
+        .where(
+          (k) =>
+              !['image', 'video', 'audio', 'application', 'text'].contains(k),
+        )
         .fold<int>(0, (sum, k) => sum + ((byType[k] as num?)?.toInt() ?? 0));
 
     return [
@@ -190,23 +200,26 @@ class _StatusScreenState extends State<StatusScreen> {
     ];
   }
 
-  Widget _buildCategoryRow(
-      String label, IconData icon, int fileCount) {
+  Widget _buildCategoryRow(String label, IconData icon, int fileCount) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 18,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Icon(
+            icon,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(label,
-                style: Theme.of(context).textTheme.bodyMedium),
+            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
           ),
-          Text('$fileCount files',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  )),
+          Text(
+            '$fileCount files',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -223,5 +236,4 @@ class _StatusScreenState extends State<StatusScreen> {
       child: child,
     );
   }
-
 }

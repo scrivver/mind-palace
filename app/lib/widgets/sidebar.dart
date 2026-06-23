@@ -23,9 +23,7 @@ class Sidebar extends StatelessWidget {
       width: 256,
       decoration: BoxDecoration(
         color: cs.surface,
-        border: Border(
-          right: BorderSide(color: cs.outlineVariant),
-        ),
+        border: Border(right: BorderSide(color: cs.outlineVariant)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,8 +93,10 @@ class Sidebar extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: cs.surfaceContainer,
                       borderRadius: BorderRadius.circular(999),
@@ -133,15 +133,18 @@ class Sidebar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     child: Row(
                       children: [
                         Icon(Icons.logout, size: 20, color: cs.error),
                         const SizedBox(width: 12),
                         Text(
                           'Logout',
-                          style: theme.textTheme.labelLarge
-                              ?.copyWith(color: cs.error),
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: cs.error,
+                          ),
                         ),
                       ],
                     ),
