@@ -187,7 +187,7 @@ class LoginView extends StatelessWidget {
               color: cs.outlineVariant,
             ),
             Text(
-              '\u00a9 2024 Mind Palace. Architectural Precision for your Digital Assets.',
+              '\u00a9 2026 Mind Palace. Architectural Precision for your Digital Assets.',
               style: meta?.copyWith(color: cs.onSurfaceVariant),
             ),
           ],
@@ -220,7 +220,7 @@ class LoginView extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          '\u00a9 2024 Mind Palace. Architectural Precision for your Digital Assets.',
+          '\u00a9 2026 Mind Palace. Architectural Precision for your Digital Assets.',
           style: meta?.copyWith(color: cs.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
