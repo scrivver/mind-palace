@@ -58,7 +58,18 @@ $EDITOR .env        # set secrets (look for change-me-in-shared-use)
 docker compose up -d
 ```
 
-Open `http://localhost:2080` — you'll be prompted to sign in through the bundled Authentik instance. Add an artifact, confirm it appears, then `docker compose down` to stop.
+The Compose stack includes:
+- **PostgreSQL** (shared across Engram, Synapse, and Authentik)
+- **RabbitMQ** (event bus for Reliquary, Engram, Synapse)
+- **MinIO** (S3-compatible object storage)
+- **Redis** (Authentik cache/websocket)
+- **Authentik** (OIDC provider — server + worker, auto-bootstrapped with a Mind Palace OAuth2 application)
+- **Reliquary** (storage API + thumbnail worker)
+- **Engram** (metadata API + ingestion worker)
+- **Synapse** (transfer worker + reconciler)
+- **app** (Flutter web assets behind Caddy, proxies APIs and Authentik on the same origin)
+
+Open `http://localhost:2080` — you'll be redirected to the bundled Authentik instance to sign in. Default admin credentials printed by `docker compose logs authentik-setup`. Add an artifact, confirm it appears, then `docker compose down` to stop.
 
 ### Reset state
 
