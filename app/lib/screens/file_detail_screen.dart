@@ -326,6 +326,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
 
   void _showExtractedTextDialog(BuildContext context) {
     final theme = Theme.of(context);
+    final screenH = MediaQuery.of(context).size.height;
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -334,63 +335,65 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(color: theme.colorScheme.outlineVariant),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Extracted Analysis',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: theme.colorScheme.primary,
+        child: SizedBox(
+          width: 560,
+          height: screenH * 0.55,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Extracted Analysis',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'OCR Engine v4.2',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Flexible(
-                child: Container(
-                  width: double.infinity,
-                  constraints: const BoxConstraints(maxHeight: 400),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: SingleChildScrollView(
-                    child: SelectableText(
-                      _file.extractedText!,
+                    const Spacer(),
+                    Text(
+                      'OCR Engine v4.2',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        fontFamily: 'Space Mono',
-                        height: 1.5,
-                        fontSize: 12,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        _file.extractedText!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontFamily: 'Space Mono',
+                          height: 1.5,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Close'),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Close'),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -478,53 +481,32 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     final theme = Theme.of(context);
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _metaRow(theme, 'Type', _file.mimeType ?? '\u2014'),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(child: _metaBlock(theme, 'Size', _file.formattedSize)),
-            const SizedBox(width: 24),
-            if (_file.pageCount != null)
-              Expanded(
-                child: _metaBlock(theme, 'Pages', '${_file.pageCount} Plates'),
-              ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        _metaBlock(
+        _metaField(theme, 'Type', _file.mimeType ?? '\u2014'),
+        const SizedBox(height: 20),
+        _metaField(theme, 'Size', _file.formattedSize),
+        const SizedBox(height: 20),
+        if (_file.pageCount != null) ...[
+          _metaField(theme, 'Pages', '${_file.pageCount} Plates'),
+          const SizedBox(height: 20),
+        ],
+        _metaField(
           theme,
           'Device',
           _file.deviceName.isNotEmpty ? _file.deviceName : '\u2014',
         ),
-        const SizedBox(height: 24),
-        _metaRow(theme, 'Created', _formatDateTime(_file.createdAt)),
+        const SizedBox(height: 20),
+        _metaField(theme, 'Created', _formatDateTime(_file.createdAt)),
         if (_file.hash.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          _metaRow(theme, 'SHA-256', _file.hash),
+          const SizedBox(height: 20),
+          _metaField(theme, 'SHA-256', _file.hash),
         ],
       ],
     );
   }
 
-  Widget _metaBlock(ThemeData theme, String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.labelLarge?.copyWith(
-            fontSize: 11,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 4),
-        SelectableText(value, style: theme.textTheme.bodyMedium),
-      ],
-    );
-  }
-
-  Widget _metaRow(ThemeData theme, String label, String value) {
+  Widget _metaField(ThemeData theme, String label, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
