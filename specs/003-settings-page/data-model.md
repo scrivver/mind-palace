@@ -4,25 +4,22 @@
 
 ### ThemeSetting
 
-An enum representing the user's preferred visual appearance.
+An enum representing the user's preferred visual appearance preset.
 
 | Field | Type | Values | Description |
 |-------|------|--------|-------------|
-| `value` | `String` | `"light"`, `"dark"`, `"system"` | Storage value for `shared_preferences` |
-| `displayName` | `String` | `"Light"`, `"Dark"`, `"System"` | Human-readable label |
-| `icon` | `IconData` | Wi-Fi brightness icons | Material icon shown in radio tile |
-| `themeMode` | `ThemeMode` | `ThemeMode.light`, `ThemeMode.dark`, `ThemeMode.system` | Flutter theme mode for applying |
+| `name` | `String` | `"mindPalace"`, `"midnight"`, `"warm"`, `"neutral"` | Enum variant name (storage key for `shared_preferences`) |
+| `displayName` | `String` | `"Mind Palace"`, `"Midnight"`, `"Warm"`, `"Neutral"` | Human-readable label |
+| `icon` | `IconData` | Material icons | Icon shown in the card selector |
+| `seedColor` | `Color` | Hex color codes | Seed color for Material color scheme generation |
+| `brightness` | `Brightness` | `Brightness.light`, `Brightness.dark` | Flutter brightness for theme mode |
 
 ```dart
 enum ThemeSetting {
-  light(ThemeMode.light, 'Light'),
-  dark(ThemeMode.dark, 'Dark'),
-  system(ThemeMode.system, 'System');
-
-  final ThemeMode themeMode;
-  final String displayName;
-
-  const ThemeSetting(this.themeMode, this.displayName);
+  mindPalace('Mind Palace', Icons.language, Color(0xFF6750A4), Brightness.light),
+  midnight('Midnight', Icons.nightlight_round, Color(0xFF7C6FF7), Brightness.dark),
+  warm('Warm', Icons.wb_sunny, Color(0xFFE63946), Brightness.light),
+  neutral('Neutral', Icons.blur_on, Color(0xFF475569), Brightness.light);
 }
 ```
 
@@ -30,18 +27,7 @@ enum ThemeSetting {
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `theme_mode` | `String` | Stored in `shared_preferences`; one of `"light"`, `"dark"`, `"system"` |
-
-### SettingsPageState
-
-Local component state for the Settings page UI.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `selectedTheme` | `ThemeSetting` | Currently selected/displayed theme |
-| `isLoading` | `bool` | True while loading persisted preference on init |
-| `themeService` | `ThemeService` | Service for reading/writing theme preference |
-| `authService` | `AuthService` | Service for obtaining Authentik base URL |
+| `theme_mode` | `String` | Stored in `shared_preferences`; one of `"mindPalace"`, `"midnight"`, `"warm"`, `"neutral"` (uses `ThemeSetting.name`) |
 
 ## State Transitions
 
@@ -52,19 +38,19 @@ App Launch
 ThemeService.init() → reads shared_preferences
     │
     ├── key found → parse value → apply ThemeSetting
-    └── key missing → default to ThemeSetting.system
+    └── key missing → default to ThemeSetting.mindPalace
     │
     ▼
 User selects theme in SettingsScreen
     │
     ▼
-ThemeService.setTheme(setting) → writes shared_preferences
+ThemeService.setTheme(setting) → writes shared_preferences + emits to stream
     │
     ▼
-App-wide ThemeMode updates via MaterialApp state
+currentThemeProvider updates → MaterialApp.router rebuilds with new seed/brightness
 ```
 
 ## Validation Rules
 
-- `theme_mode` value must be one of `"light"`, `"dark"`, `"system"`; default to `"system"` if invalid or missing
+- `theme_mode` value must be one of the `ThemeSetting` enum names; default to `ThemeSetting.mindPalace` if invalid or missing
 - No server-side validation needed — purely client-side

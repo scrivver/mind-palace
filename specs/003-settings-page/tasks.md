@@ -160,7 +160,7 @@ Task: "Verify runtime state check"
 evolution. All acceptance scenarios, functional requirements, and plan decisions are satisfied in
 code; the documents below have drifted from the current state.
 
-- [ ] T009 Update `spec.md` FR-002 and US1/AC2: rename section labels from "Appearance" → "Theme Preference" and "Account" → "Reset Password" to match Stitch design (partial)
-- [ ] T010 Update `spec.md` FR-003 and US1/AC3-5: replace Light/Dark/System toggle description with 4-visual-preset model (Mind Palace / Midnight / Warm / Neutral) and card-selector UI (partial)
-- [ ] T011 Update `data-model.md` ThemeSetting entity: replace 3-value enum (`light`/`dark`/`system` with `ThemeMode`) with current 4-value enum (`mindPalace`/`midnight`/`warm`/`neutral` with `seedColor`/`brightness`) (partial)
-- [ ] T012 Update `plan.md` Phase 0 research resolution #3: replace "radio-style list tiles" wording with card-based visual preset grid matching final Stitch layout (partial)
+- [x] T009 Update `spec.md` FR-002 and US1/AC2: rename section labels from "Appearance" → "Theme Preference" and "Account" → "Reset Password" to match Stitch design (partial)
+- [x] T010 Update `spec.md` FR-003 and US1/AC3-5: replace Light/Dark/System toggle description with 4-visual-preset model (Mind Palace / Midnight / Warm / Neutral) and card-selector UI (partial)
+- [x] T011 Update `data-model.md` ThemeSetting entity: replace 3-value enum (`light`/`dark`/`system` with `ThemeMode`) with current 4-value enum (`mindPalace`/`midnight`/`warm`/`neutral` with `seedColor`/`brightness`) (partial)
+- [x] T012 Update `plan.md` Phase 0 research resolution #3: replace "radio-style list tiles" wording with card-based visual preset grid matching final Stitch layout (partial)

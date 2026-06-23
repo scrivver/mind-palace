@@ -1,17 +1,15 @@
-# mind_palace
+# Mind Palace — Flutter Client
 
-A new Flutter project.
+This is the Flutter mobile/desktop/web client for Mind Palace.
 
-## Getting Started
+Refer to the [root README](../README.md) for project overview, architecture, and
+quickstart. See [docs/](../docs/index.md) for implementation details and
+`specs/` for feature specs and task tracking.
 
-This project is a starting point for a Flutter application.
+## Development
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+cd app
+flutter analyze    # static analysis
+flutter test       # run tests
+```

@@ -6,7 +6,7 @@
 
 ## Summary
 
-Add a Settings page to the Mind Palace Flutter app that replaces the "Settings — coming soon" placeholder at sidebar nav index 2. The page includes an Appearance section with Light/Dark/System theme selection (stored client-side) and an Account section with a "Reset Password" link that redirects to Authentik. UI follows the Stitch MCP design with section cards and radio/toggle controls. No backend changes required.
+Add a Settings page to the Mind Palace Flutter app that replaces the "Settings — coming soon" placeholder at sidebar nav index 2. The page includes a Theme Preference section with 4 visual preset cards (Mind Palace, Midnight, Warm, Neutral) — each with a color preview swatch — and a Reset Password section with a button that opens Authentik. UI follows the Stitch MCP design with section cards and card-based selector grid. No backend changes required.
 
 ## Technical Context
 
@@ -111,14 +111,15 @@ No constitution violations required.
 #### 3. Stitch Design Specifics
 
 **Decision**: The Stitch design shows two sections in a card-based layout:
-- **Appearance**: Theme selection with three options (Light / Dark / System) using radio-style list tiles with a visual preview indicator.
-- **Account**: "Reset Password" as a list tile with an external link icon.
+- **Theme Preference**: Theme selection with four visual preset cards (Mind Palace, Midnight, Warm, Neutral), each showing a color preview swatch. Selecting a card applies the theme immediately and persists the choice.
+- **Reset Password**: "Reset Password" as a button that opens the Authentik password reset URL.
 
-**Rationale**: The Stitch screen "Settings / Theme & Password Reset" (desktop, 2560×2408) shows a two-section layout consistent with the existing app design language (cards with section headers, list tiles with icons).
+**Rationale**: The Stitch screen "Settings / Theme & Password Reset" (desktop, 2560×2408) shows a two-section card-based layout with visual theme previews — the design evolved from an initial 3-option radio to the final 4-preset grid during implementation.
 
 **Alternatives considered**:
 - Tab-based layout — not aligned with the Stitch design.
 - Single list with mixed items — less organized than section cards.
+- 3-option radio (Light/Dark/System) — replaced by 4-preset grid for richer visual feedback and to avoid system-mode ambiguity on desktop.
 
 ---
 
@@ -129,12 +130,12 @@ No constitution violations required.
 See [data-model.md](./data-model.md) for full entity definitions.
 
 Key entities:
-- `ThemeSetting` — enum with values `light`, `dark`, `system` representing the user's theme preference
+- `ThemeSetting` — enum with values `mindPalace`, `midnight`, `warm`, `neutral`, each carrying a `seedColor` and `brightness` for Material color scheme generation
 - `SettingsPageState` — aggregate state for the Settings page UI
 
 ### API Contracts
 
-No new API contracts. Theme persistence uses `shared_preferences` with a single string key `theme_mode`. Password reset uses the existing Authentik OIDC flow URL with the path `/if/flow/password-reset/`.
+No new API contracts. Theme persistence uses `shared_preferences` with a single string key `theme_mode`. The `ThemeSetting` enum's `.name` provides the storage value. Password reset uses the existing Authentik OIDC flow URL with the path `/if/flow/password-reset/`.
 
 ### Quickstart Guide
 

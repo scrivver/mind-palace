@@ -29,7 +29,7 @@ description: "Task list for Sanctuary Health Status Page feature"
 
 **Purpose**: Verify environment and establish branch
 
-- [ ] T001 Create and switch to `002-sanctuary-health` feature branch from a clean `main`
+- [x] T001 Create and switch to `002-sanctuary-health` feature branch from a clean `main`
 
 ---
 
@@ -99,7 +99,7 @@ description: "Task list for Sanctuary Health Status Page feature"
 
 - [x] T014 [P] Run `cd app && flutter analyze` — fix any static analysis issues
 - [x] T015 [P] Run `cd engram && go test ./...` — ensure existing Go tests still pass
-- [ ] T016 Run full E2E validation per `specs/002-sanctuary-health/quickstart.md` scenarios (requires running stack)
+- [x] T016 Run full E2E validation per `specs/002-sanctuary-health/quickstart.md` scenarios (requires running stack)
 - [x] T017 Verify no runtime state, secrets, local database files, or `.data/` content are included in the diff
 
 ---
@@ -108,10 +108,10 @@ description: "Task list for Sanctuary Health Status Page feature"
 
 **Purpose**: Close test-coverage gaps identified during convergence assessment
 
-- [ ] T018 Write `StatusScreen` widget test in `app/test/status_screen_test.dart` covering render, loading, error, and populated states per plan.md testing section (partial)
-- [ ] T019 Write `EngramService` unit test for `getStats()` and `getActivity()` in `app/test/engram_service_test.dart` per plan.md testing section (partial)
-- [ ] T020 Fix "View Archive" hidden when `entries` empty but `total > 0` in `app/lib/screens/status_screen.dart` per FR-010 (partial)
-- [ ] T021 Write Go unit tests for `handleStats` and `handleActivity` handlers in `engram/backend/internal/api/stats_test.go` and `engram/backend/internal/api/activity_test.go` per plan.md testing section and Constitution IV (partial)
+- [x] T018 Write `StatusScreen` widget test in `app/test/status_screen_test.dart` covering render, loading, error, and populated states per plan.md testing section (partial)
+- [x] T019 Write `EngramService` unit test for `getStats()` and `getActivity()` in `app/test/engram_service_test.dart` per plan.md testing section (partial)
+- [x] T020 Fix "View Archive" hidden when `entries` empty but `total > 0` in `app/lib/screens/status_screen.dart` per FR-010 (partial)
+- [x] T021 Write Go unit tests for `handleStats` and `handleActivity` handlers in `engram/backend/internal/api/stats_test.go` and `engram/backend/internal/api/activity_test.go` per plan.md testing section and Constitution IV (partial)
 
 ---
 
