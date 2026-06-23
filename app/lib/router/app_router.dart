@@ -121,13 +121,6 @@ GoRouter _createRouter(
             path: '/vault',
             builder: (context, state) {
               return GalleryScreen(
-                engram: engramAsync.valueOrNull!,
-                reliquary: reliquaryAsync.valueOrNull!,
-                onLogout: () {
-                  ref.read(appAuthProvider.notifier).logout();
-                  context.go('/login');
-                },
-                username: authState.username ?? '',
                 onNavigateToUpload: () => context.go('/upload'),
                 onOpenDetail: (file) => context.go('/file/${file.id}'),
                 refreshTrigger: 0,
@@ -160,12 +153,6 @@ GoRouter _createRouter(
             path: '/upload',
             builder: (context, state) {
               return UploadScreen(
-                reliquary: reliquaryAsync.valueOrNull!,
-                onLogout: () {
-                  ref.read(appAuthProvider.notifier).logout();
-                  context.go('/login');
-                },
-                username: authState.username ?? '',
                 onBack: () => context.go('/vault'),
               );
             },
@@ -188,8 +175,6 @@ GoRouter _createRouter(
                   createdAt: DateTime.now(),
                   updatedAt: DateTime.now(),
                 ),
-                engram: engramAsync.valueOrNull!,
-                reliquary: reliquaryAsync.valueOrNull!,
                 onBack: ({bool deleted = false}) => context.go('/vault'),
               );
             },

@@ -1,35 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../engram_service.dart';
 import '../models/engram_file.dart';
-import '../reliquary_service.dart';
+import '../providers/service_providers.dart';
 import '../utils/format.dart';
 import '../widgets/file_detail/delete_dialog.dart';
 import '../widgets/file_detail/extracted_text_dialog.dart';
 import '../widgets/file_detail/image_preview.dart';
 import '../widgets/file_detail/pdf_preview.dart';
 
-class FileDetailScreen extends StatefulWidget {
+class FileDetailScreen extends ConsumerStatefulWidget {
   final EngramFile initial;
-  final EngramService engram;
-  final ReliquaryService reliquary;
   final void Function({bool deleted}) onBack;
 
   const FileDetailScreen({
     super.key,
     required this.initial,
-    required this.engram,
-    required this.reliquary,
     required this.onBack,
   });
 
   @override
-  State<FileDetailScreen> createState() => _FileDetailScreenState();
+  ConsumerState<FileDetailScreen> createState() => _FileDetailScreenState();
 }
 
-class _FileDetailScreenState extends State<FileDetailScreen> {
+class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
   late EngramFile _file;
 
   @override
@@ -41,7 +37,9 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
 
   Future<void> _loadDetail() async {
     try {
-      final full = await widget.engram.getFile(widget.initial.id);
+      final engram = ref.read(engramServiceProvider).valueOrNull;
+      if (engram == null) return;
+      final full = await engram.getFile(widget.initial.id);
       if (!mounted) return;
       setState(() => _file = full);
     } catch (_) {
@@ -51,29 +49,30 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
 
   Future<void> _download() async {
     try {
-      final url = await widget.reliquary.presignDownloadForSave(_file.filePath);
+      final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
+      if (reliquary == null) return;
+      final url = await reliquary.presignDownloadForSave(_file.filePath);
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to download file')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Failed to download file')));
     }
   }
 
   Future<void> _copyLink() async {
     try {
-      final url = await widget.reliquary.presignDownload(_file.filePath);
+      final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
+      if (reliquary == null) return;
+      final url = await reliquary.presignDownload(_file.filePath);
       await Clipboard.setData(ClipboardData(text: url));
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to get link')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Failed to get link')));
     }
   }
 
@@ -82,14 +81,15 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     if (confirm != true) return;
 
     try {
-      await widget.reliquary.deleteFile(_file.filePath);
+      final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
+      if (reliquary == null) return;
+      await reliquary.deleteFile(_file.filePath);
       if (!mounted) return;
       widget.onBack(deleted: true);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to delete file')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Failed to delete file')));
     }
   }
 
@@ -179,6 +179,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
   Widget _buildPreview(BuildContext context) {
     final theme = Theme.of(context);
     final isPdf = (_file.mimeType ?? '').contains('pdf');
+    final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
 
     return Container(
       width: double.infinity,
@@ -189,13 +190,13 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
       ),
       clipBehavior: Clip.antiAlias,
       child: isPdf
-          ? PdfPreview(filePath: _file.filePath, reliquary: widget.reliquary)
+          ? PdfPreview(filePath: _file.filePath, reliquary: reliquary!)
           : ImagePreview(
               filePath: _file.filePath,
               isImage: _file.isImage,
               mimeType: _file.mimeType,
               filename: _file.filename,
-              reliquary: widget.reliquary,
+              reliquary: reliquary!,
             ),
     );
   }
@@ -405,27 +406,16 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
   String _formatDateTime(DateTime dt) {
     final local = dt.toLocal();
     final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     final y = local.year;
     final m = months[local.month - 1];
     final d = local.day;
     final mm = local.minute.toString().padLeft(2, '0');
     final ampm = local.hour >= 12 ? 'PM' : 'AM';
-    final h12 = local.hour == 0
-        ? 12
-        : (local.hour > 12 ? local.hour - 12 : local.hour);
+    final h12 =
+        local.hour == 0 ? 12 : (local.hour > 12 ? local.hour - 12 : local.hour);
     return '$m $d, $y \u2022 $h12:$mm $ampm';
   }
 }

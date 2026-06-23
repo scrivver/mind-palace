@@ -1,53 +1,27 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum UploadStatus { pending, uploading, completed, failed }
-
-class UploadTask {
-  final String id;
-  final String fileName;
-  final int totalBytes;
-  final int uploadedBytes;
-  final UploadStatus status;
-  final String? error;
-  final bool isDuplicate;
-
-  const UploadTask({
-    required this.id,
-    required this.fileName,
-    required this.totalBytes,
-    this.uploadedBytes = 0,
-    this.status = UploadStatus.pending,
-    this.error,
-    this.isDuplicate = false,
-  });
-
-  UploadTask copyWith({
-    int? uploadedBytes,
-    UploadStatus? status,
-    String? error,
-    bool? isDuplicate,
-  }) {
-    return UploadTask(
-      id: id,
-      fileName: fileName,
-      totalBytes: totalBytes,
-      uploadedBytes: uploadedBytes ?? this.uploadedBytes,
-      status: status ?? this.status,
-      error: error,
-      isDuplicate: isDuplicate ?? this.isDuplicate,
-    );
-  }
-}
+import '../widgets/upload/upload_progress.dart';
 
 class UploadState {
-  final List<UploadTask> queue;
+  final List<PlatformFile> selectedFiles;
+  final Map<String, UploadProgress> progressMap;
   final bool isUploading;
 
-  const UploadState({this.queue = const [], this.isUploading = false});
+  const UploadState({
+    this.selectedFiles = const [],
+    this.progressMap = const {},
+    this.isUploading = false,
+  });
 
-  UploadState copyWith({List<UploadTask>? queue, bool? isUploading}) {
+  UploadState copyWith({
+    List<PlatformFile>? selectedFiles,
+    Map<String, UploadProgress>? progressMap,
+    bool? isUploading,
+  }) {
     return UploadState(
-      queue: queue ?? this.queue,
+      selectedFiles: selectedFiles ?? this.selectedFiles,
+      progressMap: progressMap ?? this.progressMap,
       isUploading: isUploading ?? this.isUploading,
     );
   }
@@ -56,19 +30,64 @@ class UploadState {
 class UploadNotifier extends StateNotifier<UploadState> {
   UploadNotifier() : super(const UploadState());
 
+  static String key(PlatformFile f) => '${f.name}::${f.hashCode}';
+
+  void addFiles(List<PlatformFile> files) {
+    final updated = Map<String, UploadProgress>.from(state.progressMap);
+    for (final f in files) {
+      final k = key(f);
+      if (!updated.containsKey(k)) {
+        updated[k] = const UploadProgress(status: 'Pending');
+      }
+    }
+    state = state.copyWith(
+      selectedFiles: [...state.selectedFiles, ...files],
+      progressMap: updated,
+    );
+  }
+
+  void removeFile(String fileKey) {
+    final files =
+        state.selectedFiles.where((f) => key(f) != fileKey).toList();
+    final progress = Map<String, UploadProgress>.from(state.progressMap)
+      ..remove(fileKey);
+    state = state.copyWith(selectedFiles: files, progressMap: progress);
+  }
+
+  void setProgress(String fileKey, UploadProgress progress) {
+    final updated = Map<String, UploadProgress>.from(state.progressMap)
+      ..[fileKey] = progress;
+    state = state.copyWith(progressMap: updated);
+  }
+
+  void setUploading(bool value) {
+    state = state.copyWith(isUploading: value);
+  }
+
   void clearAll() {
     state = const UploadState();
   }
 
-  void removeTask(String id) {
-    state = state.copyWith(
-      queue: state.queue.where((t) => t.id != id).toList(),
+  void clearCompleted() {
+    final remaining = <PlatformFile>[];
+    final progress = <String, UploadProgress>{};
+    for (final f in state.selectedFiles) {
+      final k = key(f);
+      final p = state.progressMap[k];
+      if (p == null || (!p.done && !p.error)) {
+        remaining.add(f);
+        if (p != null) progress[k] = p;
+      }
+    }
+    state = UploadState(
+      selectedFiles: remaining,
+      progressMap: progress,
+      isUploading: false,
     );
   }
 }
 
-final uploadProvider = StateNotifierProvider<UploadNotifier, UploadState>((
-  ref,
-) {
+final uploadProvider =
+    StateNotifierProvider<UploadNotifier, UploadState>((ref) {
   return UploadNotifier();
 });

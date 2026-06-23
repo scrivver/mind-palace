@@ -7,43 +7,55 @@ import 'service_providers.dart';
 class FileListState {
   final List<EngramFile> files;
   final bool isLoading;
+  final bool isLoadingMore;
   final String? error;
   final String searchQuery;
   final String? selectedType;
   final int offset;
   final bool hasMore;
   final int refreshTrigger;
+  final List<Map<String, dynamic>> availableTags;
+  final Set<String> selectedTags;
 
   const FileListState({
     this.files = const [],
     this.isLoading = false,
+    this.isLoadingMore = false,
     this.error,
     this.searchQuery = '',
     this.selectedType,
     this.offset = 0,
     this.hasMore = false,
     this.refreshTrigger = 0,
+    this.availableTags = const [],
+    this.selectedTags = const {},
   });
 
   FileListState copyWith({
     List<EngramFile>? files,
     bool? isLoading,
+    bool? isLoadingMore,
     String? error,
     String? searchQuery,
     String? selectedType,
     int? offset,
     bool? hasMore,
     int? refreshTrigger,
+    List<Map<String, dynamic>>? availableTags,
+    Set<String>? selectedTags,
   }) {
     return FileListState(
       files: files ?? this.files,
       isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       error: error,
       searchQuery: searchQuery ?? this.searchQuery,
       selectedType: selectedType,
       offset: offset ?? this.offset,
       hasMore: hasMore ?? this.hasMore,
       refreshTrigger: refreshTrigger ?? this.refreshTrigger,
+      availableTags: availableTags ?? this.availableTags,
+      selectedTags: selectedTags ?? this.selectedTags,
     );
   }
 }
@@ -57,24 +69,47 @@ class FileListNotifier extends StateNotifier<FileListState> {
   Future<void> loadFiles({bool append = false}) async {
     final engram = _engram;
     if (engram == null) return;
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(
+      isLoading: !append,
+      isLoadingMore: append,
+      error: null,
+    );
     try {
       final offset = append ? state.offset : 0;
       final files = await engram.listFiles(
         offset: offset,
         limit: _pageSize,
         query: state.searchQuery.isNotEmpty ? state.searchQuery : null,
+        tags: state.selectedTags.toList(),
         fileType: state.selectedType,
       );
       state = state.copyWith(
         files: append ? [...state.files, ...files] : files,
         isLoading: false,
+        isLoadingMore: false,
         offset: offset + files.length,
         hasMore: files.length == _pageSize,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        isLoadingMore: false,
+        error: e.toString(),
+      );
     }
+  }
+
+  Future<void> loadTags() async {
+    final engram = _engram;
+    if (engram == null) return;
+    try {
+      final tags = await engram.listTags();
+      final names = tags.map((t) => t['name'] as String).toSet();
+      state = state.copyWith(
+        availableTags: tags,
+        selectedTags: state.selectedTags.where(names.contains).toSet(),
+      );
+    } catch (_) {}
   }
 
   void setSearchQuery(String query) {
@@ -87,13 +122,30 @@ class FileListNotifier extends StateNotifier<FileListState> {
     loadFiles();
   }
 
-  void invalidate() {
-    state = state.copyWith(refreshTrigger: state.refreshTrigger + 1);
+  void setSelectedTags(Set<String> tags) {
+    state = state.copyWith(selectedTags: tags);
     loadFiles();
   }
 
+  void applyFilters(String? type, Set<String> tags) {
+    state = state.copyWith(selectedType: type, selectedTags: tags);
+    loadFiles();
+  }
+
+  void toggleTag(String name) {
+    final updated = Set<String>.from(state.selectedTags);
+    if (!updated.remove(name)) updated.add(name);
+    state = state.copyWith(selectedTags: updated);
+    loadFiles();
+  }
+
+  Future<void> invalidate() async {
+    state = state.copyWith(refreshTrigger: state.refreshTrigger + 1);
+    await Future.wait([loadFiles(), loadTags()]);
+  }
+
   void loadMore() {
-    if (!state.isLoading && state.hasMore) {
+    if (!state.isLoadingMore && state.hasMore) {
       loadFiles(append: true);
     }
   }

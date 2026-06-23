@@ -157,8 +157,9 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
   }
 
   Future<void> logout() async {
-    await state.authService?.logout();
-    state = const AppAuthState(isLoggedIn: false);
+    final auth = state.authService;
+    await auth?.logout();
+    state = AppAuthState(isLoggedIn: false, authService: auth);
   }
 }
 

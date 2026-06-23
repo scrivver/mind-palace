@@ -4,55 +4,44 @@ import 'package:desktop_drop/desktop_drop.dart'
 import 'package:file_picker/file_picker.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mime/mime.dart';
 import '../services/drop_item_utils.dart';
+import '../upload_file.dart';
 import '../widgets/web_drop_zone.dart' as web_drop;
 
-import '../reliquary_service.dart';
+import '../providers/service_providers.dart';
+import '../providers/upload_provider.dart';
 import '../services/file_picker_service.dart' as picker;
-import '../upload_file.dart';
 import '../widgets/upload/dashed_border_painter.dart';
 import '../widgets/upload/upload_file_tile.dart';
 import '../widgets/upload/upload_progress.dart';
 
-class UploadScreen extends StatefulWidget {
-  final ReliquaryService reliquary;
-  final VoidCallback onLogout;
-  final String username;
+class UploadScreen extends ConsumerStatefulWidget {
   final VoidCallback? onBack;
 
   const UploadScreen({
     super.key,
-    required this.reliquary,
-    required this.onLogout,
-    required this.username,
     this.onBack,
   });
 
   @override
-  State<UploadScreen> createState() => _UploadScreenState();
+  ConsumerState<UploadScreen> createState() => _UploadScreenState();
 }
 
-class _UploadScreenState extends State<UploadScreen> {
-  List<PlatformFile> _selectedFiles = [];
-  final Map<String, UploadProgress> _progress = {};
-  bool _uploading = false;
-
-  String _key(PlatformFile f) => '${f.name}::${f.hashCode}';
-
+class _UploadScreenState extends ConsumerState<UploadScreen> {
   bool _isDragging = false;
+
+  String _key(PlatformFile f) => UploadNotifier.key(f);
 
   Future<void> _onDropItems(List<dynamic> items) async {
     final files = <PlatformFile>[];
 
-    // On IO platforms we can expand directories using the native path info.
     try {
       if (!kIsWeb) {
-        // Use the IO helper to expand directories and files.
         final expanded = await expandDropItemsIo(items as dynamic);
         files.addAll(expanded);
       } else {
-        // On web we fall back to reading each DropItem's bytes (no directory expansion).
         for (final item in items) {
           try {
             final bytes = await (item as dynamic).readAsBytes();
@@ -69,7 +58,6 @@ class _UploadScreenState extends State<UploadScreen> {
         }
       }
     } catch (e) {
-      // If platform-specific helpers fail, gracefully fall back to reading bytes.
       for (final item in items) {
         try {
           final bytes = await item.readAsBytes();
@@ -87,13 +75,9 @@ class _UploadScreenState extends State<UploadScreen> {
     }
 
     if (!mounted) return;
-    // Filter out known placeholder files (e.g. .inode/x-empty) which some
-    // file managers include when a folder is dragged. These should not be
-    // presented to the user as real files.
     bool _isPlaceholder(PlatformFile f) {
       final name = f.name;
       final path = f.path;
-      // Only treat explicit filesystem placeholders as placeholders.
       if (name.startsWith('.inode') || name == 'x-empty') return true;
       if (path != null && path.contains('.inode')) return true;
       return false;
@@ -101,8 +85,6 @@ class _UploadScreenState extends State<UploadScreen> {
 
     final nonPlaceholders = files.where((f) => !_isPlaceholder(f)).toList();
     if (nonPlaceholders.isEmpty && files.isNotEmpty) {
-      // All dropped entries looked like placeholders — likely a folder drop
-      // on a browser that doesn't expose children. Inform the user.
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -110,26 +92,17 @@ class _UploadScreenState extends State<UploadScreen> {
           ),
         ),
       );
-      setState(() {
-        _isDragging = false;
-      });
+      setState(() => _isDragging = false);
       return;
     }
 
-    setState(() {
-      _selectedFiles = List<PlatformFile>.from(_selectedFiles)
-        ..addAll(nonPlaceholders);
-      _isDragging = false;
-    });
+    ref.read(uploadProvider.notifier).addFiles(nonPlaceholders);
+    setState(() => _isDragging = false);
   }
 
-  // Dynamically import the IO helper to avoid referencing it in web builds.
   Future<dynamic> importDropItemUtilsIo() async {
     return await Future.value(
       (() async {
-        // This block will be replaced by conditional imports in a follow-up if desired.
-        // For now, use a direct import — the helper is available on IO builds.
-        // ignore: import_of_legacy_library_into_null_safe
         return {
           'expandDropItemsIo': (List<dynamic> items) async =>
               await expandDropItemsIo(items),
@@ -144,13 +117,9 @@ class _UploadScreenState extends State<UploadScreen> {
       final result = await picker.pickFiles(allowMultiple: true);
       if (result != null && result.isNotEmpty) {
         if (!mounted) return;
-        setState(() {
-          _selectedFiles = result;
-          _progress.clear();
-        });
+        ref.read(uploadProvider.notifier).addFiles(result);
         return;
       }
-      // cancelled silently — button stays available
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -164,10 +133,7 @@ class _UploadScreenState extends State<UploadScreen> {
       final result = await picker.pickFolder();
       if (result != null && result.isNotEmpty) {
         if (!mounted) return;
-        setState(() {
-          _selectedFiles = result;
-          _progress.clear();
-        });
+        ref.read(uploadProvider.notifier).addFiles(result);
         return;
       }
     } catch (e) {
@@ -179,17 +145,18 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _uploadAll() async {
-    if (_selectedFiles.isEmpty) return;
+    final snapshotFiles =
+        List<PlatformFile>.from(ref.read(uploadProvider).selectedFiles);
+    if (snapshotFiles.isEmpty) return;
 
-    setState(() => _uploading = true);
+    final notifier = ref.read(uploadProvider.notifier);
+    notifier.setUploading(true);
 
-    for (final file in _selectedFiles) {
+    for (final file in snapshotFiles) {
       final k = _key(file);
 
-      if (!mounted) return;
-      setState(() {
-        _progress[k] = UploadProgress(status: 'Initializing...', fraction: 0);
-      });
+      notifier.setProgress(
+          k, const UploadProgress(status: 'Initializing...', fraction: 0));
 
       try {
         final contentType =
@@ -197,61 +164,63 @@ class _UploadScreenState extends State<UploadScreen> {
 
         final bytes = await readPlatformFileBytes(file);
 
-        if (!mounted) return;
-        setState(() {
-          _progress[k] = UploadProgress(status: 'Uploading...', fraction: 0);
-        });
+        notifier.setProgress(
+            k, const UploadProgress(status: 'Uploading...', fraction: 0));
 
-        final result = await widget.reliquary.uploadFile(
+        final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
+        if (reliquary == null) continue;
+
+        final result = await reliquary.uploadFile(
           file.name,
           bytes,
           contentType,
           onProgress: (sent, total) {
-            if (!mounted) return;
             if (total > 0) {
-              setState(() {
-                _progress[k] = UploadProgress(
+              notifier.setProgress(
+                k,
+                UploadProgress(
                   status: 'Uploading...',
                   fraction: sent / total,
-                );
-              });
+                ),
+              );
             }
           },
         );
 
-        if (!mounted) return;
-        setState(() {
-          _progress[k] = UploadProgress(
+        notifier.setProgress(
+          k,
+          UploadProgress(
             status: result.duplicate ? 'Duplicate skipped' : 'Synced',
             fraction: 1.0,
             done: true,
             isDuplicate: result.duplicate,
-          );
-        });
+          ),
+        );
       } catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _progress[k] = UploadProgress(status: 'Failed: $e', error: true);
-        });
+        notifier.setProgress(
+            k, UploadProgress(status: 'Failed: $e', error: true));
       }
     }
 
     if (!mounted) return;
-    setState(() => _uploading = false);
+    notifier.setUploading(false);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final uploadState = ref.watch(uploadProvider);
+    final selectedFiles = uploadState.selectedFiles;
+    final progressMap = uploadState.progressMap;
+    final isUploading = uploadState.isUploading;
     final allDone =
-        _progress.isNotEmpty && _progress.values.every((p) => p.done);
+        progressMap.isNotEmpty && progressMap.values.every((p) => p.done);
 
     return Scaffold(
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with back button
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 4),
               child: Row(
@@ -275,28 +244,23 @@ class _UploadScreenState extends State<UploadScreen> {
               ),
             ),
 
-            // Upload zone
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: kIsWeb
                   ? web_drop.WebDropZone(
                       onDropFiles: (files) async {
-                        // Convert PlatformFile list from web drop into queue
                         if (!mounted) return;
-                        setState(() {
-                          _selectedFiles = List<PlatformFile>.from(
-                            _selectedFiles,
-                          )..addAll(files);
-                          _isDragging = false;
-                        });
+                        ref
+                            .read(uploadProvider.notifier)
+                            .addFiles(files);
+                        setState(() => _isDragging = false);
                       },
                       onHover: (hovering) {
-                        if (!_uploading) setState(() => _isDragging = hovering);
+                        if (!isUploading) {
+                          setState(() => _isDragging = hovering);
+                        }
                       },
                       onDropFolder: () async {
-                        // Browser didn't expose folder contents via drag/drop.
-                        // entry traversal is available on Chrome, Firefox 86+,
-                        // Edge, and Safari — this path is a last resort.
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -307,7 +271,7 @@ class _UploadScreenState extends State<UploadScreen> {
                         );
                       },
                       child: InkWell(
-                        onTap: _uploading ? null : _pickFiles,
+                        onTap: isUploading ? null : _pickFiles,
                         borderRadius: BorderRadius.circular(12),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
@@ -324,7 +288,7 @@ class _UploadScreenState extends State<UploadScreen> {
                               decoration: BoxDecoration(
                                 color: _isDragging
                                     ? theme.colorScheme.primaryContainer
-                                          .withValues(alpha: 0.3)
+                                        .withValues(alpha: 0.3)
                                     : Colors.transparent,
                               ),
                               child: Column(
@@ -344,9 +308,7 @@ class _UploadScreenState extends State<UploadScreen> {
                                       size: 36,
                                       color: _isDragging
                                           ? theme.colorScheme.onPrimary
-                                          : theme
-                                                .colorScheme
-                                                .onPrimaryContainer,
+                                          : theme.colorScheme.onPrimaryContainer,
                                     ),
                                   ),
                                   const SizedBox(height: 16),
@@ -356,8 +318,8 @@ class _UploadScreenState extends State<UploadScreen> {
                                         : 'Click to select or drag files',
                                     style: theme.textTheme.headlineSmall
                                         ?.copyWith(
-                                          color: theme.colorScheme.onSurface,
-                                        ),
+                                      color: theme.colorScheme.onSurface,
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -372,15 +334,13 @@ class _UploadScreenState extends State<UploadScreen> {
                                     alignment: WrapAlignment.center,
                                     children: [
                                       FilledButton(
-                                        onPressed: _uploading
-                                            ? null
-                                            : _pickFiles,
+                                        onPressed:
+                                            isUploading ? null : _pickFiles,
                                         child: const Text('Select Files'),
                                       ),
                                       OutlinedButton.icon(
-                                        onPressed: _uploading
-                                            ? null
-                                            : _pickFolder,
+                                        onPressed:
+                                            isUploading ? null : _pickFolder,
                                         icon: const Icon(
                                           Icons.folder_open,
                                           size: 18,
@@ -399,13 +359,15 @@ class _UploadScreenState extends State<UploadScreen> {
                   : DropTarget(
                       onDragDone: (details) => _onDropItems(details.files),
                       onDragEntered: (_) {
-                        if (!_uploading) setState(() => _isDragging = true);
+                        if (!isUploading) {
+                          setState(() => _isDragging = true);
+                        }
                       },
                       onDragExited: (_) {
                         if (_isDragging) setState(() => _isDragging = false);
                       },
                       child: InkWell(
-                        onTap: _uploading ? null : _pickFiles,
+                        onTap: isUploading ? null : _pickFiles,
                         borderRadius: BorderRadius.circular(12),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
@@ -422,7 +384,7 @@ class _UploadScreenState extends State<UploadScreen> {
                               decoration: BoxDecoration(
                                 color: _isDragging
                                     ? theme.colorScheme.primaryContainer
-                                          .withValues(alpha: 0.3)
+                                        .withValues(alpha: 0.3)
                                     : Colors.transparent,
                               ),
                               child: Column(
@@ -442,9 +404,7 @@ class _UploadScreenState extends State<UploadScreen> {
                                       size: 36,
                                       color: _isDragging
                                           ? theme.colorScheme.onPrimary
-                                          : theme
-                                                .colorScheme
-                                                .onPrimaryContainer,
+                                          : theme.colorScheme.onPrimaryContainer,
                                     ),
                                   ),
                                   const SizedBox(height: 16),
@@ -454,8 +414,8 @@ class _UploadScreenState extends State<UploadScreen> {
                                         : 'Click to select or drag files',
                                     style: theme.textTheme.headlineSmall
                                         ?.copyWith(
-                                          color: theme.colorScheme.onSurface,
-                                        ),
+                                      color: theme.colorScheme.onSurface,
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -470,15 +430,13 @@ class _UploadScreenState extends State<UploadScreen> {
                                     alignment: WrapAlignment.center,
                                     children: [
                                       FilledButton(
-                                        onPressed: _uploading
-                                            ? null
-                                            : _pickFiles,
+                                        onPressed:
+                                            isUploading ? null : _pickFiles,
                                         child: const Text('Select Files'),
                                       ),
                                       OutlinedButton.icon(
-                                        onPressed: _uploading
-                                            ? null
-                                            : _pickFolder,
+                                        onPressed:
+                                            isUploading ? null : _pickFolder,
                                         icon: const Icon(
                                           Icons.folder_open,
                                           size: 18,
@@ -496,24 +454,19 @@ class _UploadScreenState extends State<UploadScreen> {
                     ),
             ),
 
-            // Queue header
-            if (_selectedFiles.isNotEmpty)
+            if (selectedFiles.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
                 child: Row(
                   children: [
                     Text(
-                      'Queue (${_selectedFiles.length})',
+                      'Queue (${selectedFiles.length})',
                       style: theme.textTheme.titleMedium,
                     ),
                     const Spacer(),
                     TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _selectedFiles.clear();
-                          _progress.clear();
-                        });
-                      },
+                      onPressed: () =>
+                          ref.read(uploadProvider.notifier).clearAll(),
                       icon: const Icon(Icons.close, size: 16),
                       label: const Text('Clear All'),
                     ),
@@ -527,46 +480,41 @@ class _UploadScreenState extends State<UploadScreen> {
                 ),
               ),
 
-            // File list
-            if (_selectedFiles.isNotEmpty)
+            if (selectedFiles.isNotEmpty)
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemCount: _selectedFiles.length,
+                  itemCount: selectedFiles.length,
                   separatorBuilder: (_, _) => Divider(
                     height: 1,
                     color: theme.colorScheme.outlineVariant,
                   ),
                   itemBuilder: (context, index) {
-                    final file = _selectedFiles[index];
-                    final p = _progress[_key(file)];
+                    final file = selectedFiles[index];
+                    final p = progressMap[_key(file)];
                     return UploadFileTile(
                       file: file,
                       progress: p,
-                      onRemove: _uploading
+                      onRemove: isUploading
                           ? null
-                          : () {
-                              if (!mounted) return;
-                              setState(() {
-                                _selectedFiles.removeAt(index);
-                                _progress.remove(_key(file));
-                              });
-                            },
+                          : () =>
+                              ref
+                                  .read(uploadProvider.notifier)
+                                  .removeFile(_key(file)),
                     );
                   },
                 ),
               ),
 
-            // Upload button
-            if (_selectedFiles.isNotEmpty && !allDone && !_uploading)
+            if (selectedFiles.isNotEmpty && !allDone && !isUploading)
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                 child: SizedBox(
                   width: double.infinity,
                   height: 44,
                   child: FilledButton(
-                    onPressed: _uploading ? null : _uploadAll,
-                    child: Text('Process All (${_selectedFiles.length})'),
+                    onPressed: isUploading ? null : _uploadAll,
+                    child: Text('Process All (${selectedFiles.length})'),
                   ),
                 ),
               ),

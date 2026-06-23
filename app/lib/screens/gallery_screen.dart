@@ -1,58 +1,36 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../engram_service.dart';
 import '../models/engram_file.dart';
-import '../reliquary_service.dart';
+import '../providers/file_list_provider.dart';
+import '../providers/service_providers.dart';
 import '../widgets/gallery/file_tile.dart';
 import '../widgets/gallery/filter_dropdown_panel.dart';
 import '../widgets/gallery/quick_filter_chip.dart';
 
-class GalleryScreen extends StatefulWidget {
-  final EngramService engram;
-  final ReliquaryService reliquary;
-  final VoidCallback onLogout;
-  final String username;
+class GalleryScreen extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToUpload;
   final void Function(EngramFile file) onOpenDetail;
   final int refreshTrigger;
 
   const GalleryScreen({
     super.key,
-    required this.engram,
-    required this.reliquary,
-    required this.onLogout,
-    required this.username,
     this.onNavigateToUpload,
     required this.onOpenDetail,
     required this.refreshTrigger,
   });
 
   @override
-  State<GalleryScreen> createState() => _GalleryScreenState();
+  ConsumerState<GalleryScreen> createState() => _GalleryScreenState();
 }
 
-class _GalleryScreenState extends State<GalleryScreen> {
-  final List<EngramFile> _files = [];
-  bool _loading = true;
-  bool _loadingMore = false;
-  bool _hasMore = false;
-  String? _error;
-
+class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
-  String _searchQuery = '';
   Timer? _searchDebounce;
   final ScrollController _scrollCtrl = ScrollController();
 
-  List<Map<String, dynamic>> _availableTags = [];
-  final Set<String> _selectedTags = {};
-
-  String? _fileType;
-  DateTimeRange? _dateRange;
-  final String _sort = 'created_desc';
-
-  static const _pageSize = 50;
   static const _fileTypes = <({String key, String label, IconData icon})>[
     (key: 'all', label: 'All Files', icon: Icons.grid_view),
     (key: 'image', label: 'Images', icon: Icons.image),
@@ -62,30 +40,26 @@ class _GalleryScreenState extends State<GalleryScreen> {
     (key: 'other', label: 'Other', icon: Icons.insert_drive_file),
   ];
 
-  String? _activeTypeFilter;
-
   final GlobalKey _filterButtonKey = GlobalKey();
   final TextEditingController _filterSearchCtrl = TextEditingController();
   OverlayEntry? _filterDropdownOverlay;
   Set<String> _draftSelectedTags = {};
   String? _draftTypeFilter;
 
-  bool get _hasActiveFilters =>
-      _selectedTags.isNotEmpty ||
-      (_activeTypeFilter != null && _activeTypeFilter != 'all') ||
-      _searchQuery.isNotEmpty;
-
   @override
   void initState() {
     super.initState();
-    _loadFiles();
-    _loadTags();
+    Future(() {
+      ref.read(fileListProvider.notifier).loadFiles();
+      ref.read(fileListProvider.notifier).loadTags();
+    });
     _scrollCtrl.addListener(_onScroll);
   }
 
   void _initDraftState() {
-    _draftSelectedTags = Set.from(_selectedTags);
-    _draftTypeFilter = _activeTypeFilter;
+    final state = ref.read(fileListProvider);
+    _draftSelectedTags = Set.from(state.selectedTags);
+    _draftTypeFilter = state.selectedType;
     _filterSearchCtrl.clear();
   }
 
@@ -93,7 +67,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   void didUpdateWidget(GalleryScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.refreshTrigger != oldWidget.refreshTrigger) {
-      _refreshAll();
+      ref.read(fileListProvider.notifier).invalidate();
     }
   }
 
@@ -107,105 +81,22 @@ class _GalleryScreenState extends State<GalleryScreen> {
     super.dispose();
   }
 
-  Future<void> _loadTags() async {
-    try {
-      final tags = await widget.engram.listTags();
-      if (!mounted) return;
-      setState(() {
-        _availableTags = tags;
-        final names = tags.map((t) => t['name'] as String).toSet();
-        _selectedTags.retainWhere(names.contains);
-      });
-    } catch (_) {}
-  }
-
-  Future<void> _refreshAll() async {
-    await Future.wait([_loadFiles(), _loadTags()]);
-  }
-
-  Future<void> _loadFiles() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final fileType = (_activeTypeFilter != null && _activeTypeFilter != 'all')
-          ? _activeTypeFilter
-          : _fileType;
-      final files = await widget.engram.listFiles(
-        offset: 0,
-        limit: _pageSize,
-        query: _searchQuery,
-        tags: _selectedTags.toList(),
-        fileType: fileType,
-        from: _dateRange?.start,
-        to: _dateRange?.end,
-        sort: _sort,
-      );
-      if (!mounted) return;
-      setState(() {
-        _files
-          ..clear()
-          ..addAll(files);
-        _hasMore = files.length == _pageSize;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Failed to load files';
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _loadMore() async {
-    if (_loadingMore || !_hasMore) return;
-    setState(() => _loadingMore = true);
-
-    try {
-      final files = await widget.engram.listFiles(
-        offset: _files.length,
-        limit: _pageSize,
-        query: _searchQuery,
-        tags: _selectedTags.toList(),
-        fileType: _fileType,
-        from: _dateRange?.start,
-        to: _dateRange?.end,
-        sort: _sort,
-      );
-      if (!mounted) return;
-      setState(() {
-        _files.addAll(files);
-        _hasMore = files.length == _pageSize;
-        _loadingMore = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loadingMore = false);
-    }
-  }
-
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      setState(() => _searchQuery = value.trim());
-      _loadFiles();
+      ref.read(fileListProvider.notifier).setSearchQuery(value.trim());
     });
   }
 
   void _onScroll() {
     if (_scrollCtrl.position.pixels >=
         _scrollCtrl.position.maxScrollExtent - 200) {
-      _loadMore();
+      ref.read(fileListProvider.notifier).loadMore();
     }
   }
 
   void _toggleTag(String name) {
-    if (!_selectedTags.remove(name)) _selectedTags.add(name);
-    _loadFiles();
+    ref.read(fileListProvider.notifier).toggleTag(name);
   }
 
   void _openFilterDropdown(BuildContext context) {
@@ -233,7 +124,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     elevation: 8,
                     borderRadius: BorderRadius.circular(12),
                     color: Theme.of(context).colorScheme.surface,
-                    surfaceTintColor: Theme.of(context).colorScheme.surfaceTint,
+                    surfaceTintColor:
+                        Theme.of(context).colorScheme.surfaceTint,
                     child: SizedBox(
                       width: dropdownWidth,
                       child: FilterDropdownPanel(
@@ -241,7 +133,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         searchCtrl: _filterSearchCtrl,
                         draftSelectedTags: _draftSelectedTags,
                         draftTypeFilter: _draftTypeFilter,
-                        availableTags: _availableTags,
+                        availableTags:
+                            ref.read(fileListProvider).availableTags,
                         onToggleType: (key) {
                           setState(
                             () => _draftTypeFilter = _draftTypeFilter == key
@@ -266,12 +159,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
                           _filterDropdownOverlay?.markNeedsBuild();
                         },
                         onApply: () {
-                          _activeTypeFilter = _draftTypeFilter;
-                          _selectedTags
-                            ..clear()
-                            ..addAll(_draftSelectedTags);
+                          ref
+                              .read(fileListProvider.notifier)
+                              .applyFilters(_draftTypeFilter, _draftSelectedTags);
                           _closeFilterDropdown();
-                          _loadFiles();
                         },
                       ),
                     ),
@@ -298,12 +189,25 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final fileListState = ref.watch(fileListProvider);
+    final files = fileListState.files;
+    final loading = fileListState.isLoading;
+    final error = fileListState.error;
+    final hasMore = fileListState.hasMore;
+    final searchQuery = fileListState.searchQuery;
+    final activeType = fileListState.selectedType;
+    final selectedTags = fileListState.selectedTags;
+    final availableTags = fileListState.availableTags;
+    final hasActiveFilters = selectedTags.isNotEmpty ||
+        (activeType != null && activeType != 'all') ||
+        searchQuery.isNotEmpty;
+
     return Stack(
       fit: StackFit.expand,
       children: [
         Positioned.fill(
           child: RefreshIndicator(
-            onRefresh: _refreshAll,
+            onRefresh: () => ref.read(fileListProvider.notifier).invalidate(),
             child: SingleChildScrollView(
               controller: _scrollCtrl,
               physics: const AlwaysScrollableScrollPhysics(),
@@ -314,17 +218,21 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.fromLTRB(32, 32, 32, 0),
-                      child: _buildHeader(context),
+                      child: _buildHeader(context, files.length),
                     ),
                     const SizedBox(height: 32),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: _buildSearchBar(context),
+                      child: _buildSearchBar(context, searchQuery, files.length),
                     ),
                     const SizedBox(height: 24),
-                    _buildFilterSection(context),
+                    _buildFilterSection(
+                        context, activeType, selectedTags, availableTags,
+                        hasActiveFilters: hasActiveFilters),
                     const SizedBox(height: 32),
-                    _buildBody(context),
+                    _buildBody(
+                        context, files, loading, error, hasMore,
+                        hasActiveFilters: hasActiveFilters),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -344,7 +252,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, int fileCount) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,7 +260,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
         Text('Knowledge Vault', style: theme.textTheme.headlineLarge),
         const SizedBox(height: 8),
         Text(
-          'Synchronizing your digital consciousness across ${_files.length} nodes.',
+          'Synchronizing your digital consciousness across $fileCount nodes.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -361,7 +269,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  Widget _buildSearchBar(BuildContext context) {
+  Widget _buildSearchBar(
+      BuildContext context, String searchQuery, int fileCount) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return Row(
@@ -396,10 +305,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     ),
               filled: true,
               fillColor: cs.surfaceContainerLow,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: cs.outlineVariant),
@@ -416,12 +323,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        _allFilesChip(context),
+        _allFilesChip(context, fileCount),
       ],
     );
   }
 
-  Widget _allFilesChip(BuildContext context) {
+  Widget _allFilesChip(BuildContext context, int fileCount) {
     final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -435,7 +342,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           Icon(Icons.grid_view, size: 16, color: cs.onPrimary),
           const SizedBox(width: 6),
           Text(
-            'All Files (${_files.length})',
+            'All Files ($fileCount)',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               fontFamily: 'Space Grotesk',
               fontSize: 14,
@@ -448,24 +355,31 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  Widget _buildFilterSection(BuildContext context) {
+  Widget _buildFilterSection(
+    BuildContext context,
+    String? activeType,
+    Set<String> selectedTags,
+    List<Map<String, dynamic>> availableTags, {
+    required bool hasActiveFilters,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildFilterBar(context),
+          _buildFilterBar(context, hasActiveFilters),
           const SizedBox(height: 16),
-          _buildQuickFilters(context),
+          if (hasActiveFilters)
+            _buildQuickFilters(
+                context, activeType, selectedTags, availableTags),
         ],
       ),
     );
   }
 
-  Widget _buildFilterBar(BuildContext context) {
+  Widget _buildFilterBar(BuildContext context, bool hasActiveFilters) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final hasFilters = _hasActiveFilters;
 
     return Row(
       children: [
@@ -478,7 +392,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             decoration: BoxDecoration(
               color: cs.surface,
               border: Border.all(
-                color: hasFilters ? cs.primary : cs.outlineVariant,
+                color: hasActiveFilters ? cs.primary : cs.outlineVariant,
               ),
               borderRadius: BorderRadius.circular(8),
             ),
@@ -488,7 +402,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 Icon(
                   Icons.filter_list,
                   size: 18,
-                  color: hasFilters ? cs.primary : cs.onSurfaceVariant,
+                  color: hasActiveFilters ? cs.primary : cs.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -497,14 +411,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     fontFamily: 'Space Grotesk',
                     fontSize: 14,
                     letterSpacing: 0.05,
-                    color: hasFilters ? cs.primary : cs.onSurfaceVariant,
+                    color: hasActiveFilters ? cs.primary : cs.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Icon(
                   Icons.keyboard_arrow_down,
                   size: 18,
-                  color: hasFilters ? cs.primary : cs.onSurfaceVariant,
+                  color: hasActiveFilters ? cs.primary : cs.onSurfaceVariant,
                 ),
               ],
             ),
@@ -514,12 +428,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  Widget _buildQuickFilters(BuildContext context) {
+  Widget _buildQuickFilters(
+    BuildContext context,
+    String? activeType,
+    Set<String> selectedTags,
+    List<Map<String, dynamic>> availableTags,
+  ) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final activeType = _activeTypeFilter;
-
-    if (!_hasActiveFilters) return const SizedBox.shrink();
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -540,14 +456,15 @@ class _GalleryScreenState extends State<GalleryScreen> {
               label: t.label,
               isActive: activeType == t.key,
               onTap: () {
-                _activeTypeFilter = _activeTypeFilter == t.key ? null : t.key;
-                _loadFiles();
+                ref
+                    .read(fileListProvider.notifier)
+                    .setSelectedType(activeType == t.key ? null : t.key);
               },
             ),
             const SizedBox(width: 6),
           ],
-          for (final tag in _availableTags.where(
-            (t) => _selectedTags.contains(t['name']),
+          for (final tag in availableTags.where(
+            (t) => selectedTags.contains(t['name']),
           )) ...[
             QuickFilterChip(
               icon: Icons.tag,
@@ -562,48 +479,57 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
-    if (_loading) {
+  Widget _buildBody(
+    BuildContext context,
+    List<EngramFile> files,
+    bool loading,
+    String? error,
+    bool hasMore, {
+    required bool hasActiveFilters,
+  }) {
+    if (loading) {
       return const Padding(
         padding: EdgeInsets.fromLTRB(32, 48, 32, 0),
         child: CircularProgressIndicator(),
       );
     }
 
-    if (_error != null) {
+    if (error != null) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_error!),
+            Text(error),
             const SizedBox(height: 12),
-            FilledButton(onPressed: _loadFiles, child: const Text('Retry')),
+            FilledButton(
+              onPressed: () => ref.read(fileListProvider.notifier).loadFiles(),
+              child: const Text('Retry'),
+            ),
           ],
         ),
       );
     }
 
-    if (_files.isEmpty) {
-      final hasFilters = _hasActiveFilters || _searchCtrl.text.isNotEmpty;
+    if (files.isEmpty) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
-              hasFilters ? Icons.search_off : Icons.cloud_upload,
+              hasActiveFilters ? Icons.search_off : Icons.cloud_upload,
               size: 48,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 12),
             Text(
-              hasFilters ? 'No matches' : 'No files yet',
+              hasActiveFilters ? 'No matches' : 'No files yet',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
             Text(
-              hasFilters
+              hasActiveFilters
                   ? 'Try adjusting your filters or search query'
                   : 'Tap + to upload',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -615,6 +541,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       );
     }
 
+    final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: GridView.builder(
@@ -627,15 +554,15 @@ class _GalleryScreenState extends State<GalleryScreen> {
           mainAxisSpacing: 16,
           childAspectRatio: 1.1,
         ),
-        itemCount: _files.length + (_hasMore ? 1 : 0),
+        itemCount: files.length + (hasMore ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index >= _files.length) {
+          if (index >= files.length) {
             return const Center(child: CircularProgressIndicator());
           }
-          final file = _files[index];
+          final file = files[index];
           return FileTile(
             file: file,
-            reliquary: widget.reliquary,
+            reliquary: reliquary!,
             onTap: () => _openDetail(file),
           );
         },
