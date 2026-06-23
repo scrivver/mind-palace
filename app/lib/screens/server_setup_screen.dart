@@ -98,7 +98,7 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  Icons.account_balance,
+                  Icons.castle,
                   size: 56,
                   color: theme.colorScheme.primary,
                 ),

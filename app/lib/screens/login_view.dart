@@ -17,244 +17,239 @@ class LoginView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.account_balance,
-                  size: 56,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Mind Palace',
-                  style: theme.textTheme.headlineLarge,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Digital Sanctuary',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  'Enter your sanctuary.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'EMAIL / USERNAME',
-                    labelStyle: theme.textTheme.labelLarge?.copyWith(
-                      fontSize: 11,
-                      letterSpacing: 0.08 * 11,
-                    ),
-                    floatingLabelBehavior: FloatingLabelBehavior.always,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'PASSWORD',
-                    labelStyle: theme.textTheme.labelLarge?.copyWith(
-                      fontSize: 11,
-                      letterSpacing: 0.08 * 11,
-                    ),
-                    floatingLabelBehavior: FloatingLabelBehavior.always,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        Icons.visibility,
-                        size: 18,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      onPressed: () {},
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Stack(
+        children: [
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 48),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: Checkbox(
-                            value: false,
-                            onChanged: (_) {},
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Remember vault',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        'Reset Access?',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'Inter',
-                          fontSize: 13,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
+                    _buildBrandHeader(theme),
+                    const SizedBox(height: 32),
+                    _buildLoginCard(context),
                   ],
                 ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: FilledButton(
-                    onPressed: loading ? null : onLogin,
-                    child: loading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Sign In'),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'OR',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontFamily: 'Inter',
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: OutlinedButton.icon(
-                    onPressed: loading ? null : onLogin,
-                    icon: const Icon(Icons.g_mobiledata, size: 22),
-                    label: const Text('Continue with Google'),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'New Architect? Initiate Sequence',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontFamily: 'Inter',
-                      fontSize: 13,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-                if (error != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    error!,
-                    style: TextStyle(color: theme.colorScheme.error),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-                if (onConfigureServer != null) ...[
-                  const SizedBox(height: 16),
-                  TextButton.icon(
-                    onPressed: onConfigureServer,
-                    icon: const Icon(Icons.settings, size: 18),
-                    label: const Text('Change Server'),
-                  ),
-                ],
-                const SizedBox(height: 48),
-                Text(
-                  'Mind Palace',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '\u00a9 2024 Mind Palace. Architectural Precision for your Digital Assets.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                DefaultTextStyle(
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.colorScheme.primary,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _footerLink(context, 'Privacy Policy'),
-                      _dot(theme),
-                      _footerLink(context, 'Terms of Service'),
-                      _dot(theme),
-                      _footerLink(context, 'Security Architecture'),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
+          ),
+          _buildFooter(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBrandHeader(ThemeData theme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.castle, size: 48, color: theme.colorScheme.primary),
+        const SizedBox(height: 8),
+        Text(
+          'Mind Palace',
+          style: theme.textTheme.headlineLarge,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Digital Sanctuary',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.primary,
+            letterSpacing: 0.2 * 12,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoginCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: cs.surface,
+        border: Border.all(color: cs.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Enter your sanctuary.',
+            style: theme.textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton(
+              onPressed: loading ? null : onLogin,
+              child: loading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      'Sign In',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: cs.onPrimary,
+                      ),
+                    ),
+            ),
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 16),
+            Text(
+              error!,
+              style: TextStyle(color: cs.error),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          if (onConfigureServer != null) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: onConfigureServer,
+                icon: const Icon(Icons.settings, size: 18),
+                label: const Text('Change Server'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          border: Border(
+            top: BorderSide(color: cs.outlineVariant),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        child: SafeArea(
+          top: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 600) {
+                return _buildFooterMobile(theme);
+              }
+              return _buildFooterDesktop(theme);
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _footerLink(BuildContext context, String label) {
-    return InkWell(
-      onTap: () {},
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Text(label, style: const TextStyle(fontSize: 11)),
-      ),
+  Widget _buildFooterDesktop(ThemeData theme) {
+    final cs = theme.colorScheme;
+    final meta = theme.textTheme.bodySmall;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Mind Palace',
+              style: theme.textTheme.headlineMedium?.copyWith(fontSize: 18),
+            ),
+            Container(
+              width: 1,
+              height: 16,
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              color: cs.outlineVariant,
+            ),
+            Text(
+              '\u00a9 2024 Mind Palace. Architectural Precision for your Digital Assets.',
+              style: meta?.copyWith(color: cs.onSurfaceVariant),
+            ),
+          ],
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _footerLink(theme, 'Privacy Policy'),
+            const SizedBox(width: 16),
+            _footerLink(theme, 'Terms of Service'),
+            const SizedBox(width: 16),
+            _footerLink(theme, 'Security Architecture'),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _dot(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Text(
-        '\u00b7',
-        style: TextStyle(
-          fontSize: 11,
-          color: theme.colorScheme.onSurfaceVariant,
+  Widget _buildFooterMobile(ThemeData theme) {
+    final cs = theme.colorScheme;
+    final meta = theme.textTheme.bodySmall;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          'Mind Palace',
+          style: theme.textTheme.headlineMedium?.copyWith(fontSize: 18),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '\u00a9 2024 Mind Palace. Architectural Precision for your Digital Assets.',
+          style: meta?.copyWith(color: cs.onSurfaceVariant),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 16,
+          alignment: WrapAlignment.center,
+          children: [
+            _footerLink(theme, 'Privacy Policy'),
+            _footerLink(theme, 'Terms of Service'),
+            _footerLink(theme, 'Security Architecture'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _footerLink(ThemeData theme, String label) {
+    return InkWell(
+      onTap: () {},
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.primary,
+          ),
         ),
       ),
     );
-}
+  }
 }
