@@ -1,3 +1,5 @@
+import '../utils/format.dart';
+
 class FileItem {
   final String key;
   final int size;
@@ -41,12 +43,5 @@ class FileItem {
 
   bool get isVideo => contentType.startsWith('video/');
 
-  String get formattedSize {
-    if (size < 1024) return '$size B';
-    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
-    if (size < 1024 * 1024 * 1024) {
-      return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
+  String get formattedSize => FormatUtils.formatBytes(size);
 }

@@ -27,12 +27,12 @@
 
 **Purpose**: Initialize new dependencies and directory structure.
 
-- [ ] T001 Add `flutter_riverpod`, `riverpod_annotation`, `go_router` to `app/pubspec.yaml` dependencies
-- [ ] T002 [P] Create `app/lib/utils/` directory with `format.dart` and `logger.dart` stubs
-- [ ] T003 [P] Create `app/lib/providers/` directory with `service_providers.dart`, `theme_provider.dart`, `file_list_provider.dart`, `upload_provider.dart` stubs
-- [ ] T004 [P] Create `app/lib/router/` directory with `app_router.dart` stub
-- [ ] T005 [P] Create `app/lib/widgets/gallery/`, `app/lib/widgets/upload/`, `app/lib/widgets/file_detail/` directories
-- [ ] T006 Run `cd app && flutter pub get` to install new dependencies and verify `flutter analyze` passes
+- [x] T001 Add `flutter_riverpod`, `go_router` to `app/pubspec.yaml` dependencies
+- [x] T002 [P] Create `app/lib/utils/` directory with `format.dart` and `logger.dart` stubs
+- [x] T003 [P] Create `app/lib/providers/` directory with `service_providers.dart`, `theme_provider.dart`, `file_list_provider.dart`, `upload_provider.dart` stubs
+- [x] T004 [P] Create `app/lib/router/` directory with `app_router.dart` stub
+- [x] T005 [P] Create `app/lib/widgets/gallery/`, `app/lib/widgets/upload/`, `app/lib/widgets/file_detail/` directories
+- [x] T006 Run `cd app && flutter pub get` to install new dependencies and verify `flutter analyze` passes
 
 ---
 

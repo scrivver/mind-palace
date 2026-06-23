@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/server_url_store.dart';
@@ -91,20 +90,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (result == null || result.isEmpty) return;
 
     final baseUrl = result.trim();
-    // Validate by probing the Engram auth config endpoint.
-    final probeUrl = ServerUrlStore.engramBaseUrlFromBase(baseUrl);
-    try {
-      final resp = await http.get(
-        Uri.parse('${probeUrl}api/auth/config'),
-      );
-      if (resp.statusCode != 200) {
-        if (!mounted) return;
-        _showError('Server unreachable (${resp.statusCode})');
-        return;
-      }
-    } catch (e) {
+    final success = await ServerUrlStore.validateUrl(baseUrl);
+    if (!success) {
       if (!mounted) return;
-      _showError('Could not reach server: $e');
+      _showError('Could not reach server');
       return;
     }
 

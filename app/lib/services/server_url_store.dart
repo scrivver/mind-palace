@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ServerUrlStore {
@@ -39,6 +40,16 @@ class ServerUrlStore {
     await prefs.remove(_prefsKey);
     hasSavedUrls = false;
     baseServerUrl = _defaultBaseUrl;
+  }
+
+  static Future<bool> validateUrl(String baseUrl) async {
+    final probeUrl = engramBaseUrlFromBase(baseUrl);
+    try {
+      final response = await http.get(Uri.parse('${probeUrl}api/auth/config'));
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
   }
 
   static String engramBaseUrlFromBase(String rawBase) {

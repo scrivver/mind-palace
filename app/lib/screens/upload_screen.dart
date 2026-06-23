@@ -11,6 +11,7 @@ import '../widgets/web_drop_zone.dart' as web_drop;
 import '../reliquary_service.dart';
 import '../services/file_picker_service.dart' as picker;
 import '../upload_file.dart';
+import '../utils/format.dart';
 
 class UploadScreen extends StatefulWidget {
   final ReliquaryService reliquary;
@@ -636,7 +637,7 @@ class _UploadFileTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${_formatSize(file.size)} • ${progress?.status ?? "Pending"}',
+                  '${FormatUtils.formatBytes(file.size)} • ${progress?.status ?? "Pending"}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontSize: 12,
                     color: isError
@@ -710,11 +711,6 @@ class _UploadFileTile extends StatelessWidget {
     return Icons.insert_drive_file;
   }
 
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
 }
 
 class _UploadProgress {

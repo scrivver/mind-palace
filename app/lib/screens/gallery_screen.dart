@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../engram_service.dart';
 import '../models/engram_file.dart';
 import '../reliquary_service.dart';
+import '../utils/format.dart';
 
 
 class GalleryScreen extends StatefulWidget {
@@ -791,7 +792,7 @@ class _FileTileState extends State<_FileTile> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        widget.file.formattedSize,
+                        FormatUtils.formatBytes(widget.file.size),
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontFamily: 'Space Mono',
                           fontSize: 11,
@@ -800,7 +801,7 @@ class _FileTileState extends State<_FileTile> {
                       ),
                       const Spacer(),
                       Text(
-                        _relativeTime(widget.file.mtime),
+                        FormatUtils.relativeTime(widget.file.mtime),
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontFamily: 'Inter',
                           fontStyle: FontStyle.italic,
@@ -822,7 +823,7 @@ class _FileTileState extends State<_FileTile> {
   Widget _fileIcon(BuildContext context) {
     return Center(
       child: Icon(
-        _iconForMime(widget.file.mimeType ?? ''),
+        iconForMime(widget.file.mimeType ?? ''),
         size: 36,
         color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
@@ -868,28 +869,6 @@ class _FileTileState extends State<_FileTile> {
     return 'FILE';
   }
 
-  String _relativeTime(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt.toLocal());
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago';
-    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()}mo ago';
-    return '${(diff.inDays / 365).floor()}y ago';
-  }
-
-  IconData _iconForMime(String mime) {
-    if (mime.startsWith('image/')) return Icons.image;
-    if (mime.startsWith('video/')) return Icons.videocam;
-    if (mime.startsWith('audio/')) return Icons.audiotrack;
-    if (mime.contains('pdf')) return Icons.picture_as_pdf;
-    if (mime.contains('zip') || mime.contains('archive')) {
-      return Icons.archive;
-    }
-    return Icons.insert_drive_file;
-  }
 }
 
 class _FilterDropdownPanel extends StatefulWidget {

@@ -1,3 +1,5 @@
+import '../utils/format.dart';
+
 class EngramFile {
   final String id;
   final String filename;
@@ -61,12 +63,5 @@ class EngramFile {
   bool get isImage => (mimeType ?? '').startsWith('image/');
   bool get isVideo => (mimeType ?? '').startsWith('video/');
 
-  String get formattedSize {
-    if (size < 1024) return '$size B';
-    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
-    if (size < 1024 * 1024 * 1024) {
-      return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
+  String get formattedSize => FormatUtils.formatBytes(size);
 }

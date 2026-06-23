@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../reliquary_service.dart';
+import '../utils/format.dart';
 
 class StatusScreen extends StatefulWidget {
   final ReliquaryService reliquary;
@@ -153,7 +154,7 @@ class _StatusScreenState extends State<StatusScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${_formatBytes(usedBytes)} / ${_formatBytes(displayCapacity)}',
+            '${FormatUtils.formatBytes(usedBytes)} / ${FormatUtils.formatBytes(displayCapacity)}',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 8),
@@ -223,16 +224,4 @@ class _StatusScreenState extends State<StatusScreen> {
     );
   }
 
-  String _formatBytes(int bytes) {
-    if (bytes >= 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-    }
-    if (bytes >= 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    if (bytes >= 1024) {
-      return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    }
-    return '$bytes B';
-  }
 }

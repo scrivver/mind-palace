@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../engram_service.dart';
 import '../models/engram_file.dart';
 import '../reliquary_service.dart';
+import '../utils/format.dart';
 
 class FileDetailScreen extends StatefulWidget {
   final EngramFile initial;
@@ -275,7 +276,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            _iconForMime(_file.mimeType ?? ''),
+            iconForMime(_file.mimeType ?? ''),
             size: 56,
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -397,7 +398,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Last accessed ${_relativeTime(_file.mtime)}',
+            'Last accessed ${FormatUtils.relativeTime(_file.mtime)}',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -570,17 +571,6 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     );
   }
 
-  IconData _iconForMime(String mime) {
-    if (mime.startsWith('image/')) return Icons.image;
-    if (mime.startsWith('video/')) return Icons.videocam;
-    if (mime.startsWith('audio/')) return Icons.audiotrack;
-    if (mime.contains('pdf')) return Icons.picture_as_pdf;
-    if (mime.contains('zip') || mime.contains('archive')) {
-      return Icons.archive;
-    }
-    return Icons.insert_drive_file;
-  }
-
   String _formatDateTime(DateTime dt) {
     final local = dt.toLocal();
     final months = [
@@ -597,17 +587,6 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     return '$m $d, $y \u2022 $h12:$mm $ampm';
   }
 
-  String _relativeTime(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt.toLocal());
-    if (diff.inMinutes < 1) return 'moments ago';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} minutes ago';
-    if (diff.inHours < 24) return '${diff.inHours} hours ago';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()} weeks ago';
-    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()} months ago';
-    return '${(diff.inDays / 365).floor()} years ago';
-  }
 }
 
 class _DeleteDialog extends StatelessWidget {

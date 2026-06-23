@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import '../services/server_url_store.dart';
 
@@ -52,25 +51,17 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
     final baseUrl = _controller.text.trim();
     if (baseUrl.isEmpty) return;
 
-    final engramUrl = ServerUrlStore.engramBaseUrlFromBase(baseUrl);
-
     setState(() {
       _checking = true;
       _error = null;
     });
 
-    try {
-      final response = await http.get(
-        Uri.parse('${engramUrl}api/auth/config'),
-      );
-      if (response.statusCode != 200) {
-        throw Exception('Status ${response.statusCode}');
-      }
-      if (!mounted) return;
+    final success = await ServerUrlStore.validateUrl(baseUrl);
+    if (!mounted) return;
+    if (success) {
       await ServerUrlStore.setBaseUrl(baseUrl);
       widget.onConfigured();
-    } catch (e) {
-      if (!mounted) return;
+    } else {
       setState(() {
         _checking = false;
         _error = 'Unable to reach Mind Palace server';
