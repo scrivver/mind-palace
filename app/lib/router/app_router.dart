@@ -136,7 +136,7 @@ GoRouter _createRouter(
           GoRoute(
             path: '/settings',
             builder: (context, state) {
-              final themeSetting = ref.watch(currentThemeProvider);
+              final themeSetting = ref.read(currentThemeProvider);
               return SettingsScreen(
                 themeService: themeService,
                 currentTheme: themeSetting,
