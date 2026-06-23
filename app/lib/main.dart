@@ -9,6 +9,8 @@ import 'auth_models.dart';
 import 'auth_service.dart';
 import 'engram_service.dart';
 import 'reliquary_service.dart';
+import 'models/engram_file.dart';
+import 'screens/file_detail_screen.dart';
 import 'screens/gallery_screen.dart';
 import 'screens/login_view.dart';
 import 'screens/server_setup_screen.dart';
@@ -117,6 +119,8 @@ class _HomePageState extends State<HomePage> {
   String? _username;
   String? _error;
   int _navIndex = 0;
+  EngramFile? _detailFile;
+  int _detailRefreshKey = 0;
 
   @override
   void initState() {
@@ -247,6 +251,21 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void _openDetail(EngramFile file) {
+    setState(() {
+      _detailFile = file;
+      _navIndex = 4;
+    });
+  }
+
+  void _closeDetail({bool deleted = false}) {
+    setState(() {
+      _detailFile = null;
+      _navIndex = 0;
+      if (deleted) _detailRefreshKey++;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_needsServerSetup) {
@@ -312,6 +331,13 @@ class _HomePageState extends State<HomePage> {
           username: _username ?? '',
           onBack: () => setState(() => _navIndex = 0),
         );
+      case 4:
+        return FileDetailScreen(
+          initial: _detailFile!,
+          engram: _engram!,
+          reliquary: _reliquary!,
+          onBack: _closeDetail,
+        );
       default:
         return GalleryScreen(
           engram: _engram!,
@@ -319,6 +345,8 @@ class _HomePageState extends State<HomePage> {
           onLogout: _logout,
           username: _username ?? '',
           onNavigateToUpload: () => setState(() => _navIndex = 3),
+          onOpenDetail: _openDetail,
+          refreshTrigger: _detailRefreshKey,
         );
     }
   }

@@ -7,22 +7,19 @@ import 'package:url_launcher/url_launcher.dart';
 import '../engram_service.dart';
 import '../models/engram_file.dart';
 import '../reliquary_service.dart';
-import '../widgets/sidebar.dart';
 
 class FileDetailScreen extends StatefulWidget {
   final EngramFile initial;
   final EngramService engram;
   final ReliquaryService reliquary;
-  final VoidCallback onLogout;
-  final String username;
+  final void Function({bool deleted}) onBack;
 
   const FileDetailScreen({
     super.key,
     required this.initial,
     required this.engram,
     required this.reliquary,
-    required this.onLogout,
-    required this.username,
+    required this.onBack,
   });
 
   @override
@@ -85,7 +82,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     try {
       await widget.reliquary.deleteFile(_file.filePath);
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      widget.onBack(deleted: true);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -95,48 +92,34 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 900;
+        return Column(
           children: [
-            Sidebar(
-              username: widget.username,
-              onLogout: widget.onLogout,
-            ),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth >= 900;
-                  return Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: _buildHeader(context),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Expanded(
-                        child: isWide
-                            ? _buildWideLayout(context)
-                            : _buildNarrowLayout(context),
-                      ),
-                    ],
-                  );
-                },
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _buildHeader(context),
               ),
             ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: isWide
+                  ? _buildWideLayout(context)
+                  : _buildNarrowLayout(context),
+            ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
     return GestureDetector(
-      onTap: () => Navigator.of(context).pop(),
+      onTap: () => widget.onBack(),
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../engram_service.dart';
 import '../models/engram_file.dart';
 import '../reliquary_service.dart';
-import 'file_detail_screen.dart';
 
 
 class GalleryScreen extends StatefulWidget {
@@ -14,6 +13,8 @@ class GalleryScreen extends StatefulWidget {
   final VoidCallback onLogout;
   final String username;
   final VoidCallback? onNavigateToUpload;
+  final void Function(EngramFile file) onOpenDetail;
+  final int refreshTrigger;
 
   const GalleryScreen({
     super.key,
@@ -22,6 +23,8 @@ class GalleryScreen extends StatefulWidget {
     required this.onLogout,
     required this.username,
     this.onNavigateToUpload,
+    required this.onOpenDetail,
+    required this.refreshTrigger,
   });
 
   @override
@@ -83,6 +86,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
     _draftSelectedTags = Set.from(_selectedTags);
     _draftTypeFilter = _activeTypeFilter;
     _filterSearchCtrl.clear();
+  }
+
+  @override
+  void didUpdateWidget(GalleryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshTrigger != oldWidget.refreshTrigger) {
+      _refreshAll();
+    }
   }
 
   @override
@@ -279,21 +290,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
     _filterDropdownOverlay = null;
   }
 
-  Future<void> _openDetail(EngramFile file) async {
-    final deleted = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => FileDetailScreen(
-          initial: file,
-          engram: widget.engram,
-          reliquary: widget.reliquary,
-          onLogout: widget.onLogout,
-          username: widget.username,
-        ),
-      ),
-    );
-    if (deleted == true) {
-      _refreshAll();
-    }
+  void _openDetail(EngramFile file) {
+    widget.onOpenDetail(file);
   }
 
   @override
