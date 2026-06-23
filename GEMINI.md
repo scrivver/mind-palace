@@ -17,7 +17,7 @@
 ## Infrastructure (Root `/infra`)
 The project uses a unified infrastructure managed via Nix flakes and `process-compose`.
 
-- **PostgreSQL**: Shared database for Authentik, Engram, and Synapse.
+- **PostgreSQL**: Shared database for Engram and Synapse.
 - **RabbitMQ**: Shared message broker.
   - `engram.ingest`: Receives canonical file events from Reliquary and filesystem watchers.
   - `synapse.jobs`: Receives movement tasks.
@@ -26,7 +26,8 @@ The project uses a unified infrastructure managed via Nix flakes and `process-co
   - `/api/reliquary/*` -> Reliquary Backend.
   - `/api/engram/*` -> Engram Backend.
   - `/storage/*` -> MinIO.
-- **Authentik**: Shared identity provider for OIDC/OAuth2.
+- **Reliquary**: Storage API and identity provider. Issues JWTs for password
+  auth and can proxy OIDC discovery when `RELIQUARY_AUTH_MODE=oidc` is set.
 
 ## Development Workflow
 

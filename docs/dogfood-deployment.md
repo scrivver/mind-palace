@@ -19,7 +19,7 @@ dev
 
 The `dev` command starts `.data/dev-process-compose.yaml` and uses
 `.data/process-compose.sock`. It starts shared infrastructure, Reliquary,
-Engram, Synapse, Caddy, Authentik, and the primary app entry point. A separate
+Engram, Synapse, Caddy, and the primary app entry point. A separate
 `start-infra` invocation is not required.
 
 Use infra-only startup for targeted debugging:
@@ -91,14 +91,17 @@ $EDITOR .env
 Values containing `change-me-in-shared-use` are placeholders. Replace them
 before sharing or exposing the deployment.
 
-For browser dogfooding, `OIDC_REDIRECT_URI` should point at the public app
-origin callback route, for example `http://localhost:2080/callback`.
-Engram exposes the browser auth helper routes at:
+By default the packaged deployment uses password auth through Reliquary. The
+admin user is created automatically from `AUTH_USERNAME` and `AUTH_PASSWORD`.
+To use OIDC instead, set `RELIQUARY_AUTH_MODE=oidc` and fill the commented
+`RELIQUARY_OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_USERNAME_CLAIM`, and
+`OIDC_REDIRECT_URI` values in `.env`.
+
+The Flutter app discovers auth settings from Reliquary:
 
 ```text
-/api/engram/auth/config
-/api/engram/auth/oidc/discovery
-/api/engram/auth/oidc/token
+GET /api/reliquary/api/auth/config
+POST /api/reliquary/api/login
 ```
 
 Start, inspect, and stop:
@@ -155,13 +158,14 @@ Run this checklist against both local development and packaged Compose paths:
 1. Start the deployment path.
 2. Confirm service status shows required services running or healthy.
 3. Open the public entry point.
-4. Authenticate or use the documented local access mode.
-5. For packaged web, confirm `GET /api/engram/auth/config` works through the
-   same public origin before signing in.
+4. Authenticate with the default admin credentials from `.env` or use the
+   documented local access mode.
+5. For packaged web, confirm `GET /api/reliquary/api/auth/config` works through
+   the same public origin before signing in.
 6. Add a small artifact.
 7. Confirm the artifact is visible through the storage workflow.
 8. Confirm metadata becomes discoverable through Engram by checking the app
-   metadata view or probing `GET /api/engram/health` and the documented metadata
+   metadata view or probing `GET /api/engram/api/health` and the documented metadata
    list/search route after ingestion has processed the artifact.
 9. Confirm movement or reconciliation behavior when Synapse is enabled by
    checking `synapse-worker` and `synapse-reconciler` status, then verifying the
@@ -177,7 +181,7 @@ Run this checklist against both local development and packaged Compose paths:
 | Runtime state | `.data/` | Named Compose volumes |
 | App process | Live Flutter Linux desktop command | Nix-built Flutter web image served by Caddy |
 | App routing | Generated absolute Reliquary and Engram URLs injected by `bin/start-app` | Same-origin `/api/reliquary/*` and `/api/engram/*` routes |
-| Auth callback | Desktop loopback/AppAuth flow | Browser `/callback` flow using Engram OIDC helper endpoints |
+| Auth callback | Desktop loopback/AppAuth flow | Browser `/callback` flow using direct OIDC discovery when OIDC mode is enabled |
 | Service internals | Source checkout and hot reload where available | Image-based services |
 | Engram packaging | Source checkout plus `uv run`/Go hot reload | Child-owned `engram#api-container` and `engram#ingestion-container` images |
 | Synapse packaging | Source checkout plus Go commands | Child-owned `synapse#worker-container` and `synapse#reconciler-container` images |
@@ -186,7 +190,7 @@ Run this checklist against both local development and packaged Compose paths:
 Expected differences should be reported as environment context, not product
 defects. Unexpected differences in metadata discovery or reconciliation should
 identify whether the failure category is child packaging, root image
-tagging/loading, Compose wiring, web compile, Caddy proxy, Engram OIDC helper,
+tagging/loading, Compose wiring, web compile, Caddy proxy, auth discovery,
 browser callback, or runtime startup.
 
 ## Troubleshooting
@@ -203,15 +207,15 @@ browser callback, or runtime startup.
   exits. Check `docker compose ps` and `docker compose logs --tail=200
   <service>`.
 - **Packaged web UI**: `/` should return the Flutter shell, `/callback` should
-  fall back to the same shell, and `/api/engram/auth/config` should return
-  client-consumable JSON without secrets.
+  fall back to the same shell, and `/api/reliquary/api/auth/config` should
+  return client-consumable JSON without secrets.
 
 ## Failure Report Template
 
 ```text
 Deployment path: local-dev | packaged-compose
 State freshness: fresh | reused | migrated | unknown
-Failure category: child packaging | root image tagging/loading | Compose wiring | web compile | Caddy proxy | OIDC helper | browser callback | runtime startup | smoke test
+Failure category: child packaging | root image tagging/loading | Compose wiring | web compile | Caddy proxy | auth discovery | browser callback | runtime startup | smoke test
 Failed step:
 Failed service:
 Status snapshot:

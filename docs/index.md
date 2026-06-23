@@ -28,10 +28,10 @@ Each feature or cross-cutting change is documented in `specs/` with a spec, plan
 ```
 app/lib/
 ├── main.dart                  Entry point, ProviderScope, MaterialApp.router
-├── auth_models.dart           OAuth token models
+├── auth_models.dart           Auth config and token models
 ├── auth_service.dart          Abstract auth interface (web/native)
-├── auth_service_web.dart      Web OIDC via Authentik
-├── auth_service_native.dart   Desktop OAuth via loopback
+├── auth_service_web.dart      Web password/OIDC via Reliquary
+├── auth_service_native.dart   Desktop password/OIDC via loopback
 ├── engram_service.dart        Engram API client (metadata, search, stats)
 ├── reliquary_service.dart     Reliquary API client (upload, download, delete)
 ├── upload_file.dart           Abstract upload interface (web/native)

@@ -48,27 +48,31 @@ The public browser origin must support:
   mapped so existing Reliquary routes receive `/api/...`
 - `/api/engram/*`: reverse proxy to Engram API with the prefix stripped or
   mapped so existing Engram routes receive `/api/...`
+- `/storage/*`: reverse proxy to MinIO with the prefix stripped so presigned
+  object URLs resolve
 
 Browser code must use the public origin, not Docker-internal service names.
 
-## Engram Auth Helper Contract
+## Auth Discovery Contract
 
-Engram API must expose the following routes:
-
-### `GET /api/auth/config`
-
-Returns client-consumable auth capabilities.
-
-Required response fields:
+Reliquary API must expose `GET /api/auth/config` returning client-consumable
+auth capabilities. Example response in password mode:
 
 ```json
 {
+  "password": {
+    "enabled": true
+  },
   "oidc": {
-    "enabled": true,
-    "issuer_url": "http://localhost:2080/application/o/mind-palace/",
-    "client_id": "mind-palace",
+    "enabled": false,
+    "issuer_url": "",
+    "client_id": "",
     "username_claim": "preferred_username",
-    "redirect_uri": "http://localhost:2080/callback"
+    "redirect_uri": "com.reliquary.app://callback"
+  },
+  "proxy": {
+    "enabled": false,
+    "legacy": true
   },
   "none": {
     "enabled": false
@@ -76,25 +80,9 @@ Required response fields:
 }
 ```
 
-When OIDC is disabled, `oidc.enabled` must be `false`; secrets must not be
-included.
-
-### `GET /api/auth/oidc/discovery`
-
-Fetches and returns the configured provider discovery document. It must fail
-with a clear non-2xx response when OIDC is disabled or `OIDC_ISSUER_URL` is
-missing.
-
-### `POST /api/auth/oidc/token`
-
-Proxies OAuth token requests to the configured provider. Supported grant types:
-
-- `authorization_code`
-- `refresh_token`
-
-The endpoint must accept JSON request bodies and return the provider token
-response plus a best-effort `username` field when userinfo lookup succeeds. It
-must not expose client secrets.
+When OIDC is enabled, `oidc.enabled` is `true` and `issuer_url`/`client_id` are
+populated so the Flutter app can perform direct OIDC discovery. Secrets must not
+be included.
 
 ## Client Platform Contract
 
@@ -102,7 +90,9 @@ The Mind Palace Flutter app must support:
 
 - Linux desktop: existing loopback/AppAuth flow remains available.
 - Web: browser redirect to IdP, same-origin `/callback` redirect URI, PKCE
-  state/verifier storage, token exchange through Engram helper endpoint.
+  state/verifier storage, token exchange directly with the OIDC provider when
+  OIDC mode is enabled, or username/password login through Reliquary when
+  password mode is enabled.
 
 Web builds must not import `dart:io` in any compilation unit selected for web.
 
@@ -118,7 +108,6 @@ Validation must cover:
 - `docker compose config --quiet`
 - `docker compose up -d`
 - `curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/`
-- `curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/health`
-- `curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/auth/config`
-  or the final documented auth config route
+- `curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/api/health`
+- `curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/reliquary/api/auth/config`
 

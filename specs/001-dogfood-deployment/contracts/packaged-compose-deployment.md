@@ -87,7 +87,7 @@ Engram API image requirements:
 - entrypoint runs the Engram Go backend binary
 - exposes port `8081`
 - includes a healthcheck that probes `/api/health`
-- accepts PostgreSQL and OIDC configuration from Compose environment
+- accepts PostgreSQL and JWT/OIDC validation configuration from Compose environment
 
 Engram ingestion image requirements:
 
@@ -123,7 +123,7 @@ Mind Palace root requirements:
 
 The default Compose deployment must:
 - expose only the public ingress or app entry point by default
-- keep PostgreSQL, RabbitMQ, MinIO, and Authentik on the internal network
+- keep PostgreSQL, RabbitMQ, and MinIO on the internal network
 - use health checks or dependency conditions for critical services
 - use named volumes for persistent state
 - include one-shot initialization services for buckets, queues, or identity
@@ -140,7 +140,9 @@ The default Compose deployment must:
 - MinIO root credentials and buckets
 - RabbitMQ queues and connection defaults
 - PostgreSQL database names/users used by bundled services
-- Authentik bootstrap credentials and OAuth client settings
+- shared JWT secret for Reliquary-issued tokens
+- Reliquary password auth credentials (when password mode is enabled)
+- optional OIDC issuer and client settings (when OIDC mode is enabled)
 - application auth mode and secrets
 - which values must be changed before shared or exposed use
 

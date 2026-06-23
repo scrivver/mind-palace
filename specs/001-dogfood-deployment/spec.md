@@ -14,7 +14,7 @@
 
 - Q: For first packaged delivery, must Engram and Synapse run real service images or may placeholders satisfy the deployment? → A: Packaged deployment must run real Reliquary, Engram, Synapse, app, and ingress service images for first delivery.
 - Q: How should the primary Mind Palace app be exposed for packaged dogfooding? → A: Packaged Compose should serve a real Flutter web build of the Mind Palace app while preserving the local Flutter desktop dev target.
-- Q: How should browser clients discover identity provider settings? → A: Engram should expose Reliquary-style OIDC config, discovery, and token helper endpoints for the Mind Palace app.
+- Q: How should browser clients discover identity provider settings? → A: Reliquary exposes `/api/auth/config` describing enabled auth methods (password, OIDC, proxy, none). When OIDC is enabled it returns the issuer and client ID; the Flutter app performs direct OIDC discovery against that issuer. Engram no longer exposes auth config or OIDC helper endpoints.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -162,10 +162,12 @@ details are recorded.
 - **FR-014**: The local development workflow MUST preserve the Flutter Linux
   desktop app path and continue injecting generated service URLs into the app at
   launch time.
-- **FR-015**: Engram MUST expose client-consumable auth configuration and OIDC
-  helper endpoints so the Mind Palace app can discover the identity provider and
-  complete browser token exchange without hardcoding provider internals into the
-  web bundle.
+- **FR-015**: Reliquary MUST expose client-consumable auth configuration via
+  `GET /api/auth/config` so the Mind Palace app can discover the enabled auth
+  methods. When OIDC is enabled, Reliquary returns the issuer URL and client ID,
+  and the Flutter app completes browser token exchange directly with the OIDC
+  provider. Engram MUST validate the resulting Bearer token using the shared
+  JWT secret or configured OIDC issuer URL.
 - **FR-016**: The packaged web UI MUST use the documented public Compose origin
   for Reliquary and Engram API access, avoiding Docker-internal hostnames in
   browser code.
@@ -185,9 +187,9 @@ details are recorded.
   when a dogfood deployment path does not start or a smoke test fails.
 - **Web App Runtime**: The packaged browser UI served from the public Compose
   entry point and built from the primary Flutter app.
-- **Auth Discovery Contract**: The Engram API endpoints that advertise OIDC
-  client configuration, discovery metadata, and token exchange behavior to the
-  Mind Palace app.
+- **Auth Discovery Contract**: The Reliquary API endpoint that advertises
+  enabled auth methods (password, OIDC, proxy, none) and OIDC client
+  configuration to the Mind Palace app.
 
 ### Contracts & Integration Impact *(include if feature crosses components)*
 
@@ -227,7 +229,7 @@ details are recorded.
 - **SC-007**: A maintainer can open the packaged public entry point in a browser
   and see the Mind Palace web UI within 2 minutes after `docker compose up -d`
   reports healthy services.
-- **SC-008**: The packaged web smoke test can reach Engram auth config,
+- **SC-008**: The packaged web smoke test can reach Reliquary auth config,
   Reliquary storage routes, and Engram metadata routes through the same public
   origin without browser CORS errors.
 

@@ -6,7 +6,8 @@
 
 ## Auth
 
-Required. Bearer token from Authentik OIDC flow.
+Required. Bearer token issued by Reliquary (password mode) or validated via the
+configured OIDC issuer.
 
 ## Query Parameters
 

@@ -44,8 +44,8 @@ It is not an implementation script.
 
    ```bash
    curl --fail "http://127.0.0.1:$PROXY_PORT/health"
-   curl --fail "http://127.0.0.1:$PROXY_PORT/api/reliquary/health"
-   curl --fail "http://127.0.0.1:$PROXY_PORT/api/engram/health"
+    curl --fail "http://127.0.0.1:$PROXY_PORT/api/reliquary/api/health"
+    curl --fail "http://127.0.0.1:$PROXY_PORT/api/engram/api/health"
    ```
 
    Expected result: health probes return success for available routes.
@@ -172,31 +172,30 @@ It is not an implementation script.
    docker compose ps
    curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/health
    curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/
-   curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/health
+    curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/api/health
    ```
 
    Expected result: only the public entry point is exposed by default, the
    browser UI route returns the Flutter web shell, and service health is visible
    through Compose.
 
-11. Validate Engram auth helper endpoints:
+11. Validate Reliquary auth discovery:
 
-   ```bash
-   curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/auth/config
-   curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/engram/auth/oidc/discovery
-   ```
+    ```bash
+    curl --fail http://localhost:${MIND_PALACE_PORT:-2080}/api/reliquary/api/auth/config
+    ```
 
-   Expected result: the config endpoint returns no secrets and identifies
-   whether OIDC is enabled. Discovery returns the configured provider document
-   when OIDC is enabled, or a clear documented failure when disabled.
-   A browser sign-in redirect must return to `/callback`, which serves the same
-   Flutter shell as `/`.
+    Expected result: the config endpoint returns no secrets and identifies
+    whether password auth and/or OIDC is enabled. When OIDC is enabled, the
+    returned `issuer_url` and `client_id` are used for direct OIDC discovery.
+    A browser sign-in redirect must return to `/callback`, which serves the same
+    Flutter shell as `/`.
 
 12. Run the same smoke workflow used for local dogfood:
 
    - Open the packaged public entry point.
-   - Authenticate through the browser OIDC flow or use the documented packaged
-     access mode.
+    - Authenticate with the default admin credentials from `.env` or use the
+      documented packaged OIDC mode.
    - Add a small artifact through the web upload flow.
    - Confirm metadata discovery.
    - Confirm movement/reconciliation behavior when enabled.
@@ -239,5 +238,5 @@ Include the following in dogfood reports:
 - Configuration source, without secret values.
 - Exact smoke-test step that failed.
 - Failure category: child packaging, root image tagging/loading, Compose
-  wiring, web compile, Caddy proxy, OIDC helper, browser callback, runtime
+  wiring, web compile, Caddy proxy, auth discovery, browser callback, runtime
   startup, or smoke test.
