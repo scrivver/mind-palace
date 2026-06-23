@@ -22,9 +22,11 @@ class AuthService {
   static const _refreshTokenKey = 'refresh_token';
   static const _idTokenKey = 'id_token';
   static const _usernameKey = 'username';
+  static const _roleKey = 'role';
   static const _stateKey = 'oidc_state';
   static const _verifierKey = 'oidc_code_verifier';
   static const _passwordTokenKey = 'password_token';
+  static const _providerKey = 'auth_provider';
 
   AuthConfig? _authConfig;
   Map<String, dynamic>? _oidcDiscovery;
@@ -145,9 +147,14 @@ class AuthService {
       if (token == null || token.isEmpty) return false;
 
       await _storage.write(key: _passwordTokenKey, value: token);
+      await _storage.write(key: _providerKey, value: 'password');
       final returnedUsername = body['username'] as String?;
       if (returnedUsername != null && returnedUsername.isNotEmpty) {
         await _storage.write(key: _usernameKey, value: returnedUsername);
+      }
+      final returnedRole = body['role'] as String?;
+      if (returnedRole != null && returnedRole.isNotEmpty) {
+        await _storage.write(key: _roleKey, value: returnedRole);
       }
       return true;
     } catch (_) {
@@ -160,9 +167,11 @@ class AuthService {
     await _storage.delete(key: _refreshTokenKey);
     await _storage.delete(key: _idTokenKey);
     await _storage.delete(key: _usernameKey);
+    await _storage.delete(key: _roleKey);
     await _storage.delete(key: _stateKey);
     await _storage.delete(key: _verifierKey);
     await _storage.delete(key: _passwordTokenKey);
+    await _storage.delete(key: _providerKey);
   }
 
   Future<String?> getAccessToken() async {
@@ -174,6 +183,18 @@ class AuthService {
       return _storage.read(key: _accessTokenKey);
     }
     return null;
+  }
+
+  Future<String?> getProvider() async {
+    return _storage.read(key: _providerKey);
+  }
+
+  Future<String?> getRole() async {
+    return _storage.read(key: _roleKey);
+  }
+
+  Future<String?> getUsername() async {
+    return _storage.read(key: _usernameKey);
   }
 
   Future<Map<String, dynamic>?> getUserInfo() async {
@@ -254,6 +275,8 @@ class AuthService {
     if (accessToken == null) return false;
 
     await _storage.write(key: _accessTokenKey, value: accessToken);
+    await _storage.write(key: _providerKey, value: 'oidc');
+    await _storage.write(key: _roleKey, value: 'user');
     final refreshToken = tokens['refresh_token'] as String?;
     final idToken = tokens['id_token'] as String?;
     final username = tokens['username'] as String?;

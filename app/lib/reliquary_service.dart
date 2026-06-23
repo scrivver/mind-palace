@@ -133,6 +133,40 @@ class ReliquaryService {
     final response = await dio.get('/api/stats');
     return response.data as Map<String, dynamic>;
   }
+
+  // ── Admin user management ──
+
+  Future<List<Map<String, dynamic>>> listUsers() async {
+    final response = await dio.get('/api/admin/users');
+    return (response.data as List)
+        .map((u) => u as Map<String, dynamic>)
+        .toList();
+  }
+
+  Future<void> createUser(String username, String password) async {
+    await dio.post(
+      '/api/admin/users',
+      data: {'username': username, 'password': password},
+    );
+  }
+
+  Future<void> deleteUser(String username, {bool permanent = false}) async {
+    await dio.delete(
+      '/api/admin/users/$username',
+      queryParameters: {'permanent': permanent.toString()},
+    );
+  }
+
+  Future<void> activateUser(String username) async {
+    await dio.put('/api/admin/users/$username/activate');
+  }
+
+  Future<void> changePassword(String username, String password) async {
+    await dio.put(
+      '/api/admin/users/$username/password',
+      data: {'password': password},
+    );
+  }
 }
 
 class FileListResult {

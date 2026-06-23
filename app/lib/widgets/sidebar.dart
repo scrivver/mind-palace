@@ -4,6 +4,7 @@ class Sidebar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int>? onDestinationChanged;
   final String username;
+  final bool isAdmin;
   final VoidCallback onLogout;
 
   const Sidebar({
@@ -11,6 +12,7 @@ class Sidebar extends StatelessWidget {
     this.selectedIndex = 0,
     this.onDestinationChanged,
     required this.username,
+    this.isAdmin = false,
     required this.onLogout,
   });
 
@@ -82,6 +84,15 @@ class Sidebar extends StatelessWidget {
                       ? () => onDestinationChanged!(2)
                       : null,
                 ),
+                if (isAdmin)
+                  _NavItem(
+                    icon: Icons.admin_panel_settings_outlined,
+                    label: 'Admin',
+                    selected: selectedIndex == 3,
+                    onTap: onDestinationChanged != null
+                        ? () => onDestinationChanged!(3)
+                        : null,
+                  ),
                 const Spacer(),
                 Divider(
                   height: 1,

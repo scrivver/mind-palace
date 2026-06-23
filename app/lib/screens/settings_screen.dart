@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../auth_service.dart';
+import '../reliquary_service.dart';
 import '../services/server_url_store.dart';
 import '../services/theme_service.dart';
 
@@ -11,8 +12,8 @@ class SettingsScreen extends StatefulWidget {
   final ThemeService themeService;
   final ThemeSetting currentTheme;
   final ValueChanged<ThemeSetting> onThemeChanged;
-  final bool isExternalIdp;
-  final String authentikBase;
+  final ReliquaryService reliquary;
+  final AuthService auth;
   final VoidCallback onServerUrlChanged;
 
   const SettingsScreen({
@@ -20,8 +21,8 @@ class SettingsScreen extends StatefulWidget {
     required this.themeService,
     required this.currentTheme,
     required this.onThemeChanged,
-    required this.isExternalIdp,
-    this.authentikBase = '',
+    required this.reliquary,
+    required this.auth,
     required this.onServerUrlChanged,
   });
 
@@ -32,6 +33,10 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late ThemeSetting _selectedTheme;
   StreamSubscription<ThemeSetting>? _themeSubscription;
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  String? _username;
+  String? _provider;
 
   @override
   void initState() {
@@ -42,19 +47,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
         setState(() => _selectedTheme = setting);
       }
     });
+    _loadAuthInfo();
+  }
+
+  Future<void> _loadAuthInfo() async {
+    final username = await widget.auth.getUsername();
+    final provider = await widget.auth.getProvider();
+    if (mounted) {
+      setState(() {
+        _username = username;
+        _provider = provider;
+      });
+    }
   }
 
   @override
   void dispose() {
     _themeSubscription?.cancel();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _resetPassword() async {
-    if (widget.authentikBase.isEmpty) return;
-    final uri = Uri.parse('${widget.authentikBase}/if/flow/password-reset/');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _changePassword() async {
+    final username = _username;
+    if (username == null) return;
+
+    final newPassword = _newPasswordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (newPassword.isEmpty || confirmPassword.isEmpty) {
+      _showError('Enter new password and confirmation.');
+      return;
+    }
+    if (newPassword != confirmPassword) {
+      _showError('New password and confirmation do not match.');
+      return;
+    }
+
+    try {
+      await widget.reliquary.changePassword(username, newPassword);
+      if (!mounted) return;
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+      _showMessage('Password changed successfully');
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Failed to change password: $e');
     }
   }
 
@@ -101,6 +140,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
@@ -200,91 +245,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildResetPasswordSection() {
     final colors = Theme.of(context).colorScheme;
+    final isPasswordProvider = _provider == 'password';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Reset Password', style: Theme.of(context).textTheme.titleMedium),
+        Text('Change Password', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 24),
-        if (widget.isExternalIdp)
-          ..._buildExternalIdpForm(colors)
-        else
+        if (isPasswordProvider)
           SizedBox(
             width: 480,
-            child: OutlinedButton.icon(
-              onPressed: widget.authentikBase.isNotEmpty
-                  ? _resetPassword
-                  : null,
-              icon: const Icon(Icons.open_in_new, size: 18),
-              label: const Text('Open password reset'),
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _newPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'New Password',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm New Password',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _changePassword,
+                    child: const Text('Change Password'),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerHighest.withAlpha(128),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 18, color: colors.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Password management is handled by your external identity provider.',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                  ),
+                ),
+              ],
             ),
           ),
       ],
     );
-  }
-
-  List<Widget> _buildExternalIdpForm(ColorScheme colors) {
-    return [
-      Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerHighest.withAlpha(128),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, size: 18, color: colors.onSurfaceVariant),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Password management is handled by your external identity provider.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-              ),
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 24),
-      SizedBox(
-        width: 480,
-        child: Column(
-          children: [
-            TextFormField(
-              enabled: false,
-              decoration: const InputDecoration(
-                labelText: 'Current Password',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              enabled: false,
-              decoration: const InputDecoration(
-                labelText: 'New Password',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              enabled: false,
-              decoration: const InputDecoration(
-                labelText: 'Confirm New Password',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: null,
-                child: const Text('Reset Password'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ];
   }
 
   Widget _buildThemeSection() {

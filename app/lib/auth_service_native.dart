@@ -25,7 +25,9 @@ class AuthService {
   static const _refreshTokenKey = 'refresh_token';
   static const _idTokenKey = 'id_token';
   static const _usernameKey = 'username';
+  static const _roleKey = 'role';
   static const _passwordTokenKey = 'password_token';
+  static const _providerKey = 'auth_provider';
 
   Map<String, dynamic>? _oidcConfig;
 
@@ -111,9 +113,14 @@ class AuthService {
       if (token == null || token.isEmpty) return false;
 
       await _secureStorage.write(key: _passwordTokenKey, value: token);
+      await _secureStorage.write(key: _providerKey, value: 'password');
       final returnedUsername = body['username'] as String?;
       if (returnedUsername != null && returnedUsername.isNotEmpty) {
         await _secureStorage.write(key: _usernameKey, value: returnedUsername);
+      }
+      final returnedRole = body['role'] as String?;
+      if (returnedRole != null && returnedRole.isNotEmpty) {
+        await _secureStorage.write(key: _roleKey, value: returnedRole);
       }
       return true;
     } catch (_) {
@@ -129,7 +136,9 @@ class AuthService {
     await _secureStorage.delete(key: _refreshTokenKey);
     await _secureStorage.delete(key: _idTokenKey);
     await _secureStorage.delete(key: _usernameKey);
+    await _secureStorage.delete(key: _roleKey);
     await _secureStorage.delete(key: _passwordTokenKey);
+    await _secureStorage.delete(key: _providerKey);
 
     // End the session on authentik
     try {
@@ -160,6 +169,18 @@ class AuthService {
       return _secureStorage.read(key: _accessTokenKey);
     }
     return null;
+  }
+
+  Future<String?> getProvider() async {
+    return _secureStorage.read(key: _providerKey);
+  }
+
+  Future<String?> getRole() async {
+    return _secureStorage.read(key: _roleKey);
+  }
+
+  Future<String?> getUsername() async {
+    return _secureStorage.read(key: _usernameKey);
   }
 
   Future<Map<String, dynamic>?> getUserInfo() async {
@@ -388,6 +409,8 @@ class AuthService {
     if (result.idToken != null) {
       await _secureStorage.write(key: _idTokenKey, value: result.idToken);
     }
+    await _secureStorage.write(key: _providerKey, value: 'oidc');
+    await _secureStorage.write(key: _roleKey, value: 'user');
   }
 
   Future<void> _storeTokensFromMap(Map<String, dynamic> tokens) async {
@@ -406,6 +429,8 @@ class AuthService {
     if (tokens['id_token'] != null) {
       await _secureStorage.write(key: _idTokenKey, value: tokens['id_token']);
     }
+    await _secureStorage.write(key: _providerKey, value: 'oidc');
+    await _secureStorage.write(key: _roleKey, value: 'user');
   }
 
   // ── PKCE helpers ──

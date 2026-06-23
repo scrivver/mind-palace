@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/engram_file.dart';
+import '../screens/admin_screen.dart';
 import '../screens/file_detail_screen.dart';
 import '../screens/gallery_screen.dart';
 import '../screens/login_view.dart';
@@ -117,13 +118,15 @@ GoRouter _createRouter(
           final segment = state.uri.pathSegments.isNotEmpty
               ? state.uri.pathSegments.first
               : 'vault';
-          final navIndex = _navIndexForSegment(segment);
+          final isAdmin = authState.isAdmin;
+          final navIndex = _navIndexForSegment(segment, isAdmin);
           return AppShell(
             child: child,
             selectedIndex: navIndex,
             username: authState.username ?? '',
+            isAdmin: isAdmin,
             onDestinationChanged: (index) {
-              final path = _segmentForNavIndex(index);
+              final path = _segmentForNavIndex(index, isAdmin);
               context.go('/$path');
             },
             onLogout: () {
@@ -153,19 +156,28 @@ GoRouter _createRouter(
             path: '/settings',
             builder: (context, state) {
               final themeSetting = ref.read(currentThemeProvider);
+              final reliquary = reliquaryAsync.valueOrNull;
+              final auth = authAsync.valueOrNull;
               return SettingsScreen(
                 themeService: themeService,
                 currentTheme: themeSetting,
                 onThemeChanged: (setting) {
                   themeService.setTheme(setting);
                 },
-                isExternalIdp: true,
-                authentikBase: '',
+                reliquary: reliquary!,
+                auth: auth!,
                 onServerUrlChanged: () {
                   _invalidateServices();
                   context.go('/vault');
                 },
               );
+            },
+          ),
+          GoRoute(
+            path: '/admin',
+            builder: (context, state) {
+              final reliquary = reliquaryAsync.valueOrNull!;
+              return AdminScreen(reliquary: reliquary);
             },
           ),
           GoRoute(
@@ -204,30 +216,34 @@ GoRouter _createRouter(
   );
 }
 
-int _navIndexForSegment(String segment) {
+int _navIndexForSegment(String segment, bool isAdmin) {
   switch (segment) {
     case 'status':
       return 1;
     case 'settings':
       return 2;
-    case 'upload':
+    case 'admin':
       return 3;
+    case 'upload':
+      return isAdmin ? 4 : 3;
     case 'file':
-      return 4;
+      return isAdmin ? 5 : 4;
     default:
       return 0;
   }
 }
 
-String _segmentForNavIndex(int index) {
+String _segmentForNavIndex(int index, bool isAdmin) {
   switch (index) {
     case 1:
       return 'status';
     case 2:
       return 'settings';
     case 3:
-      return 'upload';
+      return isAdmin ? 'admin' : 'upload';
     case 4:
+      return isAdmin ? 'upload' : 'file';
+    case 5:
       return 'file';
     default:
       return 'vault';

@@ -85,6 +85,8 @@ class AppAuthState {
   final bool isLoading;
   final bool isLoggedIn;
   final String? username;
+  final String? role;
+  final String? provider;
   final String? error;
   final AuthService? authService;
 
@@ -92,14 +94,20 @@ class AppAuthState {
     this.isLoading = false,
     this.isLoggedIn = false,
     this.username,
+    this.role,
+    this.provider,
     this.error,
     this.authService,
   });
+
+  bool get isAdmin => role == 'admin';
 
   AppAuthState copyWith({
     bool? isLoading,
     bool? isLoggedIn,
     String? username,
+    String? role,
+    String? provider,
     String? error,
     AuthService? authService,
   }) {
@@ -107,6 +115,8 @@ class AppAuthState {
       isLoading: isLoading ?? this.isLoading,
       isLoggedIn: isLoggedIn ?? this.isLoggedIn,
       username: username ?? this.username,
+      role: role ?? this.role,
+      provider: provider ?? this.provider,
       error: error,
       authService: authService ?? this.authService,
     );
@@ -123,10 +133,14 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
       final loggedIn = await auth.isLoggedIn();
       if (loggedIn) {
         final userInfo = await auth.getUserInfo();
+        final role = await auth.getRole();
+        final provider = await auth.getProvider();
         state = state.copyWith(
           isLoading: false,
           isLoggedIn: true,
           username: userInfo?['preferred_username'] as String? ?? 'unknown',
+          role: role,
+          provider: provider,
         );
       } else {
         state = state.copyWith(isLoading: false, isLoggedIn: false);
@@ -144,10 +158,14 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
       final success = await auth.login();
       if (success) {
         final userInfo = await auth.getUserInfo();
+        final role = await auth.getRole();
+        final provider = await auth.getProvider();
         state = state.copyWith(
           isLoading: false,
           isLoggedIn: true,
           username: userInfo?['preferred_username'] as String? ?? 'unknown',
+          role: role,
+          provider: provider,
         );
       } else {
         state = state.copyWith(
@@ -168,10 +186,14 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
       final success = await auth.loginWithPassword(username, password);
       if (success) {
         final userInfo = await auth.getUserInfo();
+        final role = await auth.getRole();
+        final provider = await auth.getProvider();
         state = state.copyWith(
           isLoading: false,
           isLoggedIn: true,
           username: userInfo?['preferred_username'] as String? ?? 'unknown',
+          role: role,
+          provider: provider,
         );
       } else {
         state = state.copyWith(

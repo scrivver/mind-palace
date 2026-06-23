@@ -6,6 +6,7 @@ class AppShell extends StatelessWidget {
   final Widget child;
   final int selectedIndex;
   final String username;
+  final bool isAdmin;
   final void Function(int) onDestinationChanged;
   final VoidCallback onLogout;
 
@@ -14,6 +15,7 @@ class AppShell extends StatelessWidget {
     required this.child,
     required this.selectedIndex,
     required this.username,
+    this.isAdmin = false,
     required this.onDestinationChanged,
     required this.onLogout,
   });
@@ -28,6 +30,7 @@ class AppShell extends StatelessWidget {
               selectedIndex: selectedIndex,
               onDestinationChanged: onDestinationChanged,
               username: username,
+              isAdmin: isAdmin,
               onLogout: onLogout,
             ),
             Expanded(child: child),
