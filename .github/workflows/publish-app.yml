@@ -1,4 +1,4 @@
-name: publish-app
+name: publish-images
 
 on:
   push:
@@ -8,10 +8,22 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: scrivver/mind-palace-app
+  ORG: scrivver
 
 jobs:
   build-and-push:
+    strategy:
+      matrix:
+        target:
+          - nix_target: mind-palace-app-container
+            local_tag: mind-palace-app
+            image_name: scrivver/mind-palace-app
+            needs_pubspec_lock: true
+          - nix_target: mind-palace-ingress-container
+            local_tag: mind-palace-ingress
+            image_name: scrivver/mind-palace-ingress
+            needs_pubspec_lock: false
+
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -29,23 +41,24 @@ jobs:
             accept-flake-config = true
 
       - name: Regenerate pubspec.lock.json
+        if: ${{ matrix.target.needs_pubspec_lock }}
         run: ./bin/update-pubspec-lock-json
 
       - name: Build container image
         run: |
-          image_path=$(nix build .#mind-palace-app-container --no-link --print-out-paths)
+          image_path=$(nix build .#${{ matrix.target.nix_target }} --no-link --print-out-paths)
           docker load < "$image_path"
 
       - name: Tag image
         run: |
           short_sha="${GITHUB_SHA:0:7}"
-          docker tag mind-palace-app:latest \
-            "$REGISTRY/$IMAGE_NAME:sha-$short_sha"
+          docker tag ${{ matrix.target.local_tag }}:latest \
+            "$REGISTRY/${{ matrix.target.image_name }}:sha-$short_sha"
 
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             version="${GITHUB_REF#refs/tags/}"
-            docker tag mind-palace-app:latest \
-              "$REGISTRY/$IMAGE_NAME:$version"
+            docker tag ${{ matrix.target.local_tag }}:latest \
+              "$REGISTRY/${{ matrix.target.image_name }}:$version"
           fi
 
       - name: Log in to ghcr.io
@@ -57,4 +70,4 @@ jobs:
 
       - name: Push tags
         run: |
-          docker push --all-tags "$REGISTRY/$IMAGE_NAME"
+          docker push --all-tags "$REGISTRY/${{ matrix.target.image_name }}"
