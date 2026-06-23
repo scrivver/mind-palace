@@ -6,6 +6,7 @@ class LoginView extends StatefulWidget {
   final String? error;
   final bool loading;
   final bool isPasswordMode;
+  final bool isOidcMode;
   final VoidCallback? onConfigureServer;
 
   const LoginView({
@@ -15,6 +16,7 @@ class LoginView extends StatefulWidget {
     this.error,
     this.loading = false,
     this.isPasswordMode = false,
+    this.isOidcMode = false,
     this.onConfigureServer,
   });
 
@@ -151,32 +153,51 @@ class _LoginViewState extends State<LoginView> {
             ),
             const SizedBox(height: 24),
           ],
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: FilledButton(
-              onPressed:
-                  widget.loading
-                      ? null
-                      : (widget.isPasswordMode ? _submitPassword : widget.onLogin),
-              child:
-                  widget.loading
-                      ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+          if (widget.isPasswordMode)
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                onPressed: widget.loading ? null : _submitPassword,
+                child:
+                    widget.loading
+                        ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                        : Text(
+                          'Sign In',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: cs.onPrimary,
+                          ),
                         ),
+              ),
+            ),
+          if (widget.isPasswordMode && widget.isOidcMode) const SizedBox(height: 12),
+          if (widget.isOidcMode)
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child:
+                  widget.isPasswordMode
+                      ? OutlinedButton(
+                        onPressed: widget.loading ? null : widget.onLogin,
+                        child: const Text('Sign in with SSO'),
                       )
-                      : Text(
-                        widget.isPasswordMode ? 'Sign In' : 'Sign in with SSO',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: cs.onPrimary,
+                      : FilledButton(
+                        onPressed: widget.loading ? null : widget.onLogin,
+                        child: Text(
+                          'Sign in with SSO',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: cs.onPrimary,
+                          ),
                         ),
                       ),
             ),
-          ),
           if (widget.error != null) ...[
             const SizedBox(height: 16),
             Text(

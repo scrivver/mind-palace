@@ -98,7 +98,6 @@ class AuthService {
   Future<bool> login() async {
     final cfg = await _getAuthConfig();
     if (cfg.none.enabled) return true;
-    if (cfg.password.enabled) return false;
     if (!cfg.oidc.enabled) return false;
 
     final discovery = await _discover();

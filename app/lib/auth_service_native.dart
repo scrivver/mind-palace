@@ -87,7 +87,7 @@ class AuthService {
   Future<bool> isPasswordMode() async => passwordMode;
 
   Future<bool> login() async {
-    if (passwordMode) return false;
+    if (issuer.isEmpty) return false;
     if (_useAppAuth) {
       return _loginWithAppAuth();
     }

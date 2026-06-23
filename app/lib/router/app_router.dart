@@ -93,6 +93,10 @@ GoRouter _createRouter(
                 data: (auth) => auth.passwordMode,
               ) ??
               false;
+          final isOidcMode = authAsyncValue.whenOrNull(
+                data: (auth) => auth.issuer.isNotEmpty,
+              ) ??
+              false;
           return LoginView(
             onLogin: () => ref.read(appAuthProvider.notifier).login(),
             onPasswordLogin: (username, password) async {
@@ -101,6 +105,7 @@ GoRouter _createRouter(
                   .loginWithPassword(username, password);
             },
             isPasswordMode: isPasswordMode,
+            isOidcMode: isOidcMode,
             error: authState.error,
             loading: authState.isLoading,
             onConfigureServer: kIsWeb ? null : () => context.go('/setup'),
