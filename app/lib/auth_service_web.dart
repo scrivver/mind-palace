@@ -234,10 +234,10 @@ class AuthService {
 
   Future<Map<String, dynamic>> _discover() async {
     if (_oidcDiscovery != null) return _oidcDiscovery!;
-    final url = issuer.endsWith('/')
-        ? '$issuer.well-known/openid-configuration'
-        : '$issuer/.well-known/openid-configuration';
-    final response = await http.get(Uri.parse(url));
+    final base = reliquaryBaseUrl.endsWith('/')
+        ? reliquaryBaseUrl
+        : '$reliquaryBaseUrl/';
+    final response = await http.get(Uri.parse('${base}api/auth/oidc/discovery'));
     if (response.statusCode != 200) {
       throw Exception('OIDC discovery failed: ${response.statusCode}');
     }
@@ -257,14 +257,13 @@ class AuthService {
   }
 
   Future<bool> _exchangeToken(Map<String, String> payload) async {
-    final discovery = await _discover();
-    final tokenEndpoint = discovery['token_endpoint'] as String?;
-    if (tokenEndpoint == null || tokenEndpoint.isEmpty) return false;
-
+    final base = reliquaryBaseUrl.endsWith('/')
+        ? reliquaryBaseUrl
+        : '$reliquaryBaseUrl/';
     final response = await http.post(
-      Uri.parse(tokenEndpoint),
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: payload,
+      Uri.parse('${base}api/auth/oidc/token'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
     );
     if (response.statusCode != 200) {
       return false;
