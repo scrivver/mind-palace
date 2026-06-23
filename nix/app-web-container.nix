@@ -9,6 +9,15 @@ let
     }
 
     :2080 {
+      header Access-Control-Allow-Origin *
+      header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+      header Access-Control-Allow-Headers "Accept, Authorization, Content-Type"
+
+      @options method OPTIONS
+      handle @options {
+        respond 204
+      }
+
       handle /health {
         respond "OK" 200
       }
@@ -21,6 +30,16 @@ let
       handle /api/engram/* {
         uri strip_prefix /api/engram
         reverse_proxy engram-api:8081
+      }
+
+      handle /storage/* {
+        uri strip_prefix /storage
+        reverse_proxy minio:9000 {
+          header_up Host minio:9000
+          header_down -Access-Control-Allow-Origin
+          header_down -Access-Control-Allow-Methods
+          header_down -Access-Control-Allow-Headers
+        }
       }
 
       handle {

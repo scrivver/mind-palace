@@ -27,6 +27,16 @@ let
         reverse_proxy engram-api:8081
       }
 
+      handle /storage/* {
+        uri strip_prefix /storage
+        reverse_proxy minio:9000 {
+          header_up Host minio:9000
+          header_down -Access-Control-Allow-Origin
+          header_down -Access-Control-Allow-Methods
+          header_down -Access-Control-Allow-Headers
+        }
+      }
+
       handle /health {
         respond "OK" 200
       }
