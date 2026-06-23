@@ -86,5 +86,7 @@ if [ -f "$AUTHENTIK_SERVER_PORT_FILE" ]; then
   export OIDC_ISSUER_URL="$AUTHENTIK_URL/application/o/mind-palace/"
   export OIDC_CLIENT_ID=mind-palace
   export OIDC_REDIRECT_URI=com.reliquary.app://callback
+  # Engram selects JWT before OIDC; ensure only OIDC is active.
+  unset JWT_SECRET
   echo "OIDC_ISSUER_URL=$OIDC_ISSUER_URL"
 fi
