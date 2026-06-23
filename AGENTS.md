@@ -34,6 +34,15 @@ Use standard formatters: `gofmt` for Go and `dart format .` for Dart. Follow `fl
 
 Place Go tests beside source as `*_test.go`, Flutter tests under `test/` as `*_test.dart`, and Python tests as `test_*.py`. Add focused tests for changed behavior; use integration scripts when changes cross storage, queues, or databases. Run the relevant component suite before submitting.
 
+## Pubspec Lock JSON
+
+The Nix Flutter build (`nix/app-web.nix`) reads `app/pubspec.lock.json`, not the raw YAML `pubspec.lock`. Regenerate after every `flutter pub` operation:
+
+```bash
+./bin/update-pubspec-lock-json
+git add app/pubspec.lock.json && git commit -m "app: update pubspec.lock.json"
+```
+
 ## Commit & Pull Request Guidelines
 
 Recent commits use short imperative subjects, often scoped by component, such as `gallery: add tag filter` or `dev shell: add tesseract`. Keep commits focused. For submodule changes, commit inside the submodule first, then update the root pointer explicitly.
