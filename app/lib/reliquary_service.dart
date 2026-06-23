@@ -8,7 +8,7 @@ import 'models/file_item.dart';
 class ReliquaryService {
   final AuthService auth;
   final String baseUrl;
-  final void Function()? onUnauthorized;
+  void Function()? onUnauthorized;
   late final Dio dio;
 
   // Cache presigned URLs for 10 minutes (they're valid for 15).

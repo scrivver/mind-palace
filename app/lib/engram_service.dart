@@ -8,7 +8,7 @@ import 'models/engram_file.dart';
 class EngramService {
   final AuthService auth;
   final String baseUrl;
-  final void Function()? onUnauthorized;
+  void Function()? onUnauthorized;
   late final Dio dio;
 
   EngramService({
