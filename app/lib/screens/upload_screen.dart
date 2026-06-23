@@ -296,12 +296,12 @@ class _UploadScreenState extends State<UploadScreen> {
                         if (!_uploading) setState(() => _isDragging = hovering);
                       },
                       onDropFolder: () async {
-                        // Browser dropped a folder but we couldn't enumerate
-                        // its children from the drop event. Inform the user
-                        // and ask them to use the Select Folder button.
+                        // Browser didn't expose folder contents via drag/drop.
+                        // entry traversal is available on Chrome, Firefox 86+,
+                        // Edge, and Safari — this path is a last resort.
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Folder drop is not supported in this browser. Please use "Select Folder" to add folder contents.')),
+                          const SnackBar(content: Text('Drag-and-drop is not fully supported in this browser. Please use "Select Folder" to add folder contents.')),
                         );
                       },
                       child: InkWell(
