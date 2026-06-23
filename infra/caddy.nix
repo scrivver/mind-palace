@@ -61,9 +61,15 @@
             }
           }
 
-          # Default: Health check or static files
+          # Health check
           handle /health {
             respond "OK" 200
+          }
+
+          # Flutter web dev server — proxies everything else so the app
+          # and its relative API URLs are served from the same origin.
+          handle {
+            reverse_proxy 127.0.0.1:3000
           }
         }
         CADDYEOF
@@ -73,6 +79,7 @@
         echo "  /api/reliquary/* -> $RELIQUARY_BACKEND"
         echo "  /api/engram/*    -> $ENGRAM_BACKEND"
         echo "  /storage/*       -> 127.0.0.1:$MINIO_PORT"
+        echo "  /*               -> 127.0.0.1:3000 (Flutter web dev server)"
 
         exec ${pkgs.caddy}/bin/caddy run --config "$CADDY_DIR/Caddyfile"
       '';

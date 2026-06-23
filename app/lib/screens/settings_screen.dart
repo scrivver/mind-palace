@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/server_url_store.dart';
 import '../services/theme_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -11,6 +14,7 @@ class SettingsScreen extends StatefulWidget {
   final ValueChanged<ThemeSetting> onThemeChanged;
   final bool isExternalIdp;
   final String authentikBase;
+  final VoidCallback onServerUrlChanged;
 
   const SettingsScreen({
     super.key,
@@ -18,7 +22,8 @@ class SettingsScreen extends StatefulWidget {
     required this.currentTheme,
     required this.onThemeChanged,
     required this.isExternalIdp,
-    required this.authentikBase,
+    this.authentikBase = '',
+    required this.onServerUrlChanged,
   });
 
   @override
@@ -47,11 +52,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _resetPassword() async {
+    if (widget.authentikBase.isEmpty) return;
     final uri = Uri.parse(
         '${widget.authentikBase}/if/flow/password-reset/');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  Future<void> _changeServerUrl() async {
+    final controller = TextEditingController(
+      text: ServerUrlStore.baseServerUrl,
+    );
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Server URL'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'http://192.168.1.50:2080',
+            labelText: 'SERVER URL',
+          ),
+          keyboardType: TextInputType.url,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (result == null || result.isEmpty) return;
+
+    final baseUrl = result.trim();
+    // Validate by probing the Engram auth config endpoint.
+    final probeUrl = ServerUrlStore.engramBaseUrlFromBase(baseUrl);
+    try {
+      final resp = await http.get(
+        Uri.parse('${probeUrl}api/auth/config'),
+      );
+      if (resp.statusCode != 200) {
+        if (!mounted) return;
+        _showError('Server unreachable (${resp.statusCode})');
+        return;
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Could not reach server: $e');
+      return;
+    }
+
+    await ServerUrlStore.setBaseUrl(baseUrl);
+    widget.onServerUrlChanged();
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -64,6 +131,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             _buildHeader(),
             const SizedBox(height: 32),
+            if (!kIsWeb) _buildServerConnectionSection(),
+            if (!kIsWeb) const SizedBox(height: 48),
             _buildResetPasswordSection(),
             const SizedBox(height: 48),
             _buildThemeSection(),
@@ -90,6 +159,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildServerConnectionSection() {
+    final colors = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Server Connection',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Text(
+          'Configure the Mind Palace server endpoint.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colors.surfaceContainerHighest.withAlpha(128),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Server URL',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      ServerUrlStore.baseServerUrl,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              OutlinedButton(
+                onPressed: _changeServerUrl,
+                child: const Text('Change'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildResetPasswordSection() {
     final colors = Theme.of(context).colorScheme;
     return Column(
@@ -102,7 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         else SizedBox(
           width: 480,
           child: OutlinedButton.icon(
-            onPressed: _resetPassword,
+            onPressed: widget.authentikBase.isNotEmpty ? _resetPassword : null,
             icon: const Icon(Icons.open_in_new, size: 18),
             label: const Text('Open password reset'),
           ),

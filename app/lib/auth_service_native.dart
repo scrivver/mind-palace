@@ -9,11 +9,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
+import 'auth_models.dart';
+
 class AuthService {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
-  final String issuer;
-  final String clientId;
+  String issuer;
+  String clientId;
   final String mobileRedirectUrl;
   final String engramBaseUrl;
 
@@ -29,6 +31,18 @@ class AuthService {
     this.mobileRedirectUrl = 'com.mindpalace.app://callback',
     this.engramBaseUrl = '',
   });
+
+  /// Probe an Engram server for its auth configuration.
+  static Future<AuthConfig> probe(String engramUrl) async {
+    final url = engramUrl.endsWith('/') ? engramUrl : '$engramUrl/';
+    final response = await http.get(Uri.parse('${url}api/auth/config'));
+    if (response.statusCode != 200) {
+      throw Exception('Failed to get auth config: ${response.statusCode}');
+    }
+    return AuthConfig.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
 
   bool get _useAppAuth =>
       Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
@@ -60,7 +74,7 @@ class AuthService {
     }
   }
 
-  Future<bool> isOidc() async => true;
+  Future<bool> isOidc() async => issuer.isNotEmpty;
 
   Future<bool> login() async {
     if (_useAppAuth) {

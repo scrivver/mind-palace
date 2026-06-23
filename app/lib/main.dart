@@ -1,47 +1,28 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
+import 'auth_models.dart';
 import 'auth_service.dart';
 import 'engram_service.dart';
 import 'reliquary_service.dart';
-import 'screens/login_view.dart';
 import 'screens/gallery_screen.dart';
+import 'screens/login_view.dart';
+import 'screens/server_setup_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/status_screen.dart';
 import 'screens/upload_screen.dart';
+import 'services/server_url_store.dart';
 import 'services/theme_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/sidebar.dart';
 
-const _authentikBase = String.fromEnvironment(
-  'AUTHENTIK_URL',
-  defaultValue: 'http://127.0.0.1:9000',
-);
-final String authentikIssuer = '$_authentikBase/application/o/mind-palace/';
 const String clientId = 'mind-palace';
 
-const String reliquaryBaseUrl = String.fromEnvironment(
-  'RELIQUARY_URL',
-  defaultValue: '',
-);
-
-const String engramBaseUrl = String.fromEnvironment(
-  'ENGRAM_URL',
-  defaultValue: '',
-);
-
-String get effectiveReliquaryBaseUrl {
-  if (reliquaryBaseUrl.isNotEmpty) return reliquaryBaseUrl;
-  return kIsWeb ? '/api/reliquary/' : 'http://127.0.0.1:2080/api/reliquary/';
-}
-
-String get effectiveEngramBaseUrl {
-  if (engramBaseUrl.isNotEmpty) return engramBaseUrl;
-  return kIsWeb ? '/api/engram/' : 'http://127.0.0.1:2080/api/engram/';
-}
-
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // On web the desktop_drop plugin may register and attempt to invoke
   // platform channel methods even when we don't use it. Install a no-op
@@ -50,8 +31,6 @@ void main() {
   if (kIsWeb) {
     const channel = MethodChannel('desktop_drop');
     channel.setMethodCallHandler((call) async {
-      // Accept the expected methods and no-op. Return null to signal
-      // successful handling so plugin invocations don't error.
       switch (call.method) {
         case 'entered':
         case 'updated':
@@ -63,6 +42,7 @@ void main() {
       }
     });
   }
+  await ServerUrlStore.load();
   final themeService = ThemeService();
   runApp(MindPalaceApp(themeService: themeService));
 }
@@ -126,65 +106,106 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final AuthService _auth = AuthService(
-    issuer: authentikIssuer,
-    clientId: clientId,
-    engramBaseUrl: effectiveEngramBaseUrl,
-  );
+  AuthService? _auth;
+  ReliquaryService? _reliquary;
+  EngramService? _engram;
 
   bool _loading = true;
   bool _loggedIn = false;
+  bool _needsServerSetup = false;
   bool _isOidc = true;
   String? _username;
   String? _error;
   int _navIndex = 0;
 
-  late final ReliquaryService _reliquary;
-  late final EngramService _engram;
-
   @override
   void initState() {
     super.initState();
-    _reliquary = ReliquaryService(
-      auth: _auth,
-      baseUrl: effectiveReliquaryBaseUrl,
-      onUnauthorized: _logout,
-    );
-    _engram = EngramService(
-      auth: _auth,
-      baseUrl: effectiveEngramBaseUrl,
-      onUnauthorized: _logout,
-    );
-    _checkLoginStatus();
+    _needsServerSetup = !kIsWeb && !ServerUrlStore.hasSavedUrls;
+    if (!_needsServerSetup) {
+      _initialize();
+    } else {
+      setState(() => _loading = false);
+    }
   }
 
-  Future<void> _checkLoginStatus() async {
+  Future<void> _initialize() async {
     setState(() {
       _loading = true;
       _error = null;
     });
 
+    String issuer = '';
+    String oidcClientId = clientId;
+    bool oidcEnabled = true;
+
     try {
-      await _auth.completeRedirectIfPresent();
-      final loggedIn = await _auth.isLoggedIn();
-      _isOidc = await _auth.isOidc();
+      final configResp = await http.get(
+        Uri.parse('${ServerUrlStore.engramBaseUrl}api/auth/config'),
+      );
+      if (configResp.statusCode == 200) {
+        Map<String, dynamic>? body;
+        try {
+          body = jsonDecode(configResp.body) as Map<String, dynamic>;
+        } catch (_) {
+          // Non-JSON response (e.g. dev server HTML) — fall through to defaults.
+        }
+        if (body != null) {
+          final authConfig = AuthConfig.fromJson(body);
+          oidcEnabled = authConfig.oidc.enabled;
+          issuer = oidcEnabled ? authConfig.oidc.issuerUrl : '';
+          oidcClientId = oidcEnabled ? authConfig.oidc.clientId : clientId;
+        }
+      }
+    } catch (_) {
+      // Server unreachable — on web we fall through with defaults;
+      // on native the gate will redirect to server setup below.
+    }
+
+    _auth = AuthService(
+      issuer: issuer,
+      clientId: oidcClientId,
+      engramBaseUrl: ServerUrlStore.engramBaseUrl,
+    );
+    _reliquary = ReliquaryService(
+      auth: _auth!,
+      baseUrl: ServerUrlStore.reliquaryBaseUrl,
+      onUnauthorized: _logout,
+    );
+    _engram = EngramService(
+      auth: _auth!,
+      baseUrl: ServerUrlStore.engramBaseUrl,
+      onUnauthorized: _logout,
+    );
+    _isOidc = oidcEnabled;
+
+    try {
+      await _auth!.completeRedirectIfPresent();
+      final loggedIn = await _auth!.isLoggedIn();
       if (loggedIn) {
-        final userInfo = await _auth.getUserInfo();
+        final userInfo = await _auth!.getUserInfo();
         setState(() {
           _loggedIn = true;
           _username = userInfo?['preferred_username'] as String? ?? 'unknown';
         });
-      } else {
-        setState(() => _loggedIn = false);
       }
     } catch (e) {
       setState(() {
-        _loggedIn = false;
         _error = e.toString();
+        if (!kIsWeb) _needsServerSetup = true;
       });
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  Future<void> _onServerConfigured() async {
+    _needsServerSetup = false;
+    await _initialize();
+  }
+
+  Future<void> _onServerUrlChanged() async {
+    await _initialize();
   }
 
   Future<void> _login() async {
@@ -194,9 +215,9 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      final success = await _auth.login();
+      final success = await _auth!.login();
       if (success) {
-        final userInfo = await _auth.getUserInfo();
+        final userInfo = await _auth!.getUserInfo();
         setState(() {
           _loggedIn = true;
           _username = userInfo?['preferred_username'] as String? ?? 'unknown';
@@ -211,8 +232,15 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _showServerSetup() {
+    setState(() {
+      _needsServerSetup = true;
+      _error = null;
+    });
+  }
+
   Future<void> _logout() async {
-    await _auth.logout();
+    await _auth?.logout();
     setState(() {
       _loggedIn = false;
       _username = null;
@@ -221,6 +249,14 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_needsServerSetup) {
+      return ServerSetupScreen(
+        initialUrl: ServerUrlStore.baseServerUrl,
+        error: _error,
+        onConfigured: _onServerConfigured,
+      );
+    }
+
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -230,6 +266,7 @@ class _HomePageState extends State<HomePage> {
         onLogin: _login,
         error: _error,
         loading: _loading,
+        onConfigureServer: kIsWeb ? null : _showServerSetup,
       );
     }
 
@@ -258,7 +295,7 @@ class _HomePageState extends State<HomePage> {
     switch (_navIndex) {
       case 1:
         return StatusScreen(
-          reliquary: _reliquary,
+          reliquary: _reliquary!,
         );
       case 2:
         return SettingsScreen(
@@ -266,19 +303,19 @@ class _HomePageState extends State<HomePage> {
           currentTheme: widget.currentTheme,
           onThemeChanged: (setting) {},
           isExternalIdp: _isOidc,
-          authentikBase: _authentikBase,
+          onServerUrlChanged: _onServerUrlChanged,
         );
       case 3:
         return UploadScreen(
-          reliquary: _reliquary,
+          reliquary: _reliquary!,
           onLogout: _logout,
           username: _username ?? '',
           onBack: () => setState(() => _navIndex = 0),
         );
       default:
         return GalleryScreen(
-          engram: _engram,
-          reliquary: _reliquary,
+          engram: _engram!,
+          reliquary: _reliquary!,
           onLogout: _logout,
           username: _username ?? '',
           onNavigateToUpload: () => setState(() => _navIndex = 3),

@@ -4,12 +4,14 @@ class LoginView extends StatelessWidget {
   final VoidCallback onLogin;
   final String? error;
   final bool loading;
+  final VoidCallback? onConfigureServer;
 
   const LoginView({
     super.key,
     required this.onLogin,
     this.error,
     this.loading = false,
+    this.onConfigureServer,
   });
 
   @override
@@ -182,6 +184,14 @@ class LoginView extends StatelessWidget {
                     error!,
                     style: TextStyle(color: theme.colorScheme.error),
                     textAlign: TextAlign.center,
+                  ),
+                ],
+                if (onConfigureServer != null) ...[
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    onPressed: onConfigureServer,
+                    icon: const Icon(Icons.settings, size: 18),
+                    label: const Text('Change Server'),
                   ),
                 ],
                 const SizedBox(height: 48),

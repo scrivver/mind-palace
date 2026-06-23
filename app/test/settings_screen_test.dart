@@ -12,6 +12,7 @@ Widget createTestApp(ThemeService themeService, {ThemeSetting currentTheme = The
       onThemeChanged: (_) {},
       isExternalIdp: isExternalIdp,
       authentikBase: 'http://127.0.0.1:9000',
+      onServerUrlChanged: () {},
     ),
   );
 }
@@ -48,6 +49,12 @@ void main() {
     await tester.pumpWidget(createTestApp(themeService));
     await tester.pumpAndSettle();
 
+    // Scroll down to make theme options visible.
+    await tester.drag(find.byType(SettingsScreen), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Midnight'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Midnight'));
     await tester.pumpAndSettle();
 

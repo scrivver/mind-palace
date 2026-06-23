@@ -8,10 +8,14 @@ fi
 
 source load-infra-env
 
+echo ""
+echo "══════════════════════════════════════════════════════════════"
+echo "  Access the full stack at http://localhost:${PROXY_PORT:-2080}"
+echo "  (Caddy proxies API calls + serves the Flutter dev server)"
+echo "══════════════════════════════════════════════════════════════"
+echo ""
+
 cd app
 flutter run \
   -d web-server \
-  --web-port=3000 \
-  --dart-define=AUTHENTIK_URL="${AUTHENTIK_URL:-}" \
-  --dart-define=RELIQUARY_URL="${RELIQUARY_URL:-}" \
-  --dart-define=ENGRAM_URL="${ENGRAM_URL:-}"
+  --web-port=3000
