@@ -7,3 +7,7 @@ final themeServiceProvider = Provider<ThemeService>((ref) {
   ref.onDispose(() => service.dispose());
   return service;
 });
+
+final currentThemeProvider = StateProvider<ThemeSetting>((ref) {
+  return ThemeSetting.mindPalace;
+});

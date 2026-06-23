@@ -31,13 +31,15 @@ class FileListState {
     this.selectedTags = const {},
   });
 
+  static const _sentinel = Object();
+
   FileListState copyWith({
     List<EngramFile>? files,
     bool? isLoading,
     bool? isLoadingMore,
-    String? error,
+    Object? error = _sentinel,
     String? searchQuery,
-    String? selectedType,
+    Object? selectedType = _sentinel,
     int? offset,
     bool? hasMore,
     int? refreshTrigger,
@@ -48,9 +50,11 @@ class FileListState {
       files: files ?? this.files,
       isLoading: isLoading ?? this.isLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      error: error,
+      error: identical(error, _sentinel) ? this.error : error as String?,
       searchQuery: searchQuery ?? this.searchQuery,
-      selectedType: selectedType,
+      selectedType: identical(selectedType, _sentinel)
+          ? this.selectedType
+          : selectedType as String?,
       offset: offset ?? this.offset,
       hasMore: hasMore ?? this.hasMore,
       refreshTrigger: refreshTrigger ?? this.refreshTrigger,

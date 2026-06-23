@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'router/app_router.dart';
 import 'services/server_url_store.dart';
-import 'services/theme_service.dart';
 import 'providers/service_providers.dart';
 import 'providers/theme_provider.dart';
 import 'theme/app_theme.dart';
@@ -19,10 +18,6 @@ void main() async {
   await ServerUrlStore.load();
   runApp(const ProviderScope(child: MindPalaceApp()));
 }
-
-final currentThemeProvider = StateProvider<ThemeSetting>((ref) {
-  return ThemeSetting.mindPalace;
-});
 
 class MindPalaceApp extends ConsumerStatefulWidget {
   const MindPalaceApp({super.key});

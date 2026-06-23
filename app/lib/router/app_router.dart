@@ -136,10 +136,13 @@ GoRouter _createRouter(
           GoRoute(
             path: '/settings',
             builder: (context, state) {
+              final themeSetting = ref.watch(currentThemeProvider);
               return SettingsScreen(
                 themeService: themeService,
-                currentTheme: ThemeSetting.mindPalace,
-                onThemeChanged: (setting) {},
+                currentTheme: themeSetting,
+                onThemeChanged: (setting) {
+                  themeService.setTheme(setting);
+                },
                 isExternalIdp: true,
                 authentikBase: '',
                 onServerUrlChanged: () {
