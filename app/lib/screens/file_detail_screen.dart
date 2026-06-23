@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:pdfrx/pdfrx.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../engram_service.dart';
@@ -29,7 +31,6 @@ class FileDetailScreen extends StatefulWidget {
 
 class _FileDetailScreenState extends State<FileDetailScreen> {
   late EngramFile _file;
-  bool _loadingDetail = true;
 
   @override
   void initState() {
@@ -42,13 +43,9 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     try {
       final full = await widget.engram.getFile(widget.initial.id);
       if (!mounted) return;
-      setState(() {
-        _file = full;
-        _loadingDetail = false;
-      });
+      setState(() => _file = full);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loadingDetail = false);
     }
   }
 
@@ -81,27 +78,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
   Future<void> _delete() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) {
-        final theme = Theme.of(ctx);
-        return AlertDialog(
-          title: const Text('Confirm Deletion'),
-          content: Text(
-              'Are you certain you wish to purge "${_file.filename}"? This action cannot be undone within the Mind Palace architecture.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Permanent Deletion'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(
-                'Cancel',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ),
-          ],
-        );
-      },
+      builder: (ctx) => _DeleteDialog(filename: _file.filename),
     );
     if (confirm != true) return;
 
@@ -127,23 +104,27 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
               onLogout: widget.onLogout,
             ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(24),
-                children: [
-                  _buildBreadcrumb(context),
-                  const SizedBox(height: 16),
-                  _buildPreview(context),
-                  const SizedBox(height: 20),
-                  _buildExtractedText(context),
-                  const SizedBox(height: 20),
-                  _buildFileInfo(context),
-                  const SizedBox(height: 20),
-                  _buildTags(context),
-                  const SizedBox(height: 20),
-                  _buildMetadata(context),
-                  const SizedBox(height: 24),
-                  _buildActions(context),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 900;
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _buildHeader(context),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: isWide
+                            ? _buildWideLayout(context)
+                            : _buildNarrowLayout(context),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -152,302 +133,475 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     );
   }
 
-  Widget _buildBreadcrumb(BuildContext context) {
+  Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
     return GestureDetector(
       onTap: () => Navigator.of(context).pop(),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(100),
+        ),
+        child: Icon(
+          Icons.arrow_back,
+          size: 18,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWideLayout(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(Icons.arrow_back, size: 18, color: theme.colorScheme.primary),
-          const SizedBox(width: 6),
-          Text(
-            'Mind Palace',
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: theme.colorScheme.primary,
-            ),
-          ),
+          Expanded(flex: 7, child: _buildLeftColumn(context)),
+          const SizedBox(width: 24),
+          Expanded(flex: 5, child: _buildRightColumn(context)),
         ],
       ),
     );
   }
 
-  Widget _buildPreview(BuildContext context) {
-    if (_file.isImage) {
-      final maxH = MediaQuery.of(context).size.height * 0.45;
-      return ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxH),
-        child: FutureBuilder<String>(
-          future: widget.reliquary.presignDownload(_file.filePath),
-          builder: (context, snap) {
-            if (!snap.hasData) {
-              return const AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: InteractiveViewer(
-                child: Image.network(
-                  snap.data!,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => _iconPreview(context),
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    }
-    return _iconPreview(context);
+  Widget _buildNarrowLayout(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLeftColumn(context),
+        const SizedBox(height: 24),
+        _buildRightColumn(context),
+      ],
+    );
   }
 
-  Widget _iconPreview(BuildContext context) {
+  Widget _buildLeftColumn(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: _buildPreview(context)),
+        if (_file.extractedText != null &&
+            _file.extractedText!.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _buildExtractedTextButton(context),
+        ],
+      ],
+    );
+  }
+
+  Future<Uint8List> _fetchPdfBytes() async {
+    final url = await widget.reliquary.presignDownload(_file.filePath);
+    final response = await http.get(Uri.parse(url));
+    return response.bodyBytes;
+  }
+
+  Widget _buildPreview(BuildContext context) {
     final theme = Theme.of(context);
+    final isPdf = (_file.mimeType ?? '').contains('pdf');
+
     return Container(
-      height: 200,
+      width: double.infinity,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border.all(color: theme.colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _iconForMime(_file.mimeType ?? ''),
-              size: 56,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _file.filename,
-              style: theme.textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+      clipBehavior: Clip.antiAlias,
+      child: isPdf
+          ? _buildPdfPreview(context)
+          : _buildImagePreview(context),
     );
   }
 
-  Widget _buildExtractedText(BuildContext context) {
-    final theme = Theme.of(context);
-    if (_loadingDetail) {
-      return const SizedBox(
-        height: 80,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-    final text = _file.extractedText;
-    if (text == null || text.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('Extracted Analysis',
-                  style: theme.textTheme.titleMedium),
-              const Spacer(),
-              Text(
-                'OCR Engine v4.2',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontSize: 11,
+  Widget _buildPdfPreview(BuildContext context) {
+    return FutureBuilder<Uint8List>(
+      future: _fetchPdfBytes(),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return PdfViewer(
+          PdfDocumentRefData(
+            snap.data!,
+            sourceName: _file.filePath,
+          ),
+          params: PdfViewerParams(
+            backgroundColor: const Color(0xFFFAFAFA),
+            errorBannerBuilder: (_, error, stackTrace, ref) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.picture_as_pdf,
+                      size: 48,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Failed to load PDF',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SelectableText(
-            text,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'Space Mono',
-              height: 1.5,
-              fontSize: 12,
             ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildImagePreview(BuildContext context) {
+    if (_file.isImage) {
+      return FutureBuilder<String>(
+        future: widget.reliquary.presignDownload(_file.filePath),
+        builder: (context, snap) {
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              return InteractiveViewer(
+                constrained: false,
+                child: SizedBox(
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  child: Image.network(
+                    snap.data!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => _iconPreview(context),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
+    return Center(child: _iconPreview(context));
+  }
+
+  Widget _iconPreview(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _iconForMime(_file.mimeType ?? ''),
+            size: 56,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _file.filename,
+            style: theme.textTheme.bodyMedium,
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFileInfo(BuildContext context) {
+  Widget _buildExtractedTextButton(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _file.filename,
-          style: theme.textTheme.headlineMedium?.copyWith(fontSize: 20),
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () => _showExtractedTextDialog(context),
+        icon: const Icon(Icons.description_outlined, size: 18),
+        label: const Text('View Extracted Text'),
+        style: OutlinedButton.styleFrom(
+          textStyle: theme.textTheme.labelLarge,
+          side: BorderSide(color: theme.colorScheme.outlineVariant),
+          foregroundColor: theme.colorScheme.onSurfaceVariant,
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Last accessed ${_relativeTime(_file.mtime)}',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontFamily: 'Inter',
-            fontSize: 13,
+      ),
+    );
+  }
+
+  void _showExtractedTextDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Extracted Analysis',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'OCR Engine v4.2',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxHeight: 400),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      _file.extractedText!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'Space Mono',
+                        height: 1.5,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildRightColumn(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _file.filename,
+            style: theme.textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Last accessed ${_relativeTime(_file.mtime)}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildTags(context),
+          const SizedBox(height: 24),
+          Divider(height: 1, color: theme.colorScheme.outlineVariant),
+          const SizedBox(height: 24),
+          _buildMetaGrid(context),
+          const Spacer(),
+          _buildActions(context),
+        ],
+      ),
     );
   }
 
   Widget _buildTags(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final tags = _file.tags;
+
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
-        ...tags.map(
-          (t) => Chip(
-            label: Text(
-              t,
+        ...tags.asMap().entries.map(
+          (entry) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: entry.key == 0 ? cs.primary : cs.outline,
+              ),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              entry.value,
               style: theme.textTheme.bodySmall?.copyWith(
-                fontFamily: 'Space Mono',
-                fontSize: 11,
+                fontSize: 10,
+                color: entry.key == 0 ? cs.primary : cs.onSurfaceVariant,
               ),
             ),
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
-        ActionChip(
-          avatar: const Icon(Icons.add, size: 14),
-          label: Text(
-            'Add Tag',
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            border: Border.all(color: cs.outline),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            '+ Add Tag',
             style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'Space Mono',
-              fontSize: 11,
+              fontSize: 10,
+              color: cs.onSurfaceVariant,
             ),
           ),
-          onPressed: () {},
-          visualDensity: VisualDensity.compact,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ],
     );
   }
 
-  Widget _buildMetadata(BuildContext context) {
+  Widget _buildMetaGrid(BuildContext context) {
     final theme = Theme.of(context);
-    final rows = <_MetaRow>[
-      _MetaRow('Type', _file.mimeType ?? '\u2014'),
-      _MetaRow('Size', _file.formattedSize),
-      if (_file.pageCount != null)
-        _MetaRow('Pages', '${_file.pageCount} Plates'),
-      _MetaRow('Device', _file.deviceName),
-      _MetaRow('Created', _formatDateTime(_file.createdAt)),
-      if (_file.hash.isNotEmpty)
-        _MetaRow('SHA-256', '${_file.hash.substring(0, 16)}\u2026'),
-    ];
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Details', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 12),
-          ...rows.map((r) => _buildMetaRow(context, r)),
+
+    return Column(
+      children: [
+        _metaRow(theme, 'Type', _file.mimeType ?? '\u2014'),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(child: _metaBlock(theme, 'Size', _file.formattedSize)),
+            const SizedBox(width: 24),
+            if (_file.pageCount != null)
+              Expanded(
+                child: _metaBlock(theme, 'Pages', '${_file.pageCount} Plates'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        _metaBlock(
+          theme,
+          'Device',
+          _file.deviceName.isNotEmpty ? _file.deviceName : '\u2014',
+        ),
+        const SizedBox(height: 24),
+        _metaRow(theme, 'Created', _formatDateTime(_file.createdAt)),
+        if (_file.hash.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          _metaRow(theme, 'SHA-256', _file.hash),
         ],
-      ),
+      ],
     );
   }
 
-  Widget _buildMetaRow(BuildContext context, _MetaRow row) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              row.label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontFamily: 'Inter',
-                fontSize: 12,
-              ),
-            ),
+  Widget _metaBlock(ThemeData theme, String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontSize: 11,
+            color: theme.colorScheme.onSurfaceVariant,
           ),
-          Expanded(
-            child: SelectableText(
-              row.value,
-              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
-            ),
+        ),
+        const SizedBox(height: 4),
+        SelectableText(value, style: theme.textTheme.bodyMedium),
+      ],
+    );
+  }
+
+  Widget _metaRow(ThemeData theme, String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontSize: 11,
+            color: theme.colorScheme.onSurfaceVariant,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 4),
+        SelectableText(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: label == 'SHA-256'
+                ? theme.colorScheme.onSurfaceVariant
+                : null,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildActions(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Actions', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _actionButton(context, Icons.download, 'Download', _download),
-              const SizedBox(width: 12),
-              _actionButton(context, Icons.link, 'Copy Link', _copyLink),
-              const SizedBox(width: 12),
-              _actionButton(
-                context,
-                Icons.delete_outline,
-                'Delete from Vault',
-                _delete,
-                color: theme.colorScheme.error,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+    final cs = theme.colorScheme;
 
-  Widget _actionButton(
-    BuildContext context,
-    IconData icon,
-    String label,
-    VoidCallback onPressed, {
-    Color? color,
-  }) {
-    final theme = Theme.of(context);
-    final fgColor = color ?? theme.colorScheme.primary;
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 16),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: fgColor,
-        side: BorderSide(color: fgColor.withValues(alpha: 0.4)),
-      ),
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: FilledButton.icon(
+                  onPressed: _download,
+                  icon: const Icon(Icons.download, size: 20),
+                  label: const Text('Download'),
+                  style: FilledButton.styleFrom(
+                    textStyle: theme.textTheme.labelLarge,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _copyLink,
+                  icon: const Icon(Icons.link, size: 20),
+                  label: const Text('Copy Link'),
+                  style: OutlinedButton.styleFrom(
+                    textStyle: theme.textTheme.labelLarge,
+                    side: BorderSide(color: cs.primary),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: _delete,
+            icon: const Icon(Icons.delete, size: 20),
+            label: const Text('Delete from Vault'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: cs.error,
+              side: BorderSide(color: cs.error),
+              textStyle: theme.textTheme.labelLarge,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -473,7 +627,8 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
     final d = local.day;
     final mm = local.minute.toString().padLeft(2, '0');
     final ampm = local.hour >= 12 ? 'PM' : 'AM';
-    final h12 = local.hour == 0 ? 12 : (local.hour > 12 ? local.hour - 12 : local.hour);
+    final h12 =
+        local.hour == 0 ? 12 : (local.hour > 12 ? local.hour - 12 : local.hour);
     return '$m $d, $y \u2022 $h12:$mm $ampm';
   }
 
@@ -490,8 +645,76 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
   }
 }
 
-class _MetaRow {
-  final String label;
-  final String value;
-  const _MetaRow(this.label, this.value);
+class _DeleteDialog extends StatelessWidget {
+  final String filename;
+
+  const _DeleteDialog({required this.filename});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Dialog(
+      backgroundColor: cs.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: cs.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Confirm Deletion',
+              style: theme.textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Are you certain you wish to purge "$filename"? This action cannot be undone within the Mind Palace architecture.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: cs.error,
+                ),
+                child: Text(
+                  'Permanent Deletion',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: cs.onError,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context, false),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: cs.outline),
+                ),
+                child: Text(
+                  'Cancel',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
