@@ -37,7 +37,6 @@ class _UploadScreenState extends State<UploadScreen> {
 
   String _key(PlatformFile f) => '${f.name}::${f.hashCode}';
 
-  bool _pickingFiles = false;
   bool _isDragging = false;
 
   Future<void> _onDropItems(List<dynamic> items) async {
@@ -121,44 +120,27 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _pickFiles() async {
-    if (_pickingFiles) return;
-    setState(() => _pickingFiles = true);
-
     try {
-      for (int attempt = 0; attempt < 2; attempt++) {
-        if (!mounted) return;
-        final result = await picker.pickFiles(allowMultiple: true);
-        if (result != null && result.isNotEmpty) {
-          if (!mounted) return;
-          setState(() {
-            _selectedFiles = result;
-            _progress.clear();
-          });
-          return;
-        }
-        if (!mounted) return;
-      }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No files selected. Tap "Select files" to try again.'),
-        ),
-      );
+      final result = await picker.pickFiles(allowMultiple: true);
+      if (result != null && result.isNotEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _selectedFiles = result;
+          _progress.clear();
+        });
+        return;
+      }
+      // cancelled silently — button stays available
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick files: $e')),
       );
-    } finally {
-      if (!mounted) return;
-      setState(() => _pickingFiles = false);
     }
   }
 
   Future<void> _pickFolder() async {
-    if (_pickingFiles) return;
-    setState(() => _pickingFiles = true);
-
     try {
       final result = await picker.pickFolder();
       if (result != null && result.isNotEmpty) {
@@ -174,9 +156,6 @@ class _UploadScreenState extends State<UploadScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick folder: $e')),
       );
-    } finally {
-      if (!mounted) return;
-      setState(() => _pickingFiles = false);
     }
   }
 
@@ -305,7 +284,7 @@ class _UploadScreenState extends State<UploadScreen> {
                         );
                       },
                       child: InkWell(
-                        onTap: _uploading || _pickingFiles ? null : _pickFiles,
+                        onTap: _uploading ? null : _pickFiles,
                         borderRadius: BorderRadius.circular(12),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
@@ -366,13 +345,13 @@ class _UploadScreenState extends State<UploadScreen> {
                                   alignment: WrapAlignment.center,
                                   children: [
                                     FilledButton(
-                                      onPressed: _uploading || _pickingFiles
+                                      onPressed: _uploading
                                           ? null
                                           : _pickFiles,
                                       child: const Text('Select Files'),
                                     ),
                                     OutlinedButton.icon(
-                                      onPressed: _uploading || _pickingFiles
+                                      onPressed: _uploading
                                           ? null
                                           : _pickFolder,
                                       icon: const Icon(Icons.folder_open, size: 18),
@@ -396,7 +375,7 @@ class _UploadScreenState extends State<UploadScreen> {
                         if (_isDragging) setState(() => _isDragging = false);
                       },
                       child: InkWell(
-                        onTap: _uploading || _pickingFiles ? null : _pickFiles,
+                        onTap: _uploading ? null : _pickFiles,
                         borderRadius: BorderRadius.circular(12),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
@@ -457,13 +436,13 @@ class _UploadScreenState extends State<UploadScreen> {
                                   alignment: WrapAlignment.center,
                                   children: [
                                     FilledButton(
-                                      onPressed: _uploading || _pickingFiles
+                                      onPressed: _uploading
                                           ? null
                                           : _pickFiles,
                                       child: const Text('Select Files'),
                                     ),
                                     OutlinedButton.icon(
-                                      onPressed: _uploading || _pickingFiles
+                                      onPressed: _uploading
                                           ? null
                                           : _pickFolder,
                                       icon: const Icon(Icons.folder_open, size: 18),
@@ -549,7 +528,7 @@ class _UploadScreenState extends State<UploadScreen> {
                   height: 44,
                   child: FilledButton(
                     onPressed:
-                        _uploading || _pickingFiles ? null : _uploadAll,
+                        _uploading ? null : _uploadAll,
                     child: Text('Process All (${_selectedFiles.length})'),
                   ),
                 ),
