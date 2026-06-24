@@ -59,8 +59,16 @@ class AuthService {
     if (params['error'] != null) {
       throw Exception('SSO provider error: ${params['error']}');
     }
-    if (expectedState == null || verifier == null) {
-      throw Exception('SSO session expired. Please try again.');
+    if (expectedState == null && verifier == null) {
+      throw Exception(
+        'SSO session expired: both state and verifier are missing.',
+      );
+    }
+    if (expectedState == null) {
+      throw Exception('SSO session expired: state is missing.');
+    }
+    if (verifier == null) {
+      throw Exception('SSO session expired: verifier is missing.');
     }
     if (returnedState != expectedState) {
       throw Exception('SSO state mismatch. Please try again.');
@@ -265,11 +273,15 @@ class AuthService {
     final refreshToken = await _storage.read(_refreshTokenKey);
     if (refreshToken == null) return false;
     final cfg = await _getAuthConfig();
-    return _exchangeToken({
-      'grant_type': 'refresh_token',
-      'refresh_token': refreshToken,
-      'client_id': cfg.oidc.clientId.isEmpty ? clientId : cfg.oidc.clientId,
-    });
+    try {
+      return await _exchangeToken({
+        'grant_type': 'refresh_token',
+        'refresh_token': refreshToken,
+        'client_id': cfg.oidc.clientId.isEmpty ? clientId : cfg.oidc.clientId,
+      });
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool> _exchangeToken(Map<String, String> payload) async {
@@ -282,12 +294,19 @@ class AuthService {
       body: jsonEncode(payload),
     );
     if (response.statusCode != 200) {
-      return false;
+      throw Exception(
+        'SSO token exchange failed (${response.statusCode}): ${response.body}',
+      );
     }
 
     final tokens = jsonDecode(response.body) as Map<String, dynamic>;
     final accessToken = tokens['access_token'] as String?;
-    if (accessToken == null) return false;
+    if (accessToken == null || accessToken.isEmpty) {
+      throw Exception(
+        'SSO token exchange succeeded but no access_token was returned. '
+        'Response keys: ${tokens.keys.toList()}',
+      );
+    }
 
     await _storage.write(_accessTokenKey, accessToken);
     await _storage.write(_providerKey, 'oidc');
