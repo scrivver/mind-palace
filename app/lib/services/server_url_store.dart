@@ -9,16 +9,28 @@ class ServerUrlStore {
   static bool hasSavedUrls = false;
 
   static String get engramBaseUrl {
-    if (kIsWeb) return '/api/engram/';
     return '${_norm(baseServerUrl)}api/engram/';
   }
 
   static String get reliquaryBaseUrl {
-    if (kIsWeb) return '/api/reliquary/';
     return '${_norm(baseServerUrl)}api/reliquary/';
   }
 
-  static String get _defaultBaseUrl => kIsWeb ? '' : 'http://127.0.0.1:2080';
+  static const String _dartDefineUrl = String.fromEnvironment(
+    'DEFAULT_API_BASE_URL',
+  );
+
+  static String get _defaultBaseUrl {
+    if (_dartDefineUrl.isNotEmpty) return _dartDefineUrl;
+    if (!kIsWeb) return 'http://127.0.0.1:2080';
+    if (_isLocalhost) return 'http://127.0.0.1:2080';
+    return '';
+  }
+
+  static bool get _isLocalhost {
+    final host = Uri.base.host;
+    return host == 'localhost' || host == '127.0.0.1' || host == '0.0.0.0';
+  }
 
   static Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();

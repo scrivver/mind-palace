@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
+import 'auth_service.dart';
 import 'router/app_router.dart';
 import 'services/server_url_store.dart';
 import 'providers/service_providers.dart';
@@ -29,15 +30,12 @@ class MindPalaceApp extends ConsumerStatefulWidget {
 }
 
 class _MindPalaceAppState extends ConsumerState<MindPalaceApp> {
+  bool _authInitialized = false;
+
   @override
   void initState() {
     super.initState();
     _loadTheme();
-    ref.read(themeServiceProvider).themeModeStream.listen((setting) {
-      if (mounted) {
-        ref.read(currentThemeProvider.notifier).state = setting;
-      }
-    });
   }
 
   Future<void> _loadTheme() async {
@@ -48,19 +46,38 @@ class _MindPalaceAppState extends ConsumerState<MindPalaceApp> {
     }
   }
 
+  Future<void> _initializeAuth(AuthService auth) async {
+    await ref.read(appAuthProvider.notifier).initialize(auth);
+    if (mounted) {
+      setState(() => _authInitialized = true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeSetting = ref.watch(currentThemeProvider);
 
     ref.listen(authServiceProvider, (prev, next) {
       next.whenData((auth) {
-        if (!mounted) return;
-        final authState = ref.read(appAuthProvider);
-        if (!authState.isLoggedIn && !authState.isLoading) {
-          ref.read(appAuthProvider.notifier).initialize(auth);
-        }
+        if (!mounted || _authInitialized) return;
+        _initializeAuth(auth);
       });
     });
+
+    if (!_authInitialized) {
+      return MaterialApp(
+        title: 'Mind Palace',
+        debugShowCheckedModeBanner: false,
+        theme: MindPalaceTheme.light(themeSetting.seedColor),
+        darkTheme: MindPalaceTheme.dark(themeSetting.seedColor),
+        themeMode: themeSetting.brightness == Brightness.dark
+            ? ThemeMode.dark
+            : ThemeMode.light,
+        home: const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
 
     return MaterialApp.router(
       title: 'Mind Palace',

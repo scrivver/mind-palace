@@ -130,23 +130,24 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
     state = state.copyWith(isLoading: true, error: null, authService: auth);
     try {
       await auth.completeRedirectIfPresent();
-      final loggedIn = await auth.isLoggedIn();
-      if (loggedIn) {
-        final userInfo = await auth.getUserInfo();
-        final role = await auth.getRole();
-        final provider = await auth.getProvider();
-        state = state.copyWith(
-          isLoading: false,
-          isLoggedIn: true,
-          username: userInfo?['preferred_username'] as String? ?? 'unknown',
-          role: role,
-          provider: provider,
-        );
-      } else {
-        state = state.copyWith(isLoading: false, isLoggedIn: false);
-      }
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (_) {
+      // completeRedirectIfPresent catches its own errors; this catches
+      // only unexpected failures from isLoggedIn/getUserInfo etc.
+    }
+    final loggedIn = await auth.isLoggedIn();
+    if (loggedIn) {
+      final userInfo = await auth.getUserInfo();
+      final role = await auth.getRole();
+      final provider = await auth.getProvider();
+      state = state.copyWith(
+        isLoading: false,
+        isLoggedIn: true,
+        username: userInfo?['preferred_username'] as String? ?? 'unknown',
+        role: role,
+        provider: provider,
+      );
+    } else {
+      state = state.copyWith(isLoading: false, isLoggedIn: false);
     }
   }
 

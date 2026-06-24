@@ -140,7 +140,6 @@
               exec "$PROJECT_ROOT/bin/start-app"
             '';
             depends_on = {
-              caddy.condition = "process_healthy";
               reliquary-api.condition = "process_started";
               engram-api.condition = "process_started";
             };

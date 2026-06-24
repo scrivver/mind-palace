@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,7 +8,6 @@ import '../engram_service.dart';
 import '../models/engram_file.dart';
 import '../reliquary_service.dart';
 import '../screens/admin_screen.dart';
-import '../screens/callback_screen.dart';
 import '../screens/file_detail_screen.dart';
 import '../screens/gallery_screen.dart';
 import '../screens/login_view.dart';
@@ -73,11 +73,10 @@ GoRouter _createRouter(
       if (!needsSetup &&
           !authState.isLoggedIn &&
           path != '/login' &&
-          path != '/setup' &&
-          path != '/callback') {
+          path != '/setup') {
         return '/login';
       }
-      if (authState.isLoggedIn && path == '/login') {
+      if (authState.isLoggedIn && (path == '/login' || path == '/callback')) {
         return '/vault';
       }
       return null;
@@ -99,7 +98,7 @@ GoRouter _createRouter(
       ),
       GoRoute(
         path: '/callback',
-        builder: (context, state) => const CallbackScreen(),
+        builder: (context, state) => const SizedBox.shrink(),
       ),
       GoRoute(
         path: '/login',

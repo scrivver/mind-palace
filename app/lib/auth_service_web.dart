@@ -9,13 +9,7 @@ import 'package:web/web.dart' as web;
 import 'auth_models.dart';
 
 class AuthService {
-  // Web tokens are stored in plain localStorage. Encrypted secure storage on
-  // the web depends on a generated CryptoKey that can be lost across the
-  // cross-origin OIDC redirect, causing tokens to become unreadable.
   final _WebTokenStorage _storage = _WebTokenStorage();
-  // OIDC state and PKCE verifier are stored in both localStorage and cookies
-  // so they survive cross-subdomain redirects even when localStorage is
-  // partitioned or cleared by the browser.
   final _OAuthParamStorage _oauthParams = _OAuthParamStorage();
 
   final String issuer;
@@ -32,6 +26,8 @@ class AuthService {
   static const _roleKey = 'role';
   static const _stateKey = 'oidc_state';
   static const _verifierKey = 'oidc_code_verifier';
+  static const _oidcIssuerKey = 'oidc_issuer';
+  static const _oidcClientIdKey = 'oidc_client_id';
   static const _passwordTokenKey = 'password_token';
   static const _providerKey = 'auth_provider';
 
@@ -48,53 +44,84 @@ class AuthService {
   });
 
   Future<bool> completeRedirectIfPresent() async {
-    final params = Uri.base.queryParameters;
-    final isCallback =
-        Uri.base.path.endsWith('/callback') || params.containsKey('code');
-    if (!isCallback) {
+    final params = _oidcCallbackParams();
+    if (params.isEmpty) {
+      if (Uri.base.path.endsWith('/callback')) _clearOidcCallbackUrl();
       return false;
     }
 
-    final expectedState = await _oauthParams.read(_stateKey);
-    final verifier = await _oauthParams.read(_verifierKey);
-    final returnedState = params['state'];
-    final code = params['code'];
+    try {
+      final expectedState = await _oauthParams.read(_stateKey);
+      final verifier = await _oauthParams.read(_verifierKey);
+      final savedClientId = await _oauthParams.read(_oidcClientIdKey);
+      final code = params['code'];
+      final returnedState = params['state'];
 
-    if (params['error'] != null) {
-      throw Exception('SSO provider error: ${params['error']}');
-    }
-    if (expectedState == null && verifier == null) {
-      throw Exception(
-        'SSO session expired: both state and verifier are missing.',
-      );
-    }
-    if (expectedState == null) {
-      throw Exception('SSO session expired: state is missing.');
-    }
-    if (verifier == null) {
-      throw Exception('SSO session expired: verifier is missing.');
-    }
-    if (returnedState != expectedState) {
-      throw Exception('SSO state mismatch. Please try again.');
-    }
-    if (code == null || code.isEmpty) {
-      throw Exception('Missing authorization code from SSO provider.');
-    }
+      if (params['error'] != null ||
+          code == null ||
+          code.isEmpty ||
+          verifier == null ||
+          returnedState == null ||
+          expectedState == null ||
+          returnedState != expectedState) {
+        _clearOidcCallbackUrl();
+        return false;
+      }
 
-    final cfg = await _getAuthConfig();
-    final ok = await _exchangeToken({
-      'grant_type': 'authorization_code',
-      'code': code,
-      'redirect_uri': _redirectUri(cfg.oidc),
-      'code_verifier': verifier,
-      'client_id': cfg.oidc.clientId.isEmpty ? clientId : cfg.oidc.clientId,
-    });
-    await _oauthParams.delete(_stateKey);
-    await _oauthParams.delete(_verifierKey);
-    if (!ok) {
-      throw Exception('SSO token exchange failed.');
+      final cfg = await _getAuthConfig();
+      final ok = await _exchangeToken({
+        'grant_type': 'authorization_code',
+        'code': code,
+        'redirect_uri': _redirectUri(cfg.oidc),
+        'code_verifier': verifier,
+        'client_id':
+            savedClientId ?? (cfg.oidc.clientId.isEmpty ? clientId : cfg.oidc.clientId),
+      });
+      await _oauthParams.delete(_stateKey);
+      await _oauthParams.delete(_verifierKey);
+      await _oauthParams.delete(_oidcIssuerKey);
+      await _oauthParams.delete(_oidcClientIdKey);
+      _clearOidcCallbackUrl();
+      return ok;
+    } catch (_) {
+      _clearOidcCallbackUrl();
+      return false;
     }
-    return true;
+  }
+
+  Map<String, String> _oidcCallbackParams() {
+    final stored = web.window.sessionStorage.getItem('oidc_callback');
+    if (stored != null) {
+      web.window.sessionStorage.removeItem('oidc_callback');
+      final parsed = jsonDecode(stored) as Map<String, dynamic>;
+      final code = parsed['code'] as String?;
+      final state = parsed['state'] as String?;
+      final error = parsed['error'] as String?;
+      if (code != null || state != null || error != null) {
+        return {
+          if (code != null) 'code': code,
+          if (state != null) 'state': state,
+          if (error != null) 'error': error,
+        };
+      }
+      return const {};
+    }
+    final uri = Uri.base;
+    final code = uri.queryParameters['code'];
+    final state = uri.queryParameters['state'];
+    final error = uri.queryParameters['error'];
+    if (code == null && state == null && error == null) {
+      return const {};
+    }
+    return {
+      if (code != null) 'code': code,
+      if (state != null) 'state': state,
+      if (error != null) 'error': error,
+    };
+  }
+
+  void _clearOidcCallbackUrl() {
+    web.window.history.replaceState(null, '', Uri.base.origin);
   }
 
   Future<bool> isLoggedIn() async {
@@ -140,6 +167,11 @@ class AuthService {
     final state = _generateState();
     await _oauthParams.write(_stateKey, state);
     await _oauthParams.write(_verifierKey, verifier);
+    await _oauthParams.write(_oidcIssuerKey, cfg.oidc.issuerUrl);
+    await _oauthParams.write(
+      _oidcClientIdKey,
+      cfg.oidc.clientId.isEmpty ? clientId : cfg.oidc.clientId,
+    );
 
     final authUrl = Uri.parse(authorizationEndpoint).replace(
       queryParameters: {
@@ -196,6 +228,8 @@ class AuthService {
     await _storage.delete(_roleKey);
     await _storage.delete(_stateKey);
     await _storage.delete(_verifierKey);
+    await _storage.delete(_oidcIssuerKey);
+    await _storage.delete(_oidcClientIdKey);
     await _storage.delete(_passwordTokenKey);
     await _storage.delete(_providerKey);
   }
@@ -297,20 +331,11 @@ class AuthService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(payload),
     );
-    if (response.statusCode != 200) {
-      throw Exception(
-        'SSO token exchange failed (${response.statusCode}): ${response.body}',
-      );
-    }
+    if (response.statusCode != 200) return false;
 
     final tokens = jsonDecode(response.body) as Map<String, dynamic>;
     final accessToken = tokens['access_token'] as String?;
-    if (accessToken == null || accessToken.isEmpty) {
-      throw Exception(
-        'SSO token exchange succeeded but no access_token was returned. '
-        'Response keys: ${tokens.keys.toList()}',
-      );
-    }
+    if (accessToken == null || accessToken.isEmpty) return false;
 
     await _storage.write(_accessTokenKey, accessToken);
     await _storage.write(_providerKey, 'oidc');
@@ -367,11 +392,6 @@ class _WebTokenStorage {
   }
 }
 
-/// Stores the OIDC state and PKCE verifier in both localStorage and a
-/// short-lived cookie. Cookies with SameSite=Lax are sent back to the app on
-/// the top-level redirect from the OIDC provider, which makes this more
-/// reliable than localStorage alone when the provider lives on a sibling
-/// subdomain.
 class _OAuthParamStorage {
   Future<String?> read(String key) async {
     return _readCookie(key) ?? web.window.localStorage.getItem(key);
@@ -402,9 +422,6 @@ class _OAuthParamStorage {
   }
 
   void _setCookie(String name, String value) {
-    // 5 minute lifetime is more than enough for the redirect round-trip.
-    // SameSite=Lax allows the cookie to be sent on the top-level redirect
-    // back to the app from the OIDC provider.
     web.document.cookie =
         '$name=$value; path=/; max-age=300; SameSite=Lax; Secure';
   }
