@@ -13,6 +13,10 @@ class AuthService {
   // the web depends on a generated CryptoKey that can be lost across the
   // cross-origin OIDC redirect, causing tokens to become unreadable.
   final _WebTokenStorage _storage = _WebTokenStorage();
+  // OIDC state and PKCE verifier are stored in both localStorage and cookies
+  // so they survive cross-subdomain redirects even when localStorage is
+  // partitioned or cleared by the browser.
+  final _OAuthParamStorage _oauthParams = _OAuthParamStorage();
 
   final String issuer;
   final String clientId;
@@ -51,8 +55,8 @@ class AuthService {
       return false;
     }
 
-    final expectedState = await _storage.read(_stateKey);
-    final verifier = await _storage.read(_verifierKey);
+    final expectedState = await _oauthParams.read(_stateKey);
+    final verifier = await _oauthParams.read(_verifierKey);
     final returnedState = params['state'];
     final code = params['code'];
 
@@ -85,8 +89,8 @@ class AuthService {
       'code_verifier': verifier,
       'client_id': cfg.oidc.clientId.isEmpty ? clientId : cfg.oidc.clientId,
     });
-    await _storage.delete(_stateKey);
-    await _storage.delete(_verifierKey);
+    await _oauthParams.delete(_stateKey);
+    await _oauthParams.delete(_verifierKey);
     if (!ok) {
       throw Exception('SSO token exchange failed.');
     }
@@ -134,8 +138,8 @@ class AuthService {
     final verifier = _generateCodeVerifier();
     final challenge = _generateCodeChallenge(verifier);
     final state = _generateState();
-    await _storage.write(_stateKey, state);
-    await _storage.write(_verifierKey, verifier);
+    await _oauthParams.write(_stateKey, state);
+    await _oauthParams.write(_verifierKey, verifier);
 
     final authUrl = Uri.parse(authorizationEndpoint).replace(
       queryParameters: {
@@ -360,5 +364,52 @@ class _WebTokenStorage {
 
   Future<void> delete(String key) async {
     web.window.localStorage.removeItem(key);
+  }
+}
+
+/// Stores the OIDC state and PKCE verifier in both localStorage and a
+/// short-lived cookie. Cookies with SameSite=Lax are sent back to the app on
+/// the top-level redirect from the OIDC provider, which makes this more
+/// reliable than localStorage alone when the provider lives on a sibling
+/// subdomain.
+class _OAuthParamStorage {
+  Future<String?> read(String key) async {
+    return _readCookie(key) ?? web.window.localStorage.getItem(key);
+  }
+
+  Future<void> write(String key, String value) async {
+    _setCookie(key, value);
+    web.window.localStorage.setItem(key, value);
+  }
+
+  Future<void> delete(String key) async {
+    _deleteCookie(key);
+    web.window.localStorage.removeItem(key);
+  }
+
+  String? _readCookie(String name) {
+    final cookieHeader = web.document.cookie;
+    if (cookieHeader.isEmpty) return null;
+    final cookies = cookieHeader.split('; ');
+    for (final cookie in cookies) {
+      final idx = cookie.indexOf('=');
+      if (idx < 0) continue;
+      if (cookie.substring(0, idx) == name) {
+        return cookie.substring(idx + 1);
+      }
+    }
+    return null;
+  }
+
+  void _setCookie(String name, String value) {
+    // 5 minute lifetime is more than enough for the redirect round-trip.
+    // SameSite=Lax allows the cookie to be sent on the top-level redirect
+    // back to the app from the OIDC provider.
+    web.document.cookie =
+        '$name=$value; path=/; max-age=300; SameSite=Lax; Secure';
+  }
+
+  void _deleteCookie(String name) {
+    web.document.cookie = '$name=; path=/; max-age=0; SameSite=Lax; Secure';
   }
 }
