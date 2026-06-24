@@ -147,13 +147,7 @@ let
         token = token_key_resp["key"]
         print("  API token created")
 
-    # ── Step 3: Check if OAuth2 app already exists ──
-    apps = api_call("GET", "/core/applications/?slug=mind-palace", token=token)
-    if apps["pagination"]["count"] > 0:
-        print("Mind Palace OAuth2 application already exists, skipping")
-        sys.exit(0)
-
-    # ── Step 4: Wait for default flows and create OAuth2 provider ──
+    # ── Step 3: Wait for default flows and ensure OAuth2 provider + app ──
     print("Step 3: Setting up OAuth2 provider...")
 
     def wait_for(path, label, key="results", max_wait=180):
@@ -214,15 +208,21 @@ let
         }, token=token)
         print(f"  Created OAuth2 provider (pk={provider['pk']})")
 
-    # Create application
-    api_call("POST", "/core/applications/", {
+    # Ensure application exists and is up-to-date
+    launch_url = "http://localhost:2080"
+    app_payload = {
         "name": "Mind Palace",
         "slug": "mind-palace",
         "provider": provider["pk"],
-        "meta_launch_url": "http://localhost:3000",
-    }, token=token)
-
-    print("  Created Mind Palace application")
+        "meta_launch_url": launch_url,
+    }
+    apps = api_call("GET", "/core/applications/?slug=mind-palace", token=token)
+    if apps["pagination"]["count"] > 0:
+        api_call("PATCH", "/core/applications/mind-palace/", app_payload, token=token)
+        print(f"  Updated Mind Palace application launch URL to {launch_url}")
+    else:
+        api_call("POST", "/core/applications/", app_payload, token=token)
+        print("  Created Mind Palace application")
     print("")
     print("Setup complete!")
     print(f"  Admin:          akadmin / ${adminPassword}")

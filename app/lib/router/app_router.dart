@@ -7,6 +7,7 @@ import '../engram_service.dart';
 import '../models/engram_file.dart';
 import '../reliquary_service.dart';
 import '../screens/admin_screen.dart';
+import '../screens/callback_screen.dart';
 import '../screens/file_detail_screen.dart';
 import '../screens/gallery_screen.dart';
 import '../screens/login_view.dart';
@@ -72,7 +73,8 @@ GoRouter _createRouter(
       if (!needsSetup &&
           !authState.isLoggedIn &&
           path != '/login' &&
-          path != '/setup') {
+          path != '/setup' &&
+          path != '/callback') {
         return '/login';
       }
       if (authState.isLoggedIn && path == '/login') {
@@ -94,6 +96,10 @@ GoRouter _createRouter(
             },
           );
         },
+      ),
+      GoRoute(
+        path: '/callback',
+        builder: (context, state) => const CallbackScreen(),
       ),
       GoRoute(
         path: '/login',

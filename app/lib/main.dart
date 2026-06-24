@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 
 import 'router/app_router.dart';
 import 'services/server_url_store.dart';
@@ -12,6 +13,7 @@ import 'theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kIsWeb) {
+    usePathUrlStrategy();
     const channel = MethodChannel('desktop_drop');
     channel.setMethodCallHandler((call) async => null);
   }

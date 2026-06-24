@@ -42,7 +42,9 @@ class AuthService {
 
   Future<bool> completeRedirectIfPresent() async {
     final params = Uri.base.queryParameters;
-    if (!Uri.base.path.endsWith('/callback') && !params.containsKey('code')) {
+    final isCallback =
+        Uri.base.path.endsWith('/callback') || params.containsKey('code');
+    if (!isCallback) {
       return false;
     }
 
@@ -50,12 +52,18 @@ class AuthService {
     final verifier = await _storage.read(key: _verifierKey);
     final returnedState = params['state'];
     final code = params['code'];
-    if (params['error'] != null ||
-        expectedState == null ||
-        verifier == null ||
-        returnedState != expectedState ||
-        code == null) {
-      return false;
+
+    if (params['error'] != null) {
+      throw Exception('SSO provider error: ${params['error']}');
+    }
+    if (expectedState == null || verifier == null) {
+      throw Exception('SSO session expired. Please try again.');
+    }
+    if (returnedState != expectedState) {
+      throw Exception('SSO state mismatch. Please try again.');
+    }
+    if (code == null || code.isEmpty) {
+      throw Exception('Missing authorization code from SSO provider.');
     }
 
     final cfg = await _getAuthConfig();
@@ -68,7 +76,10 @@ class AuthService {
     });
     await _storage.delete(key: _stateKey);
     await _storage.delete(key: _verifierKey);
-    return ok;
+    if (!ok) {
+      throw Exception('SSO token exchange failed.');
+    }
+    return true;
   }
 
   Future<bool> isLoggedIn() async {
