@@ -41,14 +41,11 @@ class _PdfPreviewState extends State<PdfPreview> {
   }
 
   Future<Uint8List> _loadBytes() {
-    return _cache.pdfBytes(
-      widget.filePath,
-      () async {
-        final url = await widget.reliquary.presignDownload(widget.filePath);
-        final response = await http.get(Uri.parse(url));
-        return response.bodyBytes;
-      },
-    );
+    return _cache.pdfBytes(widget.filePath, () async {
+      final url = await widget.reliquary.presignDownload(widget.filePath);
+      final response = await http.get(Uri.parse(url));
+      return response.bodyBytes;
+    });
   }
 
   @override

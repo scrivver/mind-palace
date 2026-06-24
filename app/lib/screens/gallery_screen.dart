@@ -114,8 +114,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                     elevation: 8,
                     borderRadius: BorderRadius.circular(12),
                     color: Theme.of(context).colorScheme.surface,
-                    surfaceTintColor:
-                        Theme.of(context).colorScheme.surfaceTint,
+                    surfaceTintColor: Theme.of(context).colorScheme.surfaceTint,
                     child: SizedBox(
                       width: dropdownWidth,
                       child: FilterDropdownPanel(
@@ -158,13 +157,20 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     final loading = ref.watch(fileListProvider.select((s) => s.isLoading));
     final error = ref.watch(fileListProvider.select((s) => s.error));
     final hasMore = ref.watch(fileListProvider.select((s) => s.hasMore));
-    final searchQuery = ref.watch(fileListProvider.select((s) => s.searchQuery));
-    final activeType = ref.watch(fileListProvider.select((s) => s.selectedType));
-    final selectedTags =
-        ref.watch(fileListProvider.select((s) => s.selectedTags));
-    final availableTags =
-        ref.watch(fileListProvider.select((s) => s.availableTags));
-    final hasActiveFilters = selectedTags.isNotEmpty ||
+    final searchQuery = ref.watch(
+      fileListProvider.select((s) => s.searchQuery),
+    );
+    final activeType = ref.watch(
+      fileListProvider.select((s) => s.selectedType),
+    );
+    final selectedTags = ref.watch(
+      fileListProvider.select((s) => s.selectedTags),
+    );
+    final availableTags = ref.watch(
+      fileListProvider.select((s) => s.availableTags),
+    );
+    final hasActiveFilters =
+        selectedTags.isNotEmpty ||
         (activeType != null && activeType != 'all') ||
         searchQuery.isNotEmpty;
     final reliquary = ref.watch(reliquaryServiceProvider).valueOrNull;
@@ -188,19 +194,18 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                         child: _buildHeader(context, files.length),
                       ),
                     ),
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: 32),
-                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 32)),
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: _buildSearchBar(
-                            context, searchQuery, files.length),
+                          context,
+                          searchQuery,
+                          files.length,
+                        ),
                       ),
                     ),
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: 24),
-                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
                     SliverToBoxAdapter(
                       child: _buildFilterSection(
                         context,
@@ -210,9 +215,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                         hasActiveFilters: hasActiveFilters,
                       ),
                     ),
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: 32),
-                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 32)),
                     _buildBody(
                       context,
                       files,
@@ -222,9 +225,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                       hasActiveFilters: hasActiveFilters,
                       reliquary: reliquary,
                     ),
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: 24),
-                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   ],
                 ),
               ),
@@ -261,7 +262,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   }
 
   Widget _buildSearchBar(
-      BuildContext context, String searchQuery, int fileCount) {
+    BuildContext context,
+    String searchQuery,
+    int fileCount,
+  ) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return Row(
@@ -296,8 +300,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                     ),
               filled: true,
               fillColor: cs.surfaceContainerLow,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: cs.outlineVariant),
@@ -362,7 +368,11 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           const SizedBox(height: 16),
           if (hasActiveFilters)
             _buildQuickFilters(
-                context, activeType, selectedTags, availableTags),
+              context,
+              activeType,
+              selectedTags,
+              availableTags,
+            ),
         ],
       ),
     );
@@ -498,7 +508,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               Text(error),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: () => ref.read(fileListProvider.notifier).loadFiles(),
+                onPressed: () =>
+                    ref.read(fileListProvider.notifier).loadFiles(),
                 child: const Text('Retry'),
               ),
             ],
@@ -548,21 +559,18 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           mainAxisSpacing: 16,
           childAspectRatio: 1.1,
         ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (index >= files.length) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final file = files[index];
-            return FileTile(
-              key: ValueKey(file.id),
-              file: file,
-              reliquary: reliquary!,
-              onTap: () => _openDetail(file),
-            );
-          },
-          childCount: files.length + (hasMore ? 1 : 0),
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          if (index >= files.length) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final file = files[index];
+          return FileTile(
+            key: ValueKey(file.id),
+            file: file,
+            reliquary: reliquary!,
+            onTap: () => _openDetail(file),
+          );
+        }, childCount: files.length + (hasMore ? 1 : 0)),
       ),
     );
   }

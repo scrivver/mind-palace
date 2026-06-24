@@ -55,8 +55,9 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Failed to download file')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to download file')));
     }
   }
 
@@ -67,12 +68,14 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
       final url = await reliquary.presignDownload(_file.filePath);
       await Clipboard.setData(ClipboardData(text: url));
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Failed to get link')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to get link')));
     }
   }
 
@@ -88,8 +91,9 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
       widget.onBack(deleted: true);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Failed to delete file')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to delete file')));
     }
   }
 
@@ -407,16 +411,27 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
   String _formatDateTime(DateTime dt) {
     final local = dt.toLocal();
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final y = local.year;
     final m = months[local.month - 1];
     final d = local.day;
     final mm = local.minute.toString().padLeft(2, '0');
     final ampm = local.hour >= 12 ? 'PM' : 'AM';
-    final h12 =
-        local.hour == 0 ? 12 : (local.hour > 12 ? local.hour - 12 : local.hour);
+    final h12 = local.hour == 0
+        ? 12
+        : (local.hour > 12 ? local.hour - 12 : local.hour);
     return '$m $d, $y \u2022 $h12:$mm $ampm';
   }
 }

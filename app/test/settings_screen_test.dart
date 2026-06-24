@@ -25,8 +25,9 @@ class _FakeAuthService extends AuthService {
   Future<Map<String, dynamic>?> getIdTokenClaims() async => null;
 
   @override
-  Future<Map<String, dynamic>?> getUserInfo() async =>
-      {'preferred_username': _username ?? 'admin'};
+  Future<Map<String, dynamic>?> getUserInfo() async => {
+    'preferred_username': _username ?? 'admin',
+  };
 
   @override
   Future<bool> isLoggedIn() async => true;
@@ -41,7 +42,8 @@ class _FakeAuthService extends AuthService {
   Future<bool> login() async => true;
 
   @override
-  Future<bool> loginWithPassword(String username, String password) async => true;
+  Future<bool> loginWithPassword(String username, String password) async =>
+      true;
 
   @override
   Future<void> logout() async {}
@@ -123,7 +125,9 @@ void main() {
     expect(setting, ThemeSetting.midnight);
   });
 
-  testWidgets('shows Change Password button for password provider', (tester) async {
+  testWidgets('shows Change Password button for password provider', (
+    tester,
+  ) async {
     final themeService = ThemeService();
     await tester.pumpWidget(createTestApp(themeService, provider: 'password'));
     await tester.pumpAndSettle();
@@ -139,7 +143,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Password management is handled by your external identity provider.'),
+      find.text(
+        'Password management is handled by your external identity provider.',
+      ),
       findsOneWidget,
     );
   });

@@ -61,32 +61,29 @@ class _AdminScreenState extends State<AdminScreen> {
     final deactivated = user['deactivated'] == true;
     final confirm = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: Text(
-              deactivated ? 'Permanently delete user' : 'Deactivate user',
-            ),
-            content: Text(
-              deactivated
-                  ? 'Permanently delete "$username" and all their stored files, thumbnails, and metadata? This action is irreversible.'
-                  : 'Deactivate "$username"? They will no longer be able to sign in. Their files will remain until you permanently delete the user.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('CANCEL'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(
-                  deactivated ? 'DELETE PERMANENTLY' : 'DEACTIVATE',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                ),
-              ),
-            ],
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          deactivated ? 'Permanently delete user' : 'Deactivate user',
+        ),
+        content: Text(
+          deactivated
+              ? 'Permanently delete "$username" and all their stored files, thumbnails, and metadata? This action is irreversible.'
+              : 'Deactivate "$username"? They will no longer be able to sign in. Their files will remain until you permanently delete the user.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              deactivated ? 'DELETE PERMANENTLY' : 'DEACTIVATE',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
     );
     if (confirm != true) return;
 
@@ -106,21 +103,22 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _activateUser(String username) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Re-enable user'),
-            content: Text('Re-enable "$username"? They will be able to sign in again.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('CANCEL'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('RE-ENABLE'),
-              ),
-            ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('Re-enable user'),
+        content: Text(
+          'Re-enable "$username"? They will be able to sign in again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('RE-ENABLE'),
+          ),
+        ],
+      ),
     );
     if (confirm != true) return;
 
@@ -152,9 +150,9 @@ class _AdminScreenState extends State<AdminScreen> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
   }
 
   List<Map<String, dynamic>>? _filteredUsersCache;
@@ -185,23 +183,18 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
     return Scaffold(
-      appBar:
-          isDesktop
-              ? null
-              : AppBar(title: const Text('User Management')),
-      body:
-          _loading
-              ? const Center(child: CircularProgressIndicator())
-              : isDesktop
-              ? _buildDesktop()
-              : _buildMobile(),
-      floatingActionButton:
-          isDesktop
-              ? null
-              : FloatingActionButton(
-                onPressed: _createUser,
-                child: const Icon(Icons.person_add),
-              ),
+      appBar: isDesktop ? null : AppBar(title: const Text('User Management')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : isDesktop
+          ? _buildDesktop()
+          : _buildMobile(),
+      floatingActionButton: isDesktop
+          ? null
+          : FloatingActionButton(
+              onPressed: _createUser,
+              child: const Icon(Icons.person_add),
+            ),
     );
   }
 
@@ -252,9 +245,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Manage vault users and their access.',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -374,9 +365,9 @@ class _UserTile extends StatelessWidget {
                   ),
                   Text(
                     isAdmin ? 'Administrator' : 'Standard user',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -390,20 +381,25 @@ class _UserTile extends StatelessWidget {
                   }
                   if (action == 'delete') onDelete(user);
                 },
-                itemBuilder:
-                    (_) => [
-                      if (deactivated)
-                        const PopupMenuItem(value: 'activate', child: Text('Re-enable')),
-                      if (!deactivated)
-                        const PopupMenuItem(value: 'password', child: Text('Change password')),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Text(
-                          deactivated ? 'Delete permanently' : 'Deactivate',
-                          style: TextStyle(color: colors.error),
-                        ),
-                      ),
-                    ],
+                itemBuilder: (_) => [
+                  if (deactivated)
+                    const PopupMenuItem(
+                      value: 'activate',
+                      child: Text('Re-enable'),
+                    ),
+                  if (!deactivated)
+                    const PopupMenuItem(
+                      value: 'password',
+                      child: Text('Change password'),
+                    ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text(
+                      deactivated ? 'Delete permanently' : 'Deactivate',
+                      style: TextStyle(color: colors.error),
+                    ),
+                  ),
+                ],
               ),
           ],
         ),
@@ -423,7 +419,9 @@ class _RoleChip extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Chip(
       label: Text(role.toUpperCase()),
-      backgroundColor: isAdmin ? colors.primaryContainer : colors.surfaceContainerHighest,
+      backgroundColor: isAdmin
+          ? colors.primaryContainer
+          : colors.surfaceContainerHighest,
       labelStyle: TextStyle(
         color: isAdmin ? colors.onPrimaryContainer : colors.onSurfaceVariant,
         fontSize: 11,
@@ -548,8 +546,11 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
               labelText: 'New Password',
               border: const OutlineInputBorder(),
               suffixIcon: IconButton(
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                ),
               ),
             ),
           ),
@@ -562,14 +563,20 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
               labelText: 'Confirm New Password',
               border: const OutlineInputBorder(),
               suffixIcon: IconButton(
-                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
+                onPressed: () =>
+                    setState(() => _obscureConfirm = !_obscureConfirm),
+                icon: Icon(
+                  _obscureConfirm ? Icons.visibility_off : Icons.visibility,
+                ),
               ),
             ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ],
         ],
       ),

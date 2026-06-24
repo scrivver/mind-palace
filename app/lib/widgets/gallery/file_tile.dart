@@ -76,29 +76,30 @@ class _FileTileState extends State<FileTile>
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(11),
                 ),
-              child: Container(
-                color: theme.colorScheme.surfaceContainer,
-                child: _thumbUrl != null
-                    ? LayoutBuilder(
-                        builder: (context, constraints) {
-                          final pixelRatio =
-                              MediaQuery.devicePixelRatioOf(context);
-                          final cacheWidth =
-                              (constraints.maxWidth * pixelRatio).toInt();
-                          final cacheHeight =
-                              (constraints.maxHeight * pixelRatio).toInt();
-                          return Image.network(
-                            _thumbUrl!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            cacheWidth: cacheWidth > 0 ? cacheWidth : null,
-                            cacheHeight: cacheHeight > 0 ? cacheHeight : null,
-                            errorBuilder: (_, _, _) => _fileIcon(context),
-                          );
-                        },
-                      )
-                    : _fileIcon(context),
-              ),
+                child: Container(
+                  color: theme.colorScheme.surfaceContainer,
+                  child: _thumbUrl != null
+                      ? LayoutBuilder(
+                          builder: (context, constraints) {
+                            final pixelRatio = MediaQuery.devicePixelRatioOf(
+                              context,
+                            );
+                            final cacheWidth =
+                                (constraints.maxWidth * pixelRatio).toInt();
+                            final cacheHeight =
+                                (constraints.maxHeight * pixelRatio).toInt();
+                            return Image.network(
+                              _thumbUrl!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              cacheWidth: cacheWidth > 0 ? cacheWidth : null,
+                              cacheHeight: cacheHeight > 0 ? cacheHeight : null,
+                              errorBuilder: (_, _, _) => _fileIcon(context),
+                            );
+                          },
+                        )
+                      : _fileIcon(context),
+                ),
               ),
             ),
             Padding(

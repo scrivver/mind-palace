@@ -23,9 +23,15 @@ import '../providers/theme_provider.dart';
 final routerProvider = Provider<GoRouter>((ref) {
   final themeService = ref.watch(themeServiceProvider);
   final authState = ref.watch(appAuthProvider);
-  final authService = ref.watch(authServiceProvider.select((a) => a.valueOrNull));
-  final engramService = ref.watch(engramServiceProvider.select((a) => a.valueOrNull));
-  final reliquaryService = ref.watch(reliquaryServiceProvider.select((a) => a.valueOrNull));
+  final authService = ref.watch(
+    authServiceProvider.select((a) => a.valueOrNull),
+  );
+  final engramService = ref.watch(
+    engramServiceProvider.select((a) => a.valueOrNull),
+  );
+  final reliquaryService = ref.watch(
+    reliquaryServiceProvider.select((a) => a.valueOrNull),
+  );
 
   final needsSetup = !ServerUrlStore.hasSavedUrls && !kIsWeb;
 
@@ -177,9 +183,7 @@ GoRouter _createRouter(
           GoRoute(
             path: '/upload',
             builder: (context, state) {
-              return UploadScreen(
-                onBack: () => context.go('/vault'),
-              );
+              return UploadScreen(onBack: () => context.go('/vault'));
             },
           ),
           GoRoute(

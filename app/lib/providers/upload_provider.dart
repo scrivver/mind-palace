@@ -47,8 +47,7 @@ class UploadNotifier extends StateNotifier<UploadState> {
   }
 
   void removeFile(String fileKey) {
-    final files =
-        state.selectedFiles.where((f) => key(f) != fileKey).toList();
+    final files = state.selectedFiles.where((f) => key(f) != fileKey).toList();
     final progress = Map<String, UploadProgress>.from(state.progressMap)
       ..remove(fileKey);
     state = state.copyWith(selectedFiles: files, progressMap: progress);
@@ -87,7 +86,8 @@ class UploadNotifier extends StateNotifier<UploadState> {
   }
 }
 
-final uploadProvider =
-    StateNotifierProvider<UploadNotifier, UploadState>((ref) {
+final uploadProvider = StateNotifierProvider<UploadNotifier, UploadState>((
+  ref,
+) {
   return UploadNotifier();
 });

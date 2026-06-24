@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 class LoginView extends StatefulWidget {
   final VoidCallback onLogin;
-  final Future<void> Function(String username, String password)? onPasswordLogin;
+  final Future<void> Function(String username, String password)?
+  onPasswordLogin;
   final String? error;
   final bool loading;
   final bool isPasswordMode;
@@ -140,14 +141,13 @@ class _LoginViewState extends State<LoginView> {
                   icon: Icon(
                     _obscurePassword ? Icons.visibility_off : Icons.visibility,
                   ),
-                  onPressed:
-                      widget.loading
-                          ? null
-                          : () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
+                  onPressed: widget.loading
+                      ? null
+                      : () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
                 ),
               ),
             ),
@@ -159,44 +159,43 @@ class _LoginViewState extends State<LoginView> {
               height: 48,
               child: FilledButton(
                 onPressed: widget.loading ? null : _submitPassword,
-                child:
-                    widget.loading
-                        ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                        : Text(
-                          'Sign In',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: cs.onPrimary,
-                          ),
+                child: widget.loading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
                         ),
+                      )
+                    : Text(
+                        'Sign In',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: cs.onPrimary,
+                        ),
+                      ),
               ),
             ),
-          if (widget.isPasswordMode && widget.isOidcMode) const SizedBox(height: 12),
+          if (widget.isPasswordMode && widget.isOidcMode)
+            const SizedBox(height: 12),
           if (widget.isOidcMode)
             SizedBox(
               width: double.infinity,
               height: 48,
-              child:
-                  widget.isPasswordMode
-                      ? OutlinedButton(
-                        onPressed: widget.loading ? null : widget.onLogin,
-                        child: const Text('Sign in with SSO'),
-                      )
-                      : FilledButton(
-                        onPressed: widget.loading ? null : widget.onLogin,
-                        child: Text(
-                          'Sign in with SSO',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: cs.onPrimary,
-                          ),
+              child: widget.isPasswordMode
+                  ? OutlinedButton(
+                      onPressed: widget.loading ? null : widget.onLogin,
+                      child: const Text('Sign in with SSO'),
+                    )
+                  : FilledButton(
+                      onPressed: widget.loading ? null : widget.onLogin,
+                      child: Text(
+                        'Sign in with SSO',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: cs.onPrimary,
                         ),
                       ),
+                    ),
             ),
           if (widget.error != null) ...[
             const SizedBox(height: 16),

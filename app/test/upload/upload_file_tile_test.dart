@@ -11,11 +11,7 @@ Widget createTestApp({
 }) {
   return MaterialApp(
     home: Scaffold(
-      body: UploadFileTile(
-        file: file,
-        progress: progress,
-        onRemove: onRemove,
-      ),
+      body: UploadFileTile(file: file, progress: progress, onRemove: onRemove),
     ),
   );
 }
@@ -42,10 +38,7 @@ void main() {
       size: 1024 * 50,
       path: '/tmp/photo.png',
     );
-    final progress = const UploadProgress(
-      status: 'Completed',
-      done: true,
-    );
+    final progress = const UploadProgress(status: 'Completed', done: true);
 
     await tester.pumpWidget(createTestApp(file: file, progress: progress));
     await tester.pumpAndSettle();
@@ -82,10 +75,9 @@ void main() {
       path: '/tmp/temp.txt',
     );
 
-    await tester.pumpWidget(createTestApp(
-      file: file,
-      onRemove: () => removed = true,
-    ));
+    await tester.pumpWidget(
+      createTestApp(file: file, onRemove: () => removed = true),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.close));

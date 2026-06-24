@@ -7,20 +7,17 @@ import 'package:mind_palace/widgets/gallery/file_tile.dart';
 
 class _MockAuthService extends AuthService {
   _MockAuthService()
-      : super(
-          issuer: 'test',
-          clientId: 'test',
-          mobileRedirectUrl: 'test://callback',
-          engramBaseUrl: 'http://localhost:2080/api/engram/',
-        );
+    : super(
+        issuer: 'test',
+        clientId: 'test',
+        mobileRedirectUrl: 'test://callback',
+        engramBaseUrl: 'http://localhost:2080/api/engram/',
+      );
 }
 
 class _MockReliquary extends ReliquaryService {
   _MockReliquary()
-      : super(
-          auth: _MockAuthService(),
-          baseUrl: 'http://localhost:2080',
-        );
+    : super(auth: _MockAuthService(), baseUrl: 'http://localhost:2080');
 
   @override
   Future<String> presignDownload(String key) async =>
@@ -34,11 +31,7 @@ class _MockReliquary extends ReliquaryService {
 Widget createTestApp(EngramFile file) {
   return MaterialApp(
     home: Scaffold(
-      body: FileTile(
-        file: file,
-        reliquary: _MockReliquary(),
-        onTap: () {},
-      ),
+      body: FileTile(file: file, reliquary: _MockReliquary(), onTap: () {}),
     ),
   );
 }
@@ -108,16 +101,18 @@ void main() {
       mimeType: 'text/plain',
     );
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: FileTile(
-          key: ValueKey(file.id),
-          file: file,
-          reliquary: _MockReliquary(),
-          onTap: () {},
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: FileTile(
+            key: ValueKey(file.id),
+            file: file,
+            reliquary: _MockReliquary(),
+            onTap: () {},
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     expect(
@@ -145,15 +140,17 @@ void main() {
       mimeType: 'text/plain',
     );
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: FileTile(
-          file: file,
-          reliquary: _MockReliquary(),
-          onTap: () => tapped = true,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: FileTile(
+            file: file,
+            reliquary: _MockReliquary(),
+            onTap: () => tapped = true,
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('notes.txt'));

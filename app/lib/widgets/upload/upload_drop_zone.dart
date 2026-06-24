@@ -73,8 +73,9 @@ class _UploadDropZoneState extends State<UploadDropZone> {
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
                   color: _isDragging
-                      ? theme.colorScheme.primaryContainer
-                          .withValues(alpha: 0.3)
+                      ? theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.3,
+                        )
                       : Colors.transparent,
                 ),
                 child: content,
@@ -109,8 +110,7 @@ class _UploadDropZoneState extends State<UploadDropZone> {
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
                 color: _isDragging
-                    ? theme.colorScheme.primaryContainer
-                        .withValues(alpha: 0.3)
+                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
                     : Colors.transparent,
               ),
               child: content,
@@ -168,10 +168,7 @@ class _UploadDropZoneState extends State<UploadDropZone> {
             ),
             OutlinedButton.icon(
               onPressed: widget.isUploading ? null : widget.onPickFolder,
-              icon: const Icon(
-                Icons.folder_open,
-                size: 18,
-              ),
+              icon: const Icon(Icons.folder_open, size: 18),
               label: const Text('Select Folder'),
             ),
           ],

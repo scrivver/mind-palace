@@ -16,10 +16,7 @@ import '../widgets/upload/upload_progress.dart';
 class UploadScreen extends ConsumerStatefulWidget {
   final VoidCallback? onBack;
 
-  const UploadScreen({
-    super.key,
-    this.onBack,
-  });
+  const UploadScreen({super.key, this.onBack});
 
   @override
   ConsumerState<UploadScreen> createState() => _UploadScreenState();
@@ -137,8 +134,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   }
 
   Future<void> _uploadAll() async {
-    final snapshotFiles =
-        List<PlatformFile>.from(ref.read(uploadProvider).selectedFiles);
+    final snapshotFiles = List<PlatformFile>.from(
+      ref.read(uploadProvider).selectedFiles,
+    );
     if (snapshotFiles.isEmpty) return;
 
     final notifier = ref.read(uploadProvider.notifier);
@@ -148,7 +146,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       final k = _key(file);
 
       notifier.setProgress(
-          k, const UploadProgress(status: 'Initializing...', fraction: 0));
+        k,
+        const UploadProgress(status: 'Initializing...', fraction: 0),
+      );
 
       try {
         final contentType =
@@ -157,7 +157,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         final bytes = await readPlatformFileBytes(file);
 
         notifier.setProgress(
-            k, const UploadProgress(status: 'Uploading...', fraction: 0));
+          k,
+          const UploadProgress(status: 'Uploading...', fraction: 0),
+        );
 
         final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
         if (reliquary == null) continue;
@@ -170,10 +172,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
             if (total > 0) {
               notifier.setProgress(
                 k,
-                UploadProgress(
-                  status: 'Uploading...',
-                  fraction: sent / total,
-                ),
+                UploadProgress(status: 'Uploading...', fraction: sent / total),
               );
             }
           },
@@ -190,7 +189,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         );
       } catch (e) {
         notifier.setProgress(
-            k, UploadProgress(status: 'Failed: $e', error: true));
+          k,
+          UploadProgress(status: 'Failed: $e', error: true),
+        );
       }
     }
 
@@ -201,12 +202,11 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final selectedFiles =
-        ref.watch(uploadProvider.select((s) => s.selectedFiles));
-    final progressMap =
-        ref.watch(uploadProvider.select((s) => s.progressMap));
-    final isUploading =
-        ref.watch(uploadProvider.select((s) => s.isUploading));
+    final selectedFiles = ref.watch(
+      uploadProvider.select((s) => s.selectedFiles),
+    );
+    final progressMap = ref.watch(uploadProvider.select((s) => s.progressMap));
+    final isUploading = ref.watch(uploadProvider.select((s) => s.isUploading));
     final allDone =
         progressMap.isNotEmpty && progressMap.values.every((p) => p.done);
 
@@ -243,7 +243,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
               child: UploadDropZone(
                 isUploading: isUploading,
                 onDropItems: _onDropItems,
-                onDropFiles: (files) => ref.read(uploadProvider.notifier).addFiles(files),
+                onDropFiles: (files) =>
+                    ref.read(uploadProvider.notifier).addFiles(files),
                 onPickFiles: _pickFiles,
                 onPickFolder: _pickFolder,
                 onWebDropFolder: kIsWeb
@@ -305,10 +306,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                       progress: p,
                       onRemove: isUploading
                           ? null
-                          : () =>
-                              ref
-                                  .read(uploadProvider.notifier)
-                                  .removeFile(_key(file)),
+                          : () => ref
+                                .read(uploadProvider.notifier)
+                                .removeFile(_key(file)),
                     );
                   },
                 ),

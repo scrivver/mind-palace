@@ -237,7 +237,9 @@ class AuthService {
     final base = reliquaryBaseUrl.endsWith('/')
         ? reliquaryBaseUrl
         : '$reliquaryBaseUrl/';
-    final response = await http.get(Uri.parse('${base}api/auth/oidc/discovery'));
+    final response = await http.get(
+      Uri.parse('${base}api/auth/oidc/discovery'),
+    );
     if (response.statusCode != 200) {
       throw Exception('OIDC discovery failed: ${response.statusCode}');
     }
