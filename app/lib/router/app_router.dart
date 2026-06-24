@@ -169,6 +169,7 @@ GoRouter _createRouter(
                 currentTheme: themeSetting,
                 onThemeChanged: (setting) {
                   themeService.setTheme(setting);
+                  ref.read(currentThemeProvider.notifier).state = setting;
                 },
                 reliquary: reliquaryService!,
                 auth: authService!,
