@@ -109,7 +109,7 @@ services:
         done
 
   reliquary-api:
-    image: ghcr.io/mind-palace/mind-palace-reliquary-api:v0.3.0
+    image: ghcr.io/scrivver/reliquary-api:v0.3.0
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -140,7 +140,7 @@ services:
       EVENT_DEVICE_NAME: ${EVENT_DEVICE_NAME:-reliquary}
 
   reliquary-thumbnail-worker:
-    image: ghcr.io/mind-palace/mind-palace-reliquary-thumbnail-worker:v0.3.0
+    image: ghcr.io/scrivver/reliquary-thumbnail-worker:v0.3.0
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -164,7 +164,7 @@ services:
       THUMBNAIL_DEAD_QUEUE: ${RELIQUARY_THUMBNAIL_DEAD_QUEUE:-reliquary.thumbnail.dead}
 
   engram-api:
-    image: ghcr.io/mind-palace/mind-palace-engram-api:v0.2.0
+    image: ghcr.io/scrivver/engram-api:v0.2.0
     restart: unless-stopped
     depends_on:
       postgres:
@@ -186,7 +186,7 @@ services:
       retries: 12
 
   engram-ingestion:
-    image: ghcr.io/mind-palace/mind-palace-engram-ingestion:v0.2.0
+    image: ghcr.io/scrivver/engram-ingestion:v0.2.0
     restart: unless-stopped
     depends_on:
       postgres:
@@ -218,7 +218,7 @@ services:
       retries: 12
 
   synapse-worker:
-    image: ghcr.io/mind-palace/mind-palace-synapse-worker:v0.1.0
+    image: ghcr.io/scrivver/synapse-worker:v0.1.0
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -244,7 +244,7 @@ services:
       retries: 12
 
   synapse-reconciler:
-    image: ghcr.io/mind-palace/mind-palace-synapse-reconciler:v0.1.0
+    image: ghcr.io/scrivver/synapse-reconciler:v0.1.0
     restart: unless-stopped
     depends_on:
       synapse-worker:
@@ -285,7 +285,7 @@ services:
         done
 
   app:
-    image: ghcr.io/mind-palace/mind-palace-app:v0.3.0
+    image: ghcr.io/scrivver/mind-palace-app:sha-dc8cc76
     restart: unless-stopped
     depends_on:
       reliquary-api:
@@ -301,7 +301,7 @@ services:
       retries: 12
 
   ingress:
-    image: ghcr.io/mind-palace/mind-palace-ingress:v0.3.0
+    image: ghcr.io/scrivver/mind-palace-ingress:sha-dc8cc76
     restart: unless-stopped
     depends_on:
       reliquary-api:
