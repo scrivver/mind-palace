@@ -91,7 +91,7 @@ class AppAuthState {
   final AuthService? authService;
 
   const AppAuthState({
-    this.isLoading = false,
+    this.isLoading = true,
     this.isLoggedIn = false,
     this.username,
     this.role,
@@ -210,7 +210,7 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
   Future<void> logout() async {
     final auth = state.authService;
     await auth?.logout();
-    state = AppAuthState(isLoggedIn: false, authService: auth);
+    state = AppAuthState(isLoading: false, isLoggedIn: false, authService: auth);
   }
 }
 

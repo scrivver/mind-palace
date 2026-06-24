@@ -47,6 +47,8 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
+String? _pendingRedirect;
+
 GoRouter _createRouter(
   Ref ref,
   ThemeService themeService,
@@ -63,6 +65,12 @@ GoRouter _createRouter(
     ref.invalidate(reliquaryServiceProvider);
   }
 
+  String? _loadingTarget() {
+    final target = _pendingRedirect;
+    _pendingRedirect = null;
+    return target;
+  }
+
   return GoRouter(
     initialLocation: '/vault',
     redirect: (context, state) {
@@ -70,18 +78,34 @@ GoRouter _createRouter(
       if (needsSetup && path != '/setup') {
         return '/setup';
       }
+      if (authState.isLoading) {
+        if (path != '/loading') {
+          _pendingRedirect = path;
+          return '/loading';
+        }
+        return null;
+      }
+      if (path == '/loading') {
+        return _loadingTarget() ?? '/vault';
+      }
       if (!needsSetup &&
           !authState.isLoggedIn &&
           path != '/login' &&
           path != '/setup') {
         return '/login';
       }
-      if (authState.isLoggedIn && (path == '/login' || path == '/callback')) {
+      if (authState.isLoggedIn && path == '/login') {
         return '/vault';
       }
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/loading',
+        builder: (context, state) => const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      ),
       GoRoute(
         path: '/setup',
         builder: (context, state) {

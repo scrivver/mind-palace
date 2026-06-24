@@ -66,3 +66,20 @@ shell commands, and other important information, read the current plan at
 - **Fixed Storage Capacity bug**: Was summing file counts as bytes — now uses `total_size` from Reliquary. (`app/lib/screens/status_screen.dart`)
 - **Updated Upload screen to match Stitch design**: Added back arrow button, replaced drop zone icon/text/button to match "Upload Manager (Updated Nav)" design, updated file tiles to show "size • status" format. (`app/lib/screens/upload_screen.dart`)
 <!-- END CONVERSATION SUMMARY -->
+
+<!-- NEW SESSION 2026-06-25 -->
+
+## Session Summary (2026-06-25)
+
+### Done
+- **SSO redirect URL race fixed** — HTML pre-load `<script>` in `app/web/index.html` strips `/callback?code=...&state=...` from the browser URL and stashes params in `sessionStorage` before Flutter's engine captures the bootstrap URL. Dart's `_oidcCallbackParams()` reads `sessionStorage` first, falls back to `Uri.base`.
+- **Caddy bypass for app** — `bin/start-app` now accesses Flutter dev server directly at port 3000, API calls go through Caddy at port 2080 via `--dart-define=DEFAULT_API_BASE_URL=http://localhost:2080`. Caddy dependency removed from `app` process in `flake.nix`.
+- **`ServerUrlStore`** updated to read `DEFAULT_API_BASE_URL` dart-define first, then fall back to `http://127.0.0.1:2080` on localhost, empty (same-origin) for production.
+- **Theme not applying at runtime** fixed — `onThemeChanged` callback in `app_router.dart` now updates `ref.read(currentThemeProvider.notifier).state = setting`.
+- **Gallery screen disposed error** fixed — `Future(() { ... })` in `initState` replaced with `WidgetsBinding.instance.addPostFrameCallback` + `mounted` check.
+- **`/settings` initial-route error** fixed — root cause was `main.dart:68-79`: pre-auth code returned a plain `MaterialApp` (not `.router`), which used `WidgetsBinding.instance.platformDispatcher.defaultRouteName` (`/settings`) as `initialRoute`. Flutter's `WidgetsApp._initialRouteName` always prefers `defaultRouteName` over `widget.initialRoute` when they differ from `/`. **Fix:** removed the conditional `MaterialApp`; always use `MaterialApp.router` from the start with a GoRouter that shows a `/loading` route while `AppAuthState.isLoading` is `true`. Changed `AppAuthState` default to `isLoading: true` so GoRouter can distinguish "before-init" from "logged-out".
+
+### Blocked / Open
+- None.
+
+<!-- END CONVERSATION SUMMARY -->

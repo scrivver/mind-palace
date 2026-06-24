@@ -47,7 +47,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   @override
   void initState() {
     super.initState();
-    Future(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(fileListProvider.notifier).loadFiles();
       ref.read(fileListProvider.notifier).loadTags();
     });
