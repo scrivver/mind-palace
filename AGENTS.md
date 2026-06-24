@@ -52,7 +52,7 @@ Pull requests should explain behavior, list verification commands, link relevant
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan at
-`specs/004-frontend-refactoring/plan.md`.
+`specs/005-frontend-performance/plan.md`.
 <!-- SPECKIT END -->
 
 <!-- CONVERSATION SUMMARY -->
