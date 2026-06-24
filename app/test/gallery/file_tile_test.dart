@@ -92,6 +92,42 @@ void main() {
     expect(find.text('IMG'), findsOneWidget);
   });
 
+  testWidgets('FileTile uses ValueKey(file.id)', (tester) async {
+    final file = EngramFile(
+      id: 'keyed-file',
+      filename: 'keyed.txt',
+      size: 100,
+      hash: 'key123',
+      filePath: 'files/test/keyed.txt',
+      deviceName: 'laptop',
+      status: 'active',
+      storageType: 's3',
+      mtime: DateTime.now(),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      mimeType: 'text/plain',
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: FileTile(
+          key: ValueKey(file.id),
+          file: file,
+          reliquary: _MockReliquary(),
+          onTap: () {},
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is FileTile && widget.key == ValueKey(file.id),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('FileTile calls onTap when tapped', (tester) async {
     bool tapped = false;
     final file = EngramFile(

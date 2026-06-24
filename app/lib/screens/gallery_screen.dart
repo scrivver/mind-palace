@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/engram_file.dart';
 import '../providers/file_list_provider.dart';
 import '../providers/service_providers.dart';
+import '../reliquary_service.dart';
 import '../widgets/gallery/file_tile.dart';
 import '../widgets/gallery/filter_dropdown_panel.dart';
 import '../widgets/gallery/quick_filter_chip.dart';
@@ -189,18 +190,20 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final fileListState = ref.watch(fileListProvider);
-    final files = fileListState.files;
-    final loading = fileListState.isLoading;
-    final error = fileListState.error;
-    final hasMore = fileListState.hasMore;
-    final searchQuery = fileListState.searchQuery;
-    final activeType = fileListState.selectedType;
-    final selectedTags = fileListState.selectedTags;
-    final availableTags = fileListState.availableTags;
+    final files = ref.watch(fileListProvider.select((s) => s.files));
+    final loading = ref.watch(fileListProvider.select((s) => s.isLoading));
+    final error = ref.watch(fileListProvider.select((s) => s.error));
+    final hasMore = ref.watch(fileListProvider.select((s) => s.hasMore));
+    final searchQuery = ref.watch(fileListProvider.select((s) => s.searchQuery));
+    final activeType = ref.watch(fileListProvider.select((s) => s.selectedType));
+    final selectedTags =
+        ref.watch(fileListProvider.select((s) => s.selectedTags));
+    final availableTags =
+        ref.watch(fileListProvider.select((s) => s.availableTags));
     final hasActiveFilters = selectedTags.isNotEmpty ||
         (activeType != null && activeType != 'all') ||
         searchQuery.isNotEmpty;
+    final reliquary = ref.watch(reliquaryServiceProvider).valueOrNull;
 
     return Stack(
       fit: StackFit.expand,
@@ -208,32 +211,56 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
         Positioned.fill(
           child: RefreshIndicator(
             onRefresh: () => ref.read(fileListProvider.notifier).invalidate(),
-            child: SingleChildScrollView(
-              controller: _scrollCtrl,
-              physics: const AlwaysScrollableScrollPhysics(),
+            child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1440),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(32, 32, 32, 0),
-                      child: _buildHeader(context, files.length),
+                child: CustomScrollView(
+                  controller: _scrollCtrl,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(32, 32, 32, 0),
+                        child: _buildHeader(context, files.length),
+                      ),
                     ),
-                    const SizedBox(height: 32),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: _buildSearchBar(context, searchQuery, files.length),
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 32),
                     ),
-                    const SizedBox(height: 24),
-                    _buildFilterSection(
-                        context, activeType, selectedTags, availableTags,
-                        hasActiveFilters: hasActiveFilters),
-                    const SizedBox(height: 32),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: _buildSearchBar(
+                            context, searchQuery, files.length),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 24),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _buildFilterSection(
+                        context,
+                        activeType,
+                        selectedTags,
+                        availableTags,
+                        hasActiveFilters: hasActiveFilters,
+                      ),
+                    ),
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 32),
+                    ),
                     _buildBody(
-                        context, files, loading, error, hasMore,
-                        hasActiveFilters: hasActiveFilters),
-                    const SizedBox(height: 24),
+                      context,
+                      files,
+                      loading,
+                      error,
+                      hasMore,
+                      hasActiveFilters: hasActiveFilters,
+                      reliquary: reliquary,
+                    ),
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 24),
+                    ),
                   ],
                 ),
               ),
@@ -486,86 +513,92 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     String? error,
     bool hasMore, {
     required bool hasActiveFilters,
+    required ReliquaryService? reliquary,
   }) {
     if (loading) {
-      return const Padding(
-        padding: EdgeInsets.fromLTRB(32, 48, 32, 0),
-        child: CircularProgressIndicator(),
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(32, 48, 32, 0),
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
     if (error != null) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(error),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () => ref.read(fileListProvider.notifier).loadFiles(),
-              child: const Text('Retry'),
-            ),
-          ],
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(error),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => ref.read(fileListProvider.notifier).loadFiles(),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     if (files.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              hasActiveFilters ? Icons.search_off : Icons.cloud_upload,
-              size: 48,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              hasActiveFilters ? 'No matches' : 'No files yet',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              hasActiveFilters
-                  ? 'Try adjusting your filters or search query'
-                  : 'Tap + to upload',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                hasActiveFilters ? Icons.search_off : Icons.cloud_upload,
+                size: 48,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                hasActiveFilters ? 'No matches' : 'No files yet',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                hasActiveFilters
+                    ? 'Try adjusting your filters or search query'
+                    : 'Tap + to upload',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
-    return Padding(
+    return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 80),
+      sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 300,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
           childAspectRatio: 1.1,
         ),
-        itemCount: files.length + (hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index >= files.length) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final file = files[index];
-          return FileTile(
-            file: file,
-            reliquary: reliquary!,
-            onTap: () => _openDetail(file),
-          );
-        },
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            if (index >= files.length) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final file = files[index];
+            return FileTile(
+              key: ValueKey(file.id),
+              file: file,
+              reliquary: reliquary!,
+              onTap: () => _openDetail(file),
+            );
+          },
+          childCount: files.length + (hasMore ? 1 : 0),
+        ),
       ),
     );
   }
