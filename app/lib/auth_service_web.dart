@@ -2,14 +2,17 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:web/web.dart' as web;
 
 import 'auth_models.dart';
 
 class AuthService {
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  // Web tokens are stored in plain localStorage. Encrypted secure storage on
+  // the web depends on a generated CryptoKey that can be lost across the
+  // cross-origin OIDC redirect, causing tokens to become unreadable.
+  final _WebTokenStorage _storage = _WebTokenStorage();
 
   final String issuer;
   final String clientId;
@@ -48,8 +51,8 @@ class AuthService {
       return false;
     }
 
-    final expectedState = await _storage.read(key: _stateKey);
-    final verifier = await _storage.read(key: _verifierKey);
+    final expectedState = await _storage.read(_stateKey);
+    final verifier = await _storage.read(_verifierKey);
     final returnedState = params['state'];
     final code = params['code'];
 
@@ -74,8 +77,8 @@ class AuthService {
       'code_verifier': verifier,
       'client_id': cfg.oidc.clientId.isEmpty ? clientId : cfg.oidc.clientId,
     });
-    await _storage.delete(key: _stateKey);
-    await _storage.delete(key: _verifierKey);
+    await _storage.delete(_stateKey);
+    await _storage.delete(_verifierKey);
     if (!ok) {
       throw Exception('SSO token exchange failed.');
     }
@@ -83,9 +86,9 @@ class AuthService {
   }
 
   Future<bool> isLoggedIn() async {
-    final passwordToken = await _storage.read(key: _passwordTokenKey);
+    final passwordToken = await _storage.read(_passwordTokenKey);
     if (passwordToken != null) return true;
-    final token = await _storage.read(key: _accessTokenKey);
+    final token = await _storage.read(_accessTokenKey);
     if (token != null) return true;
     return _refreshTokens();
   }
@@ -123,8 +126,8 @@ class AuthService {
     final verifier = _generateCodeVerifier();
     final challenge = _generateCodeChallenge(verifier);
     final state = _generateState();
-    await _storage.write(key: _stateKey, value: state);
-    await _storage.write(key: _verifierKey, value: verifier);
+    await _storage.write(_stateKey, state);
+    await _storage.write(_verifierKey, verifier);
 
     final authUrl = Uri.parse(authorizationEndpoint).replace(
       queryParameters: {
@@ -157,15 +160,15 @@ class AuthService {
       final token = body['token'] as String?;
       if (token == null || token.isEmpty) return false;
 
-      await _storage.write(key: _passwordTokenKey, value: token);
-      await _storage.write(key: _providerKey, value: 'password');
+      await _storage.write(_passwordTokenKey, token);
+      await _storage.write(_providerKey, 'password');
       final returnedUsername = body['username'] as String?;
       if (returnedUsername != null && returnedUsername.isNotEmpty) {
-        await _storage.write(key: _usernameKey, value: returnedUsername);
+        await _storage.write(_usernameKey, returnedUsername);
       }
       final returnedRole = body['role'] as String?;
       if (returnedRole != null && returnedRole.isNotEmpty) {
-        await _storage.write(key: _roleKey, value: returnedRole);
+        await _storage.write(_roleKey, returnedRole);
       }
       return true;
     } catch (_) {
@@ -174,42 +177,42 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    await _storage.delete(key: _accessTokenKey);
-    await _storage.delete(key: _refreshTokenKey);
-    await _storage.delete(key: _idTokenKey);
-    await _storage.delete(key: _usernameKey);
-    await _storage.delete(key: _roleKey);
-    await _storage.delete(key: _stateKey);
-    await _storage.delete(key: _verifierKey);
-    await _storage.delete(key: _passwordTokenKey);
-    await _storage.delete(key: _providerKey);
+    await _storage.delete(_accessTokenKey);
+    await _storage.delete(_refreshTokenKey);
+    await _storage.delete(_idTokenKey);
+    await _storage.delete(_usernameKey);
+    await _storage.delete(_roleKey);
+    await _storage.delete(_stateKey);
+    await _storage.delete(_verifierKey);
+    await _storage.delete(_passwordTokenKey);
+    await _storage.delete(_providerKey);
   }
 
   Future<String?> getAccessToken() async {
-    final token = await _storage.read(key: _passwordTokenKey);
+    final token = await _storage.read(_passwordTokenKey);
     if (token != null) return token;
-    final oidcToken = await _storage.read(key: _accessTokenKey);
+    final oidcToken = await _storage.read(_accessTokenKey);
     if (oidcToken != null) return oidcToken;
     if (await _refreshTokens()) {
-      return _storage.read(key: _accessTokenKey);
+      return _storage.read(_accessTokenKey);
     }
     return null;
   }
 
   Future<String?> getProvider() async {
-    return _storage.read(key: _providerKey);
+    return _storage.read(_providerKey);
   }
 
   Future<String?> getRole() async {
-    return _storage.read(key: _roleKey);
+    return _storage.read(_roleKey);
   }
 
   Future<String?> getUsername() async {
-    return _storage.read(key: _usernameKey);
+    return _storage.read(_usernameKey);
   }
 
   Future<Map<String, dynamic>?> getUserInfo() async {
-    final username = await _storage.read(key: _usernameKey);
+    final username = await _storage.read(_usernameKey);
     if (username != null) {
       return {'preferred_username': username};
     }
@@ -217,7 +220,7 @@ class AuthService {
   }
 
   Future<Map<String, dynamic>?> getIdTokenClaims() async {
-    final idToken = await _storage.read(key: _idTokenKey);
+    final idToken = await _storage.read(_idTokenKey);
     if (idToken == null) return null;
 
     final parts = idToken.split('.');
@@ -259,7 +262,7 @@ class AuthService {
   }
 
   Future<bool> _refreshTokens() async {
-    final refreshToken = await _storage.read(key: _refreshTokenKey);
+    final refreshToken = await _storage.read(_refreshTokenKey);
     if (refreshToken == null) return false;
     final cfg = await _getAuthConfig();
     return _exchangeToken({
@@ -286,20 +289,20 @@ class AuthService {
     final accessToken = tokens['access_token'] as String?;
     if (accessToken == null) return false;
 
-    await _storage.write(key: _accessTokenKey, value: accessToken);
-    await _storage.write(key: _providerKey, value: 'oidc');
-    await _storage.write(key: _roleKey, value: 'user');
+    await _storage.write(_accessTokenKey, accessToken);
+    await _storage.write(_providerKey, 'oidc');
+    await _storage.write(_roleKey, 'user');
     final refreshToken = tokens['refresh_token'] as String?;
     final idToken = tokens['id_token'] as String?;
     final username = tokens['username'] as String?;
     if (refreshToken != null) {
-      await _storage.write(key: _refreshTokenKey, value: refreshToken);
+      await _storage.write(_refreshTokenKey, refreshToken);
     }
     if (idToken != null) {
-      await _storage.write(key: _idTokenKey, value: idToken);
+      await _storage.write(_idTokenKey, idToken);
     }
     if (username != null && username.isNotEmpty) {
-      await _storage.write(key: _usernameKey, value: username);
+      await _storage.write(_usernameKey, username);
     }
     return true;
   }
@@ -324,5 +327,19 @@ class AuthService {
     final random = Random.secure();
     final bytes = List<int>.generate(16, (_) => random.nextInt(256));
     return base64Url.encode(bytes).replaceAll('=', '');
+  }
+}
+
+class _WebTokenStorage {
+  Future<String?> read(String key) async {
+    return web.window.localStorage.getItem(key);
+  }
+
+  Future<void> write(String key, String value) async {
+    web.window.localStorage.setItem(key, value);
+  }
+
+  Future<void> delete(String key) async {
+    web.window.localStorage.removeItem(key);
   }
 }

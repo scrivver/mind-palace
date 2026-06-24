@@ -61,7 +61,7 @@ class _ImagePreviewState extends State<ImagePreview> {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-          return LayoutBuilder(
+        return LayoutBuilder(
           builder: (context, constraints) {
             return InteractiveViewer(
               constrained: false,
