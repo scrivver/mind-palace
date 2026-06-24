@@ -78,8 +78,10 @@ shell commands, and other important information, read the current plan at
 - **Theme not applying at runtime** fixed — `onThemeChanged` callback in `app_router.dart` now updates `ref.read(currentThemeProvider.notifier).state = setting`.
 - **Gallery screen disposed error** fixed — `Future(() { ... })` in `initState` replaced with `WidgetsBinding.instance.addPostFrameCallback` + `mounted` check.
 - **`/settings` initial-route error** fixed — root cause was `main.dart:68-79`: pre-auth code returned a plain `MaterialApp` (not `.router`), which used `WidgetsBinding.instance.platformDispatcher.defaultRouteName` (`/settings`) as `initialRoute`. Flutter's `WidgetsApp._initialRouteName` always prefers `defaultRouteName` over `widget.initialRoute` when they differ from `/`. **Fix:** removed the conditional `MaterialApp`; always use `MaterialApp.router` from the start with a GoRouter that shows a `/loading` route while `AppAuthState.isLoading` is `true`. Changed `AppAuthState` default to `isLoading: true` so GoRouter can distinguish "before-init" from "logged-out".
+- **Redirect loop on logout** fixed — `logout()` used `AppAuthState()` which inherited the new `isLoading: true` default, causing `/login→/loading→/login→/loading`. Fix: explicit `isLoading: false` in `logout()`.
+- **`/loading` redirect no longer falls through to `!isLoggedIn` guard** — added early return `null` for `/loading` while `isLoading` is true, and a separate `if (path == '/loading')` branch for post-loading redirect. Uses a `_pendingRedirect` module-level variable to save the original URL before the loading guard intercepts it (best-effort deep-link preservation across GoRouter instances).
 
 ### Blocked / Open
-- None.
+- Deep-linking during the auth-loading phase (e.g. refresh on `/settings` → land on `/settings` after auth) doesn't work because `_effectiveInitialLocation` reads `PlatformDispatcher.defaultRouteName` which may already reflect the `/loading` URL by the time the post-auth `GoRouter` is created. Fix would require persisting the original URL outside the GoRouter lifecycle (e.g. sessionStorage, provider). Low priority — the app works correctly for all normal flows.
 
 <!-- END CONVERSATION SUMMARY -->

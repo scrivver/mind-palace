@@ -21,9 +21,24 @@ import '../widgets/app_shell.dart';
 import '../providers/service_providers.dart';
 import '../providers/theme_provider.dart';
 
+AppAuthState _lastAuthState = const AppAuthState(isLoading: true);
+
+class _AuthRefreshNotifier extends ChangeNotifier {
+  void refresh() => notifyListeners();
+}
+
+final _authRefreshProvider = Provider<Listenable>((ref) {
+  final notifier = _AuthRefreshNotifier();
+  ref.listen(appAuthProvider, (_, next) {
+    _lastAuthState = next;
+    notifier.refresh();
+  });
+  return notifier;
+});
+
 final routerProvider = Provider<GoRouter>((ref) {
+  final refreshNotifier = ref.watch(_authRefreshProvider);
   final themeService = ref.watch(themeServiceProvider);
-  final authState = ref.watch(appAuthProvider);
   final authService = ref.watch(
     authServiceProvider.select((a) => a.valueOrNull),
   );
@@ -39,11 +54,11 @@ final routerProvider = Provider<GoRouter>((ref) {
   return _createRouter(
     ref,
     themeService,
-    authState,
     authService,
     engramService,
     reliquaryService,
     needsSetup,
+    refreshNotifier,
   );
 });
 
@@ -52,12 +67,14 @@ String? _pendingRedirect;
 GoRouter _createRouter(
   Ref ref,
   ThemeService themeService,
-  AppAuthState authState,
   AuthService? authService,
   EngramService? engramService,
   ReliquaryService? reliquaryService,
   bool needsSetup,
+  Listenable refreshNotifier,
 ) {
+  AppAuthState _auth() => _lastAuthState;
+
   void _invalidateServices() {
     ref.invalidate(authServiceProvider);
     ref.invalidate(reliquaryAuthConfigProvider);
@@ -73,7 +90,9 @@ GoRouter _createRouter(
 
   return GoRouter(
     initialLocation: '/vault',
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
+      final authState = _auth();
       final path = state.uri.path;
       if (needsSetup && path != '/setup') {
         return '/setup';
@@ -128,6 +147,7 @@ GoRouter _createRouter(
         path: '/login',
         builder: (context, state) {
           final auth = ref.read(authServiceProvider).valueOrNull;
+          final authState = _auth();
           final isPasswordMode = auth?.passwordMode ?? false;
           final isOidcMode = auth?.issuer.isNotEmpty ?? false;
           return LoginView(
@@ -147,6 +167,7 @@ GoRouter _createRouter(
       ),
       ShellRoute(
         builder: (context, state, child) {
+          final authState = _auth();
           final segment = state.uri.pathSegments.isNotEmpty
               ? state.uri.pathSegments.first
               : 'vault';
