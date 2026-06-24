@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../reliquary_service.dart';
 import '../../utils/format.dart';
+import '../../utils/preview_cache.dart';
 
-class ImagePreview extends StatelessWidget {
+class ImagePreview extends StatefulWidget {
   final String filePath;
   final bool isImage;
   final String? mimeType;
@@ -20,34 +21,69 @@ class ImagePreview extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    if (isImage) {
-      return FutureBuilder<String>(
-        future: reliquary.presignDownload(filePath),
-        builder: (context, snap) {
-          if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              return InteractiveViewer(
-                constrained: false,
-                child: SizedBox(
-                  width: constraints.maxWidth,
-                  height: constraints.maxHeight,
-                  child: Image.network(
-                    snap.data!,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) => _iconPreview(context),
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      );
+  State<ImagePreview> createState() => _ImagePreviewState();
+}
+
+class _ImagePreviewState extends State<ImagePreview> {
+  static final _cache = PreviewCache();
+  Future<String>? _urlFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlFuture = _loadUrl();
+  }
+
+  @override
+  void didUpdateWidget(ImagePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.filePath != widget.filePath ||
+        oldWidget.reliquary != widget.reliquary) {
+      _urlFuture = _loadUrl();
     }
-    return Center(child: _iconPreview(context));
+  }
+
+  Future<String> _loadUrl() {
+    return _cache.presignedUrl(
+      widget.filePath,
+      () => widget.reliquary.presignDownload(widget.filePath),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isImage) {
+      return Center(child: _iconPreview(context));
+    }
+    return FutureBuilder<String>(
+      future: _urlFuture,
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+            final cacheWidth = (constraints.maxWidth * pixelRatio).toInt();
+            final cacheHeight = (constraints.maxHeight * pixelRatio).toInt();
+            return InteractiveViewer(
+              constrained: false,
+              child: SizedBox(
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                child: Image.network(
+                  snap.data!,
+                  fit: BoxFit.contain,
+                  cacheWidth: cacheWidth > 0 ? cacheWidth : null,
+                  cacheHeight: cacheHeight > 0 ? cacheHeight : null,
+                  errorBuilder: (_, _, _) => _iconPreview(context),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _iconPreview(BuildContext context) {
@@ -57,13 +93,13 @@ class ImagePreview extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            iconForMime(mimeType ?? ''),
+            iconForMime(widget.mimeType ?? ''),
             size: 56,
             color: theme.colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 8),
           Text(
-            filename,
+            widget.filename,
             style: theme.textTheme.bodyMedium,
             textAlign: TextAlign.center,
           ),
