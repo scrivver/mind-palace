@@ -1,0 +1,320 @@
+# Mind Palace packaged deployment using pre-built GHCR images.
+#
+# Copy this file alongside examples/ghcr/.env.example to your deployment
+# directory, edit .env, and run:
+#
+#   docker compose up -d
+#
+# Replace the image registry prefix (ghcr.io/mind-palace/) with your own
+# GHCR org if you forked or republished the images.
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
+      POSTGRES_DB: ${POSTGRES_DB_ENGRAM:-engram}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  minio-setup:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    restart: "no"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+      RELIQUARY_BUCKET: ${RELIQUARY_BUCKET:-reliquary}
+      ENGRAM_BUCKET: ${ENGRAM_BUCKET:-engram}
+      S3_HOT_BUCKET: ${S3_HOT_BUCKET:-synapse-hot}
+      S3_COLD_BUCKET: ${S3_COLD_BUCKET:-synapse-cold}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+          echo "waiting for MinIO..."
+          sleep 2
+        done
+        mc mb --ignore-existing "local/$$RELIQUARY_BUCKET"
+        mc mb --ignore-existing "local/$$ENGRAM_BUCKET"
+        mc mb --ignore-existing "local/$$S3_HOT_BUCKET"
+        mc mb --ignore-existing "local/$$S3_COLD_BUCKET"
+
+  rabbitmq-setup:
+    image: curlimages/curl:latest
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+      EVENT_QUEUE: ${EVENT_QUEUE:-engram.ingest}
+      RELIQUARY_THUMBNAIL_QUEUE: ${RELIQUARY_THUMBNAIL_QUEUE:-reliquary.thumbnail}
+      RELIQUARY_THUMBNAIL_DEAD_QUEUE: ${RELIQUARY_THUMBNAIL_DEAD_QUEUE:-reliquary.thumbnail.dead}
+      SYNAPSE_JOBS_QUEUE: ${SYNAPSE_JOBS_QUEUE:-synapse.jobs}
+      SYNAPSE_JOBS_DLQ: ${SYNAPSE_JOBS_DLQ:-synapse.jobs.dlq}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        auth="$$RABBITMQ_DEFAULT_USER:$$RABBITMQ_DEFAULT_PASS"
+        for queue in "$$EVENT_QUEUE" "$$RELIQUARY_THUMBNAIL_QUEUE" "$$RELIQUARY_THUMBNAIL_DEAD_QUEUE" "$$SYNAPSE_JOBS_QUEUE" "$$SYNAPSE_JOBS_DLQ"; do
+          curl --fail --silent --show-error -u "$$auth" \
+            -H "content-type: application/json" \
+            -X PUT "http://rabbitmq:15672/api/queues/%2F/$$queue" \
+            -d '{"durable":true,"auto_delete":false,"arguments":{}}'
+          curl --fail --silent --show-error -u "$$auth" \
+            -H "content-type: application/json" \
+            -X POST "http://rabbitmq:15672/api/bindings/%2F/e/amq.direct/q/$$queue" \
+            -d "{\"routing_key\":\"$$queue\",\"arguments\":{}}"
+        done
+
+  reliquary-api:
+    image: ghcr.io/mind-palace/mind-palace-reliquary-api:v0.3.0
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      rabbitmq-setup:
+        condition: service_completed_successfully
+      minio-setup:
+        condition: service_completed_successfully
+    environment:
+      PORT: 8080
+      PROXY_BASE_URL: ${PROXY_BASE_URL:-http://localhost:2080}
+      MINIO_PORT: 9000
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+      MINIO_BUCKET: ${RELIQUARY_BUCKET:-reliquary}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
+      AUTH_MODE: ${RELIQUARY_AUTH_MODE:-full}
+      AUTH_USERNAME: ${AUTH_USERNAME:-admin}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-change-me-in-shared-use}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-shared-use}
+      OIDC_ISSUER_URL: ${RELIQUARY_OIDC_ISSUER_URL:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-mind-palace}
+      EVENTS_ENABLED: ${EVENTS_ENABLED:-true}
+      EVENT_QUEUE: ${EVENT_QUEUE:-engram.ingest}
+      EVENT_DEVICE_NAME: ${EVENT_DEVICE_NAME:-reliquary}
+
+  reliquary-thumbnail-worker:
+    image: ghcr.io/mind-palace/mind-palace-reliquary-thumbnail-worker:v0.3.0
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      rabbitmq-setup:
+        condition: service_completed_successfully
+      minio-setup:
+        condition: service_completed_successfully
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    environment:
+      MINIO_PORT: 9000
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+      MINIO_BUCKET: ${RELIQUARY_BUCKET:-reliquary}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
+      THUMBNAIL_QUEUE: ${RELIQUARY_THUMBNAIL_QUEUE:-reliquary.thumbnail}
+      THUMBNAIL_DEAD_QUEUE: ${RELIQUARY_THUMBNAIL_DEAD_QUEUE:-reliquary.thumbnail.dead}
+
+  engram-api:
+    image: ghcr.io/mind-palace/mind-palace-engram-api:v0.2.0
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 8081
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
+      PGDATABASE: ${POSTGRES_DB_ENGRAM:-engram}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-shared-use}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      OIDC_USERNAME_CLAIM: ${OIDC_USERNAME_CLAIM:-preferred_username}
+      PRESIGN_URL_TEMPLATE: ${ENGRAM_PRESIGN_URL_TEMPLATE:-http://localhost:2080/api/reliquary/files/{file_path}}
+    healthcheck:
+      test: ["CMD", "engram-api-healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  engram-ingestion:
+    image: ghcr.io/mind-palace/mind-palace-engram-ingestion:v0.2.0
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      rabbitmq-setup:
+        condition: service_completed_successfully
+      minio-setup:
+        condition: service_completed_successfully
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
+      PGDATABASE: ${POSTGRES_DB_ENGRAM:-engram}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_AMQP_PORT: 5672
+      STORAGE_BACKEND: s3
+      STORAGE_S3_ENDPOINT: http://minio:9000
+      STORAGE_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      STORAGE_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+      STORAGE_S3_BUCKET: ${RELIQUARY_BUCKET:-reliquary}
+    healthcheck:
+      test: ["CMD", "engram-ingestion-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  synapse-worker:
+    image: ghcr.io/mind-palace/mind-palace-synapse-worker:v0.1.0
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      rabbitmq-setup:
+        condition: service_completed_successfully
+      minio-setup:
+        condition: service_completed_successfully
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-in-shared-use}
+      S3_HOT_BUCKET: ${S3_HOT_BUCKET:-synapse-hot}
+      S3_COLD_BUCKET: ${S3_COLD_BUCKET:-synapse-cold}
+      STORAGE_BACKEND: s3
+    healthcheck:
+      test: ["CMD", "synapse-worker-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  synapse-reconciler:
+    image: ghcr.io/mind-palace/mind-palace-synapse-reconciler:v0.1.0
+    restart: unless-stopped
+    depends_on:
+      synapse-worker:
+        condition: service_started
+      engram-api:
+        condition: service_started
+      rabbitmq-setup:
+        condition: service_completed_successfully
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
+      ENGRAM_API_URL: http://engram-api:8081
+      RECONCILE_INTERVAL: ${RECONCILE_INTERVAL:-30s}
+    healthcheck:
+      test: ["CMD", "synapse-reconciler-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  postgres-setup:
+    image: postgres:18-alpine
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change-me-in-shared-use}
+      SYNAPSE_DB: ${POSTGRES_DB_SYNAPSE:-synapse}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        for db in "$$SYNAPSE_DB"; do
+          psql -h postgres -U postgres -tc \
+            "SELECT 1 FROM pg_database WHERE datname='$$db'" \
+            | grep -q 1 \
+            || createdb -h postgres -U postgres "$$db"
+          echo "created database: $$db"
+        done
+
+  app:
+    image: ghcr.io/mind-palace/mind-palace-app:v0.3.0
+    restart: unless-stopped
+    depends_on:
+      reliquary-api:
+        condition: service_started
+      engram-api:
+        condition: service_healthy
+    ports:
+      - "${MIND_PALACE_PORT:-2080}:2080"
+    healthcheck:
+      test: ["CMD", "mind-palace-app-healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  ingress:
+    image: ghcr.io/mind-palace/mind-palace-ingress:v0.3.0
+    restart: unless-stopped
+    depends_on:
+      reliquary-api:
+        condition: service_started
+      engram-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "mind-palace-ingress-healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  minio_data:

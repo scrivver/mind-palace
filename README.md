@@ -48,7 +48,11 @@ The image bundles a Caddy server serving the compiled Flutter web assets on port
 
 ### Packaged Compose (dogfood)
 
-Build all Docker images and start the full stack through Compose:
+Choose one of the two Compose examples below.
+
+#### Option 1: Build images locally (default)
+
+Build all Docker images from source and start the full stack:
 
 ```bash
 nix develop
@@ -57,6 +61,23 @@ cp .env.example .env
 $EDITOR .env        # set secrets (look for change-me-in-shared-use)
 docker compose up -d
 ```
+
+#### Option 2: Use pre-built GHCR images
+
+Copy the GHCR example files to a deployment directory, edit `.env`, and start the stack:
+
+```bash
+cp -r examples/ghcr ./mind-palace-ghcr
+cd mind-palace-ghcr
+cp .env.example .env
+$EDITOR .env        # set secrets and update the registry prefix if needed
+docker compose up -d
+```
+
+The GHCR example uses pinned release tags. Replace the `ghcr.io/mind-palace/`
+registry prefix in `docker-compose.yml` if you forked or republished the images.
+
+### Compose stack overview
 
 The Compose stack includes:
 - **PostgreSQL** (shared across Engram and Synapse)

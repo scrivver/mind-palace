@@ -55,7 +55,12 @@ rm -rf .data/
 
 ## Packaged Compose Dogfood
 
-Build and load local images:
+There are two packaged Compose paths. Both use the same service topology;
+the only difference is where the container images come from.
+
+### Local images (default)
+
+Build and load local images from source:
 
 ```bash
 nix develop
@@ -103,6 +108,30 @@ The Flutter app discovers auth settings from Reliquary:
 GET /api/reliquary/api/auth/config
 POST /api/reliquary/api/login
 ```
+
+Start, inspect, and stop:
+
+```bash
+docker compose up -d
+docker compose ps
+docker compose logs --tail=200
+docker compose down
+```
+
+### Pre-built GHCR images
+
+Copy the GHCR example to a deployment directory:
+
+```bash
+cp -r examples/ghcr ./mind-palace-ghcr
+cd mind-palace-ghcr
+cp .env.example .env
+$EDITOR .env
+```
+
+The example uses pinned release tags and the `ghcr.io/mind-palace/` registry
+prefix. Change the prefix in `docker-compose.yml` if you forked or republished
+the images.
 
 Start, inspect, and stop:
 
