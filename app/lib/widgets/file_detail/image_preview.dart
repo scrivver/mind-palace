@@ -61,11 +61,8 @@ class _ImagePreviewState extends State<ImagePreview> {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        return LayoutBuilder(
+          return LayoutBuilder(
           builder: (context, constraints) {
-            final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-            final cacheWidth = (constraints.maxWidth * pixelRatio).toInt();
-            final cacheHeight = (constraints.maxHeight * pixelRatio).toInt();
             return InteractiveViewer(
               constrained: false,
               child: SizedBox(
@@ -74,8 +71,6 @@ class _ImagePreviewState extends State<ImagePreview> {
                 child: Image.network(
                   snap.data!,
                   fit: BoxFit.contain,
-                  cacheWidth: cacheWidth > 0 ? cacheWidth : null,
-                  cacheHeight: cacheHeight > 0 ? cacheHeight : null,
                   errorBuilder: (_, _, _) => _iconPreview(context),
                 ),
               ),
