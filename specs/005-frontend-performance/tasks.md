@@ -20,7 +20,7 @@
 
 **Purpose**: Confirm the development environment and baseline behavior before making changes.
 
-- [ ] T001 Run baseline verification: `cd app && flutter analyze` and `cd app && flutter test` pass on `main`
+- [X] T001 Run baseline verification: `cd app && flutter analyze` and `cd app && flutter test` pass on `main`
 
 ---
 
@@ -30,10 +30,10 @@
 
 **⚠️ CRITICAL**: Complete this phase before starting user story implementation.
 
-- [ ] T002 [P] Add `FileListState` helper getters (`isLoading`, `hasMore`) in `app/lib/providers/file_list_provider.dart`
-- [ ] T003 [P] Add `UploadState` helper getter (`isUploading`) in `app/lib/providers/upload_provider.dart`
-- [ ] T004 Create `PreviewCache` helper in `app/lib/utils/preview_cache.dart` for memoizing presigned URL and PDF byte futures
-- [ ] T005 Add widget test harness and mock services needed for rebuild-boundary tests in `app/test/`
+- [X] T002 [P] Add `FileListState` helper getters (`isLoading`, `hasMore`) in `app/lib/providers/file_list_provider.dart`
+- [X] T003 [P] Add `UploadState` helper getter (`isUploading`) in `app/lib/providers/upload_provider.dart`
+- [X] T004 Create `PreviewCache` helper in `app/lib/utils/preview_cache.dart` for memoizing presigned URL and PDF byte futures
+- [X] T005 Add widget test harness and mock services needed for rebuild-boundary tests in `app/test/`
 
 **Checkpoint**: Foundation ready - `flutter analyze` clean; helper utilities compile.
 
@@ -48,17 +48,17 @@
 ### Tests for User Story 1
 
 - [ ] T006 [P] [US1] Add widget test in `app/test/gallery/gallery_scroll_test.dart` verifying `SliverGrid` builds only visible children
-- [ ] T007 [P] [US1] Add widget test in `app/test/gallery/file_tile_test.dart` verifying `FileTile` uses `ValueKey(file.id)` and preserves state
+- [X] T007 [P] [US1] Add widget test in `app/test/gallery/file_tile_test.dart` verifying `FileTile` uses `ValueKey(file.id)` and preserves state
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Add `ValueKey(file.id)` to `FileTile` in `app/lib/widgets/gallery/file_tile.dart`
-- [ ] T009 [P] [US1] Add `cacheWidth`/`cacheHeight` to thumbnail `Image.network` in `app/lib/widgets/gallery/file_tile.dart`
-- [ ] T010 [P] [US1] Add `AutomaticKeepAliveClientMixin` to `FileTile` in `app/lib/widgets/gallery/file_tile.dart` to reduce re-fetch when scrolling back
-- [ ] T011 [US1] Replace `SingleChildScrollView` + `GridView.builder(shrinkWrap: true)` with `CustomScrollView` + `SliverGrid` in `app/lib/screens/gallery_screen.dart`
-- [ ] T012 [US1] Use `ref.watch(fileListProvider.select((s) => s.files))` for grid, `select((s) => s.isLoading)` for loader, and `select((s) => s.hasMore)` for pagination button in `app/lib/screens/gallery_screen.dart`
-- [ ] T013 [US1] Move `reliquary` service read out of per-tile build or pass it once to `FileTile` in `app/lib/screens/gallery_screen.dart`
-- [ ] T014 [US1] Run `cd app && flutter analyze` and `cd app && flutter test` after gallery changes
+- [X] T008 [P] [US1] Add `ValueKey(file.id)` to `FileTile` in `app/lib/widgets/gallery/file_tile.dart`
+- [X] T009 [P] [US1] Add `cacheWidth`/`cacheHeight` to thumbnail `Image.network` in `app/lib/widgets/gallery/file_tile.dart`
+- [X] T010 [P] [US1] Add `AutomaticKeepAliveClientMixin` to `FileTile` in `app/lib/widgets/gallery/file_tile.dart` to reduce re-fetch when scrolling back
+- [X] T011 [US1] Replace `SingleChildScrollView` + `GridView.builder(shrinkWrap: true)` with `CustomScrollView` + `SliverGrid` in `app/lib/screens/gallery_screen.dart`
+- [X] T012 [US1] Use `ref.watch(fileListProvider.select((s) => s.files))` for grid, `select((s) => s.isLoading)` for loader, and `select((s) => s.hasMore)` for pagination button in `app/lib/screens/gallery_screen.dart`
+- [X] T013 [US1] Move `reliquary` service read out of per-tile build or pass it once to `FileTile` in `app/lib/screens/gallery_screen.dart`
+- [X] T014 [US1] Run `cd app && flutter analyze` and `cd app && flutter test` after gallery changes
 
 **Checkpoint**: User Story 1 fully functional and testable independently.
 
@@ -77,11 +77,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Memoize presigned image URL future in `ImagePreview` state in `app/lib/widgets/file_detail/image_preview.dart`
-- [ ] T018 [US2] Add `cacheWidth`/`cacheHeight` capped to screen size in `ImagePreview` in `app/lib/widgets/file_detail/image_preview.dart`
-- [ ] T019 [US2] Memoize PDF bytes future in `PdfPreview` state in `app/lib/widgets/file_detail/pdf_preview.dart`
-- [ ] T020 [US2] Use `PreviewCache` for image presigned URLs and PDF bytes in `app/lib/widgets/file_detail/image_preview.dart` and `app/lib/widgets/file_detail/pdf_preview.dart`
-- [ ] T021 [US2] Run `cd app && flutter analyze` and `cd app && flutter test` after preview changes
+- [X] T017 [US2] Memoize presigned image URL future in `ImagePreview` state in `app/lib/widgets/file_detail/image_preview.dart`
+- [X] T018 [US2] Add `cacheWidth`/`cacheHeight` capped to screen size in `ImagePreview` in `app/lib/widgets/file_detail/image_preview.dart`
+- [X] T019 [US2] Memoize PDF bytes future in `PdfPreview` state in `app/lib/widgets/file_detail/pdf_preview.dart`
+- [X] T020 [US2] Use `PreviewCache` for image presigned URLs and PDF bytes in `app/lib/widgets/file_detail/image_preview.dart` and `app/lib/widgets/file_detail/pdf_preview.dart`
+- [X] T021 [US2] Run `cd app && flutter analyze` and `cd app && flutter test` after preview changes
 
 **Checkpoint**: User Stories 1 and 2 both work independently.
 
@@ -100,11 +100,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T024 [P] [US3] Add `ValueKey(task.id)` to `UploadFileTile` in `app/lib/widgets/upload/upload_file_tile.dart`
-- [ ] T025 [US3] Extract drag hover state into `UploadDropZone` widget in `app/lib/widgets/upload/upload_drop_zone.dart`
-- [ ] T026 [US3] Replace inline drop zone in `UploadScreen` with new `UploadDropZone` in `app/lib/screens/upload_screen.dart`
-- [ ] T027 [US3] Use `ref.watch(uploadProvider.select((s) => s.selectedFiles))` for list and `select((s) => s.isUploading)` for header action in `app/lib/screens/upload_screen.dart`
-- [ ] T028 [US3] Run `cd app && flutter analyze` and `cd app && flutter test` after upload changes
+- [X] T024 [P] [US3] Add `ValueKey(task.id)` to `UploadFileTile` in `app/lib/widgets/upload/upload_file_tile.dart`
+- [X] T025 [US3] Extract drag hover state into `UploadDropZone` widget in `app/lib/widgets/upload/upload_drop_zone.dart`
+- [X] T026 [US3] Replace inline drop zone in `UploadScreen` with new `UploadDropZone` in `app/lib/screens/upload_screen.dart`
+- [X] T027 [US3] Use `ref.watch(uploadProvider.select((s) => s.selectedFiles))` for list and `select((s) => s.isUploading)` for header action in `app/lib/screens/upload_screen.dart`
+- [X] T028 [US3] Run `cd app && flutter analyze` and `cd app && flutter test` after upload changes
 
 **Checkpoint**: User Stories 1, 2, and 3 all work independently.
 
@@ -123,13 +123,13 @@
 
 ### Implementation for User Story 4
 
-- [ ] T031 [P] [US4] Add `ValueKey(user['username'])` to `_UserTile` in `app/lib/screens/admin_screen.dart`
-- [ ] T032 [US4] Memoize `_filteredUsers` with `useMemoized` (or equivalent) keyed by `_query` and user list in `app/lib/screens/admin_screen.dart`
-- [ ] T033 [P] [US4] Add `ValueKey(tag)` to tag chips in `app/lib/screens/file_detail_screen.dart`
-- [ ] T034 [P] [US4] Add `ValueKey(setting.name)` to theme setting cards in `app/lib/screens/settings_screen.dart`
-- [ ] T035 [US4] Move draft filter state from `GalleryScreen` into `FilterDropdownPanel` in `app/lib/widgets/gallery/filter_dropdown_panel.dart`
-- [ ] T036 [US4] Use `ref.watch(appAuthProvider.select((s) => s.isLoggedIn))` in `app/lib/router/app_router.dart` instead of watching full async service providers
-- [ ] T037 [US4] Run `cd app && flutter analyze` and `cd app && flutter test` after admin/settings/router changes
+- [X] T031 [P] [US4] Add `ValueKey(user['username'])` to `_UserTile` in `app/lib/screens/admin_screen.dart`
+- [X] T032 [US4] Memoize `_filteredUsers` with `useMemoized` (or equivalent) keyed by `_query` and user list in `app/lib/screens/admin_screen.dart`
+- [X] T033 [P] [US4] Add `ValueKey(tag)` to tag chips in `app/lib/screens/file_detail_screen.dart`
+- [X] T034 [P] [US4] Add `ValueKey(setting.name)` to theme setting cards in `app/lib/screens/settings_screen.dart`
+- [X] T035 [US4] Move draft filter state from `GalleryScreen` into `FilterDropdownPanel` in `app/lib/widgets/gallery/filter_dropdown_panel.dart`
+- [X] T036 [US4] Use `ref.watch(appAuthProvider.select((s) => s.isLoggedIn))` in `app/lib/router/app_router.dart` instead of watching full async service providers
+- [X] T037 [US4] Run `cd app && flutter analyze` and `cd app && flutter test` after admin/settings/router changes
 
 **Checkpoint**: All user stories independently functional.
 
@@ -139,11 +139,11 @@
 
 **Purpose**: Final verification and cleanup across all stories.
 
-- [ ] T038 [P] Remove unused imports and dead code introduced by refactoring in `app/lib/`
-- [ ] T039 [P] Add documentation comments to `PreviewCache` and new helper getters in `app/lib/`
-- [ ] T040 Run full `cd app && flutter analyze` and `cd app && flutter test` across the feature
+- [X] T038 [P] Remove unused imports and dead code introduced by refactoring in `app/lib/`
+- [X] T039 [P] Add documentation comments to `PreviewCache` and new helper getters in `app/lib/`
+- [X] T040 Run full `cd app && flutter analyze` and `cd app && flutter test` across the feature
 - [ ] T041 Run quickstart validation scenarios from `specs/005-frontend-performance/quickstart.md`
-- [ ] T042 Verify no generated runtime state, secrets, or `.data/` content is included in the final diff
+- [X] T042 Verify no generated runtime state, secrets, or `.data/` content is included in the final diff
 
 ---
 
