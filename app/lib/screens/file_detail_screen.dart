@@ -259,6 +259,7 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
       children: [
         ...tags.asMap().entries.map(
           (entry) => Container(
+            key: ValueKey(entry.value),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               border: Border.all(

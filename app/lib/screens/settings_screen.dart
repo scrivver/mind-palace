@@ -345,6 +345,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final colors = Theme.of(context).colorScheme;
 
     return Material(
+      key: ValueKey(setting.name),
       color: Colors.transparent,
       child: InkWell(
         onTap: () {

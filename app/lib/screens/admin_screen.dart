@@ -157,15 +157,28 @@ class _AdminScreenState extends State<AdminScreen> {
     ).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
   }
 
+  List<Map<String, dynamic>>? _filteredUsersCache;
+  String? _cachedQuery;
+  List<Map<String, dynamic>>? _cachedUsers;
+
   List<Map<String, dynamic>> get _filteredUsers {
+    if (_cachedQuery == _query && _cachedUsers == _users) {
+      return _filteredUsersCache ?? _users;
+    }
+    _cachedQuery = _query;
+    _cachedUsers = _users;
     final normalizedQuery = _query.trim().toLowerCase();
-    if (normalizedQuery.isEmpty) return _users;
-    return _users.where((user) {
-      final username = (user['username'] as String?) ?? '';
-      final role = (user['role'] as String?) ?? '';
-      return username.toLowerCase().contains(normalizedQuery) ||
-          role.toLowerCase().contains(normalizedQuery);
-    }).toList();
+    if (normalizedQuery.isEmpty) {
+      _filteredUsersCache = _users;
+    } else {
+      _filteredUsersCache = _users.where((user) {
+        final username = (user['username'] as String?) ?? '';
+        final role = (user['role'] as String?) ?? '';
+        return username.toLowerCase().contains(normalizedQuery) ||
+            role.toLowerCase().contains(normalizedQuery);
+      }).toList();
+    }
+    return _filteredUsersCache!;
   }
 
   @override
@@ -207,8 +220,10 @@ class _AdminScreenState extends State<AdminScreen> {
             ),
           );
         }
+        final user = users[index - 1];
         return _UserTile(
-          user: users[index - 1],
+          key: ValueKey(user['username'] as String),
+          user: user,
           onActivate: _activateUser,
           onChangePassword: _changePassword,
           onDelete: _deleteUser,
@@ -271,6 +286,7 @@ class _AdminScreenState extends State<AdminScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _UserTile(
+                  key: ValueKey(user['username'] as String),
                   user: user,
                   onActivate: _activateUser,
                   onChangePassword: _changePassword,
@@ -309,6 +325,7 @@ class _UserTile extends StatelessWidget {
   final void Function(Map<String, dynamic> user) onDelete;
 
   const _UserTile({
+    super.key,
     required this.user,
     required this.onActivate,
     required this.onChangePassword,

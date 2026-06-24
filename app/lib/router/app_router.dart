@@ -2,7 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../auth_service.dart';
+import '../engram_service.dart';
 import '../models/engram_file.dart';
+import '../reliquary_service.dart';
 import '../screens/admin_screen.dart';
 import '../screens/file_detail_screen.dart';
 import '../screens/gallery_screen.dart';
@@ -20,9 +23,9 @@ import '../providers/theme_provider.dart';
 final routerProvider = Provider<GoRouter>((ref) {
   final themeService = ref.watch(themeServiceProvider);
   final authState = ref.watch(appAuthProvider);
-  final authAsync = ref.watch(authServiceProvider);
-  final engramAsync = ref.watch(engramServiceProvider);
-  final reliquaryAsync = ref.watch(reliquaryServiceProvider);
+  final authService = ref.watch(authServiceProvider.select((a) => a.valueOrNull));
+  final engramService = ref.watch(engramServiceProvider.select((a) => a.valueOrNull));
+  final reliquaryService = ref.watch(reliquaryServiceProvider.select((a) => a.valueOrNull));
 
   final needsSetup = !ServerUrlStore.hasSavedUrls && !kIsWeb;
 
@@ -30,9 +33,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     ref,
     themeService,
     authState,
-    authAsync,
-    engramAsync,
-    reliquaryAsync,
+    authService,
+    engramService,
+    reliquaryService,
     needsSetup,
   );
 });
@@ -41,9 +44,9 @@ GoRouter _createRouter(
   Ref ref,
   ThemeService themeService,
   AppAuthState authState,
-  AsyncValue authAsync,
-  AsyncValue engramAsync,
-  AsyncValue reliquaryAsync,
+  AuthService? authService,
+  EngramService? engramService,
+  ReliquaryService? reliquaryService,
   bool needsSetup,
 ) {
   void _invalidateServices() {
@@ -89,15 +92,9 @@ GoRouter _createRouter(
       GoRoute(
         path: '/login',
         builder: (context, state) {
-          final authAsyncValue = ref.read(authServiceProvider);
-          final isPasswordMode = authAsyncValue.whenOrNull(
-                data: (auth) => auth.passwordMode,
-              ) ??
-              false;
-          final isOidcMode = authAsyncValue.whenOrNull(
-                data: (auth) => auth.issuer.isNotEmpty,
-              ) ??
-              false;
+          final auth = ref.read(authServiceProvider).valueOrNull;
+          final isPasswordMode = auth?.passwordMode ?? false;
+          final isOidcMode = auth?.issuer.isNotEmpty ?? false;
           return LoginView(
             onLogin: () => ref.read(appAuthProvider.notifier).login(),
             onPasswordLogin: (username, password) async {
@@ -149,23 +146,21 @@ GoRouter _createRouter(
           GoRoute(
             path: '/status',
             builder: (context, state) {
-              return StatusScreen(reliquary: reliquaryAsync.valueOrNull!);
+              return StatusScreen(reliquary: reliquaryService!);
             },
           ),
           GoRoute(
             path: '/settings',
             builder: (context, state) {
               final themeSetting = ref.read(currentThemeProvider);
-              final reliquary = reliquaryAsync.valueOrNull;
-              final auth = authAsync.valueOrNull;
               return SettingsScreen(
                 themeService: themeService,
                 currentTheme: themeSetting,
                 onThemeChanged: (setting) {
                   themeService.setTheme(setting);
                 },
-                reliquary: reliquary!,
-                auth: auth!,
+                reliquary: reliquaryService!,
+                auth: authService!,
                 onServerUrlChanged: () {
                   _invalidateServices();
                   context.go('/vault');
@@ -176,8 +171,7 @@ GoRouter _createRouter(
           GoRoute(
             path: '/admin',
             builder: (context, state) {
-              final reliquary = reliquaryAsync.valueOrNull!;
-              return AdminScreen(reliquary: reliquary);
+              return AdminScreen(reliquary: reliquaryService!);
             },
           ),
           GoRoute(

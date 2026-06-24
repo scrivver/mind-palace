@@ -2,25 +2,17 @@ import 'package:flutter/material.dart';
 
 class FilterDropdownPanel extends StatefulWidget {
   final List<({String key, String label, IconData icon})> fileTypes;
-  final TextEditingController searchCtrl;
-  final Set<String> draftSelectedTags;
-  final String? draftTypeFilter;
+  final Set<String> initialSelectedTags;
+  final String? initialTypeFilter;
   final List<Map<String, dynamic>> availableTags;
-  final void Function(String key) onToggleType;
-  final void Function(String name) onToggleTag;
-  final VoidCallback onClearAll;
-  final VoidCallback onApply;
+  final void Function(String? type, Set<String> tags) onApply;
 
   const FilterDropdownPanel({
     super.key,
     required this.fileTypes,
-    required this.searchCtrl,
-    required this.draftSelectedTags,
-    required this.draftTypeFilter,
+    required this.initialSelectedTags,
+    required this.initialTypeFilter,
     required this.availableTags,
-    required this.onToggleType,
-    required this.onToggleTag,
-    required this.onClearAll,
     required this.onApply,
   });
 
@@ -29,22 +21,53 @@ class FilterDropdownPanel extends StatefulWidget {
 }
 
 class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
+  late Set<String> _draftSelectedTags;
+  late String? _draftTypeFilter;
+  final TextEditingController _searchCtrl = TextEditingController();
   String _searchText = '';
 
   @override
   void initState() {
     super.initState();
-    widget.searchCtrl.addListener(_onSearchChanged);
+    _draftSelectedTags = Set.from(widget.initialSelectedTags);
+    _draftTypeFilter = widget.initialTypeFilter;
+    _searchCtrl.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
-    widget.searchCtrl.removeListener(_onSearchChanged);
+    _searchCtrl.removeListener(_onSearchChanged);
+    _searchCtrl.dispose();
     super.dispose();
   }
 
   void _onSearchChanged() {
-    setState(() => _searchText = widget.searchCtrl.text.toLowerCase());
+    setState(() => _searchText = _searchCtrl.text.toLowerCase());
+  }
+
+  void _toggleType(String key) {
+    setState(() {
+      _draftTypeFilter = _draftTypeFilter == key ? null : key;
+    });
+  }
+
+  void _toggleTag(String name) {
+    setState(() {
+      if (!_draftSelectedTags.remove(name)) {
+        _draftSelectedTags.add(name);
+      }
+    });
+  }
+
+  void _clearAll() {
+    setState(() {
+      _draftSelectedTags.clear();
+      _draftTypeFilter = null;
+    });
+  }
+
+  void _apply() {
+    widget.onApply(_draftTypeFilter, Set.from(_draftSelectedTags));
   }
 
   @override
@@ -53,7 +76,7 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
     final cs = theme.colorScheme;
 
     final typeItems = widget.fileTypes.where((t) => t.key != 'all').map((t) {
-      final checked = widget.draftTypeFilter == t.key;
+      final checked = _draftTypeFilter == t.key;
       final match =
           _searchText.isEmpty || t.label.toLowerCase().contains(_searchText);
       return (
@@ -68,7 +91,7 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
     final tagItems = widget.availableTags.map((t) {
       final name = t['name'] as String;
       final count = (t['file_count'] as num?)?.toInt() ?? 0;
-      final checked = widget.draftSelectedTags.contains(name);
+      final checked = _draftSelectedTags.contains(name);
       final match =
           _searchText.isEmpty || name.toLowerCase().contains(_searchText);
       return (label: name, count: count, checked: checked, match: match);
@@ -83,7 +106,7 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
               i.label,
               i.icon,
               i.checked,
-              () => widget.onToggleType(i.key),
+              () => _toggleType(i.key),
             ),
           ),
       ...tagItems
@@ -91,10 +114,10 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
           .map(
             (i) => _buildItemRow(
               context,
-              i.label,
+              '${i.label} (${i.count})',
               Icons.tag,
               i.checked,
-              () => widget.onToggleTag(i.label),
+              () => _toggleTag(i.label),
             ),
           ),
     ];
@@ -108,7 +131,7 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
           child: SizedBox(
             height: 36,
             child: TextField(
-              controller: widget.searchCtrl,
+              controller: _searchCtrl,
               style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
               decoration: InputDecoration(
                 hintText: 'Search tags\u2026',
@@ -157,7 +180,7 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
           child: Row(
             children: [
               TextButton(
-                onPressed: widget.onClearAll,
+                onPressed: _clearAll,
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -176,7 +199,7 @@ class _FilterDropdownPanelState extends State<FilterDropdownPanel> {
               ),
               const Spacer(),
               FilledButton(
-                onPressed: widget.onApply,
+                onPressed: _apply,
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,

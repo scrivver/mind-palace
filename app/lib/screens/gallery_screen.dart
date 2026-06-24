@@ -42,10 +42,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   ];
 
   final GlobalKey _filterButtonKey = GlobalKey();
-  final TextEditingController _filterSearchCtrl = TextEditingController();
   OverlayEntry? _filterDropdownOverlay;
-  Set<String> _draftSelectedTags = {};
-  String? _draftTypeFilter;
 
   @override
   void initState() {
@@ -55,13 +52,6 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       ref.read(fileListProvider.notifier).loadTags();
     });
     _scrollCtrl.addListener(_onScroll);
-  }
-
-  void _initDraftState() {
-    final state = ref.read(fileListProvider);
-    _draftSelectedTags = Set.from(state.selectedTags);
-    _draftTypeFilter = state.selectedType;
-    _filterSearchCtrl.clear();
   }
 
   @override
@@ -76,7 +66,6 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   void dispose() {
     _searchDebounce?.cancel();
     _searchCtrl.dispose();
-    _filterSearchCtrl.dispose();
     _scrollCtrl.dispose();
     _closeFilterDropdown();
     super.dispose();
@@ -101,13 +90,13 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   }
 
   void _openFilterDropdown(BuildContext context) {
-    _initDraftState();
     final renderBox =
         _filterButtonKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null || !renderBox.hasSize) return;
 
     final offset = renderBox.localToGlobal(Offset.zero);
     const dropdownWidth = 288.0;
+    final state = ref.read(fileListProvider);
 
     _filterDropdownOverlay = OverlayEntry(
       builder: (ctx) {
@@ -131,38 +120,13 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                       width: dropdownWidth,
                       child: FilterDropdownPanel(
                         fileTypes: _fileTypes,
-                        searchCtrl: _filterSearchCtrl,
-                        draftSelectedTags: _draftSelectedTags,
-                        draftTypeFilter: _draftTypeFilter,
-                        availableTags:
-                            ref.read(fileListProvider).availableTags,
-                        onToggleType: (key) {
-                          setState(
-                            () => _draftTypeFilter = _draftTypeFilter == key
-                                ? null
-                                : key,
-                          );
-                          _filterDropdownOverlay?.markNeedsBuild();
-                        },
-                        onToggleTag: (name) {
-                          setState(() {
-                            if (!_draftSelectedTags.remove(name)) {
-                              _draftSelectedTags.add(name);
-                            }
-                          });
-                          _filterDropdownOverlay?.markNeedsBuild();
-                        },
-                        onClearAll: () {
-                          setState(() {
-                            _draftSelectedTags.clear();
-                            _draftTypeFilter = null;
-                          });
-                          _filterDropdownOverlay?.markNeedsBuild();
-                        },
-                        onApply: () {
+                        initialSelectedTags: state.selectedTags,
+                        initialTypeFilter: state.selectedType,
+                        availableTags: state.availableTags,
+                        onApply: (type, tags) {
                           ref
                               .read(fileListProvider.notifier)
-                              .applyFilters(_draftTypeFilter, _draftSelectedTags);
+                              .applyFilters(type, tags);
                           _closeFilterDropdown();
                         },
                       ),
