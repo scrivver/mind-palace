@@ -73,7 +73,7 @@ class _ImagePreviewState extends State<ImagePreview> {
                 height: constraints.maxHeight,
                 child: Image.network(
                   snap.data!,
-                  fit: BoxFit.contain,
+                  fit: BoxFit.cover,
                   cacheWidth: cacheWidth > 0 ? cacheWidth : null,
                   cacheHeight: cacheHeight > 0 ? cacheHeight : null,
                   errorBuilder: (_, _, _) => _iconPreview(context),
