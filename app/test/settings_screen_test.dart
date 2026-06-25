@@ -70,11 +70,11 @@ Widget createTestApp(
   );
   return MaterialApp(
     home: SettingsScreen(
-      themeService: themeService,
       currentTheme: currentTheme,
-      onThemeChanged: (_) {},
+      onThemeChanged: themeService.setTheme,
       reliquary: reliquary,
-      auth: auth,
+      username: 'admin',
+      provider: provider ?? 'password',
       onServerUrlChanged: () {},
     ),
   );

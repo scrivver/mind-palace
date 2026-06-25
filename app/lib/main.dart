@@ -6,6 +6,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 
 import 'auth_service.dart';
 import 'router/app_router.dart' show routerProvider, routerRefreshNotifier;
+import 'services/post_login_redirect_store.dart';
 import 'services/server_url_store.dart';
 import 'providers/service_providers.dart';
 import 'providers/theme_provider.dart';
@@ -19,6 +20,7 @@ void main() async {
     channel.setMethodCallHandler((call) async => null);
   }
   await ServerUrlStore.load();
+  await PostLoginRedirectStore.load();
   runApp(const ProviderScope(child: MindPalaceApp()));
 }
 

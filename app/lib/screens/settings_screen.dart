@@ -1,28 +1,25 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../auth_service.dart';
 import '../reliquary_service.dart';
 import '../services/server_url_store.dart';
 import '../services/theme_service.dart';
 
 class SettingsScreen extends StatefulWidget {
-  final ThemeService themeService;
   final ThemeSetting currentTheme;
   final ValueChanged<ThemeSetting> onThemeChanged;
   final ReliquaryService reliquary;
-  final AuthService auth;
+  final String? username;
+  final String? provider;
   final VoidCallback onServerUrlChanged;
 
   const SettingsScreen({
     super.key,
-    required this.themeService,
     required this.currentTheme,
     required this.onThemeChanged,
     required this.reliquary,
-    required this.auth,
+    required this.username,
+    required this.provider,
     required this.onServerUrlChanged,
   });
 
@@ -31,46 +28,18 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late ThemeSetting _selectedTheme;
-  StreamSubscription<ThemeSetting>? _themeSubscription;
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  String? _username;
-  String? _provider;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedTheme = widget.currentTheme;
-    _themeSubscription = widget.themeService.themeModeStream.listen((setting) {
-      if (mounted) {
-        setState(() => _selectedTheme = setting);
-      }
-    });
-    _loadAuthInfo();
-  }
-
-  Future<void> _loadAuthInfo() async {
-    final username = await widget.auth.getUsername();
-    final provider = await widget.auth.getProvider();
-    if (mounted) {
-      setState(() {
-        _username = username;
-        _provider = provider;
-      });
-    }
-  }
 
   @override
   void dispose() {
-    _themeSubscription?.cancel();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
   Future<void> _changePassword() async {
-    final username = _username;
+    final username = widget.username;
     if (username == null) return;
 
     final newPassword = _newPasswordController.text;
@@ -245,7 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildResetPasswordSection() {
     final colors = Theme.of(context).colorScheme;
-    final isPasswordProvider = _provider == 'password';
+    final isPasswordProvider = widget.provider == 'password';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -345,7 +314,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildThemeCard(ThemeSetting setting) {
-    final isSelected = _selectedTheme == setting;
+    final isSelected = widget.currentTheme == setting;
     final colors = Theme.of(context).colorScheme;
 
     return Material(
@@ -353,8 +322,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          setState(() => _selectedTheme = setting);
-          widget.themeService.setTheme(setting);
           widget.onThemeChanged(setting);
         },
         borderRadius: BorderRadius.circular(12),

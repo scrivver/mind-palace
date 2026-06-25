@@ -12,6 +12,7 @@ import '../screens/server_setup_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/status_screen.dart';
 import '../screens/upload_screen.dart';
+import '../services/post_login_redirect_store.dart';
 import '../services/server_url_store.dart';
 import '../widgets/app_shell.dart';
 import '../providers/service_providers.dart';
@@ -54,7 +55,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/not-found';
       }
       if (authState.isLoggedIn && (path == '/login' || path == '/callback')) {
-        return _safePostLoginPath(state.uri.queryParameters['from']);
+        return _safePostLoginPath(
+          state.uri.queryParameters['from'] ?? PostLoginRedirectStore.take(),
+        );
       }
       return null;
     },
@@ -85,8 +88,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           final authState = ref.read(appAuthProvider);
           final isPasswordMode = auth?.passwordMode ?? false;
           final isOidcMode = auth?.issuer.isNotEmpty ?? false;
+          final returnTo = _safePostLoginPath(
+            state.uri.queryParameters['from'],
+          );
           return LoginView(
-            onLogin: () => ref.read(appAuthProvider.notifier).login(),
+            onLogin: () => ref
+                .read(appAuthProvider.notifier)
+                .login(returnTo: returnTo == '/vault' ? null : returnTo),
             onPasswordLogin: (username, password) async {
               await ref
                   .read(appAuthProvider.notifier)
@@ -184,21 +192,21 @@ final routerProvider = Provider<GoRouter>((ref) {
                   final reliquary = ref
                       .watch(reliquaryServiceProvider)
                       .valueOrNull;
-                  final auth = ref.watch(authServiceProvider).valueOrNull;
-                  if (reliquary == null || auth == null) {
+                  final authState = ref.watch(appAuthProvider);
+                  if (reliquary == null) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   final themeService = ref.watch(themeServiceProvider);
                   final themeSetting = ref.watch(currentThemeProvider);
                   return SettingsScreen(
-                    themeService: themeService,
                     currentTheme: themeSetting,
                     onThemeChanged: (setting) {
                       themeService.setTheme(setting);
                       ref.read(currentThemeProvider.notifier).state = setting;
                     },
                     reliquary: reliquary,
-                    auth: auth,
+                    username: authState.username,
+                    provider: authState.provider,
                     onServerUrlChanged: () {
                       invalidateServices();
                       context.go('/vault');

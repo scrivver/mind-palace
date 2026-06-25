@@ -21,13 +21,15 @@ class EngramService {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final token = await auth.getAccessToken();
+          options.extra['hadAccessToken'] = token != null;
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
           handler.next(options);
         },
         onError: (error, handler) async {
-          if (error.response?.statusCode == 401) {
+          if (error.response?.statusCode == 401 &&
+              error.requestOptions.extra['hadAccessToken'] != true) {
             onUnauthorized?.call();
           }
           handler.next(error);

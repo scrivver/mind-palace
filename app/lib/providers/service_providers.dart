@@ -6,6 +6,7 @@ import '../auth_models.dart';
 import '../auth_service.dart';
 import '../engram_service.dart';
 import '../reliquary_service.dart';
+import '../services/post_login_redirect_store.dart';
 import '../services/server_url_store.dart';
 
 final serverUrlReadyProvider = FutureProvider<void>((ref) async {
@@ -151,11 +152,12 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
     }
   }
 
-  Future<void> login() async {
+  Future<void> login({String? returnTo}) async {
     final auth = state.authService;
     if (auth == null) return;
     state = state.copyWith(isLoading: true, error: null);
     try {
+      await PostLoginRedirectStore.set(returnTo);
       final success = await auth.login();
       if (success) {
         final userInfo = await auth.getUserInfo();
@@ -169,6 +171,7 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
           provider: provider,
         );
       } else {
+        await PostLoginRedirectStore.set(null);
         state = state.copyWith(
           isLoading: false,
           error: 'Login was cancelled or failed',

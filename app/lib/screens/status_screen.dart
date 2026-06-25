@@ -87,13 +87,9 @@ class StatusScreen extends ConsumerWidget {
     final byType = stats['by_type'] as Map<String, dynamic>? ?? {};
     final fileCount = (stats['file_count'] as num?)?.toInt() ?? 0;
     final totalSize = (stats['total_size'] as num?)?.toInt() ?? 0;
-    const displayCapacity = 100 * 1024 * 1024 * 1024; // 100 GB
 
     final categories = _buildStorageCategories(byType);
     final usedBytes = totalSize;
-    final capacityFraction = usedBytes > 0
-        ? (usedBytes / displayCapacity).clamp(0.0, 1.0)
-        : 0.0;
 
     return _buildCard(
       context,
@@ -105,26 +101,15 @@ class StatusScreen extends ConsumerWidget {
               Icon(Icons.storage, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
               Text(
-                'Storage Capacity',
+                'Storage Used',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ],
           ),
           const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: capacityFraction,
-              minHeight: 8,
-              backgroundColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest,
-            ),
-          ),
-          const SizedBox(height: 8),
           Text(
-            '${FormatUtils.formatBytes(usedBytes)} / ${FormatUtils.formatBytes(displayCapacity)}',
-            style: Theme.of(context).textTheme.bodyMedium,
+            FormatUtils.formatBytes(usedBytes),
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
           Text(

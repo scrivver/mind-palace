@@ -86,18 +86,29 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
   }
 
   Widget _buildError(BuildContext context, Object error) {
+    final title = switch (error) {
+      FileDetailLoadException(failure: FileDetailLoadFailure.notFound) =>
+        'File not found',
+      FileDetailLoadException(failure: FileDetailLoadFailure.forbidden) =>
+        'File unavailable',
+      _ => 'Failed to load file',
+    };
+    final message = switch (error) {
+      FileDetailLoadException(failure: FileDetailLoadFailure.notFound) =>
+        'This file does not exist in your vault.',
+      FileDetailLoadException(failure: FileDetailLoadFailure.forbidden) =>
+        'This file is not available to your account.',
+      _ => '$error',
+    };
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Failed to load file',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text('$error', textAlign: TextAlign.center),
+            Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: () =>
