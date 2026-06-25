@@ -88,26 +88,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       ShellRoute(
         builder: (context, state, child) {
-          final authState = ref.read(appAuthProvider);
-          final segment = state.uri.pathSegments.isNotEmpty
-              ? state.uri.pathSegments.first
-              : 'vault';
-          final isAdmin = authState.isAdmin;
-          final navIndex = _navIndexForSegment(segment, isAdmin);
-          return AppShell(
-            child: child,
-            selectedIndex: navIndex,
-            username: authState.username ?? '',
-            isAdmin: isAdmin,
-            onDestinationChanged: (index) {
-              final path = _segmentForNavIndex(index, isAdmin);
-              context.go('/$path');
-            },
-            onLogout: () {
-              ref.read(appAuthProvider.notifier).logout();
-              context.go('/login');
-            },
-          );
+          return Consumer(builder: (context, ref, _) {
+            final authState = ref.watch(appAuthProvider);
+            final segment = state.uri.pathSegments.isNotEmpty
+                ? state.uri.pathSegments.first
+                : 'vault';
+            final isAdmin = authState.isAdmin;
+            final navIndex = _navIndexForSegment(segment, isAdmin);
+            return AppShell(
+              child: child,
+              selectedIndex: navIndex,
+              username: authState.username ?? '',
+              isAdmin: isAdmin,
+              onDestinationChanged: (index) {
+                final path = _segmentForNavIndex(index, isAdmin);
+                context.go('/$path');
+              },
+              onLogout: () {
+                ref.read(appAuthProvider.notifier).logout();
+                context.go('/login');
+              },
+            );
+          });
         },
         routes: [
           GoRoute(
@@ -123,43 +125,53 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/status',
             builder: (context, state) {
-              final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
-              if (reliquary == null) return const Center(child: CircularProgressIndicator());
-              return StatusScreen(reliquary: reliquary);
+              return Consumer(builder: (context, ref, _) {
+                final reliquary = ref.watch(reliquaryServiceProvider).valueOrNull;
+                if (reliquary == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return StatusScreen(reliquary: reliquary);
+              });
             },
           ),
           GoRoute(
             path: '/settings',
             builder: (context, state) {
-              final themeService = ref.read(themeServiceProvider);
-              final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
-              final auth = ref.read(authServiceProvider).valueOrNull;
-              if (reliquary == null || auth == null) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final themeSetting = ref.read(currentThemeProvider);
-              return SettingsScreen(
-                themeService: themeService,
-                currentTheme: themeSetting,
-                onThemeChanged: (setting) {
-                  themeService.setTheme(setting);
-                  ref.read(currentThemeProvider.notifier).state = setting;
-                },
-                reliquary: reliquary,
-                auth: auth,
-                onServerUrlChanged: () {
-                  invalidateServices();
-                  context.go('/vault');
-                },
-              );
+              return Consumer(builder: (context, ref, _) {
+                final reliquary = ref.watch(reliquaryServiceProvider).valueOrNull;
+                final auth = ref.watch(authServiceProvider).valueOrNull;
+                if (reliquary == null || auth == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final themeService = ref.watch(themeServiceProvider);
+                final themeSetting = ref.watch(currentThemeProvider);
+                return SettingsScreen(
+                  themeService: themeService,
+                  currentTheme: themeSetting,
+                  onThemeChanged: (setting) {
+                    themeService.setTheme(setting);
+                    ref.read(currentThemeProvider.notifier).state = setting;
+                  },
+                  reliquary: reliquary,
+                  auth: auth,
+                  onServerUrlChanged: () {
+                    invalidateServices();
+                    context.go('/vault');
+                  },
+                );
+              });
             },
           ),
           GoRoute(
             path: '/admin',
             builder: (context, state) {
-              final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
-              if (reliquary == null) return const Center(child: CircularProgressIndicator());
-              return AdminScreen(reliquary: reliquary);
+              return Consumer(builder: (context, ref, _) {
+                final reliquary = ref.watch(reliquaryServiceProvider).valueOrNull;
+                if (reliquary == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return AdminScreen(reliquary: reliquary);
+              });
             },
           ),
           GoRoute(

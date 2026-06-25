@@ -65,10 +65,16 @@ class FileListState {
 }
 
 class FileListNotifier extends StateNotifier<FileListState> {
-  final EngramService? _engram;
+  EngramService? _engram;
   static const _pageSize = 50;
 
   FileListNotifier(this._engram) : super(const FileListState());
+
+  void setEngram(EngramService engram) {
+    _engram = engram;
+    loadFiles();
+    loadTags();
+  }
 
   Future<void> loadFiles({bool append = false}) async {
     final engram = _engram;
@@ -157,7 +163,12 @@ class FileListNotifier extends StateNotifier<FileListState> {
 
 final fileListProvider = StateNotifierProvider<FileListNotifier, FileListState>(
   (ref) {
-    final engram = ref.watch(engramServiceProvider).valueOrNull;
-    return FileListNotifier(engram);
+    final notifier = FileListNotifier(
+      ref.read(engramServiceProvider).valueOrNull,
+    );
+    ref.listen(engramServiceProvider, (_, next) {
+      next.whenData((engram) => notifier.setEngram(engram));
+    });
+    return notifier;
   },
 );
