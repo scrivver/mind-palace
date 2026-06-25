@@ -67,6 +67,7 @@ class FileListState {
 class FileListNotifier extends StateNotifier<FileListState> {
   EngramService? _engram;
   bool _isLoggedIn = false;
+  bool _didLoadInitial = false;
   static const _pageSize = 50;
 
   FileListNotifier(this._engram, this._isLoggedIn)
@@ -74,15 +75,23 @@ class FileListNotifier extends StateNotifier<FileListState> {
 
   void setEngram(EngramService engram) {
     _engram = engram;
-    if (!_isLoggedIn) return;
-    loadFiles();
-    loadTags();
+    _loadInitialIfReady();
   }
 
   void setLoggedIn(bool isLoggedIn) {
     if (_isLoggedIn == isLoggedIn) return;
     _isLoggedIn = isLoggedIn;
-    if (!isLoggedIn || _engram == null) return;
+    if (!isLoggedIn) return;
+    _loadInitialIfReady();
+  }
+
+  void loadInitialIfReady() {
+    _loadInitialIfReady();
+  }
+
+  void _loadInitialIfReady() {
+    if (_didLoadInitial || !_isLoggedIn || _engram == null) return;
+    _didLoadInitial = true;
     loadFiles();
     loadTags();
   }
@@ -205,6 +214,7 @@ final fileListProvider = StateNotifierProvider<FileListNotifier, FileListState>(
     ref.listen(appAuthProvider.select((state) => state.isLoggedIn), (_, next) {
       notifier.setLoggedIn(next);
     });
+    notifier.loadInitialIfReady();
     return notifier;
   },
 );

@@ -64,8 +64,6 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _syncRouteStateToProvider();
-      ref.read(fileListProvider.notifier).loadTags();
-      ref.read(fileListProvider.notifier).loadFiles();
     });
     _scrollCtrl.addListener(_onScroll);
   }
