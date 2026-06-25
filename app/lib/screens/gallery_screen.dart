@@ -544,12 +544,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     required ReliquaryService? reliquary,
   }) {
     if (loading) {
-      return const SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(32, 48, 32, 0),
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return _buildLoadingGrid(context);
     }
 
     if (error != null) {
@@ -625,6 +620,92 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             onTap: () => _openDetail(file),
           );
         }, childCount: files.length + (hasMore ? 1 : 0)),
+      ),
+    );
+  }
+
+  Widget _buildLoadingGrid(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 300,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 0.9,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => _buildLoadingTile(colors),
+          childCount: 8,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingTile(ColorScheme colors) {
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        border: Border.all(color: colors.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 112,
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerHighest.withAlpha(160),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.insert_drive_file_outlined,
+                size: 32,
+                color: colors.onSurfaceVariant.withAlpha(80),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _loadingBar(colors, widthFactor: 0.82),
+          const SizedBox(height: 8),
+          _loadingBar(colors, widthFactor: 0.52),
+          const Spacer(),
+          Row(
+            children: [
+              _loadingPill(colors),
+              const SizedBox(width: 8),
+              _loadingPill(colors, width: 56),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loadingBar(ColorScheme colors, {required double widthFactor}) {
+    return FractionallySizedBox(
+      alignment: Alignment.centerLeft,
+      widthFactor: widthFactor,
+      child: Container(
+        height: 10,
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
+    );
+  }
+
+  Widget _loadingPill(ColorScheme colors, {double width = 72}) {
+    return Container(
+      width: width,
+      height: 22,
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withAlpha(180),
+        borderRadius: BorderRadius.circular(999),
       ),
     );
   }
