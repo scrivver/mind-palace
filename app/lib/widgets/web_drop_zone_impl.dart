@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
+
 import 'dart:async';
 import 'dart:html' as html;
 import 'package:flutter/widgets.dart';
@@ -55,7 +57,7 @@ class _WebDropZoneState extends State<WebDropZone> {
       widget.onHover?.call(false);
 
       final dataTransfer = e.dataTransfer;
-      final items = dataTransfer?.items;
+      final items = dataTransfer.items;
 
       if ((items?.length ?? 0) > 0) {
         // Capture entry objects synchronously, before any await. Firefox

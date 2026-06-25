@@ -44,13 +44,13 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
   final out = <PlatformFile>[];
   final seen = <String>{};
 
-  Future<Uint8List> _readFileBytes(web.File f) async {
+  Future<Uint8List> readFileBytes(web.File f) async {
     final jsArrayBuffer = await f.arrayBuffer().toDart;
     final byteBuffer = jsArrayBuffer.toDart;
     return Uint8List.view(byteBuffer);
   }
 
-  Future<web.File> _fileFromEntry(web.FileSystemFileEntry entry) async {
+  Future<web.File> fileFromEntry(web.FileSystemFileEntry entry) async {
     final c = Completer<web.File>();
     entry.file(
       ((JSAny? file) => c.complete(file as web.File)).toJS,
@@ -59,7 +59,7 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
     return c.future;
   }
 
-  Future<List<web.FileSystemEntry>> _readOneBatch(
+  Future<List<web.FileSystemEntry>> readOneBatch(
     web.FileSystemDirectoryReader reader,
   ) async {
     final c = Completer<List<web.FileSystemEntry>>();
@@ -77,19 +77,19 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
     return c.future;
   }
 
-  Future<List<web.FileSystemEntry>> _readAllEntries(
+  Future<List<web.FileSystemEntry>> readAllEntries(
     web.FileSystemDirectoryReader reader,
   ) async {
     final collected = <web.FileSystemEntry>[];
     while (true) {
-      final batch = await _readOneBatch(reader);
+      final batch = await readOneBatch(reader);
       if (batch.isEmpty) break;
       collected.addAll(batch);
     }
     return collected;
   }
 
-  bool _looksLikePlaceholder(String p) {
+  bool looksLikePlaceholder(String p) {
     final lower = p.toLowerCase();
     final parts = lower.split('/');
     for (final part in parts) {
@@ -100,14 +100,14 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
     return false;
   }
 
-  Future<void> _walkEntry(dynamic entry, String basePath) async {
+  Future<void> walkEntry(dynamic entry, String basePath) async {
     try {
       final e = entry as web.FileSystemEntry;
       if (e.isFile) {
-        final file = await _fileFromEntry(e as web.FileSystemFileEntry);
-        final bytes = await _readFileBytes(file);
+        final file = await fileFromEntry(e as web.FileSystemFileEntry);
+        final bytes = await readFileBytes(file);
         final rel = '$basePath${e.name}';
-        if (_looksLikePlaceholder(rel)) return;
+        if (looksLikePlaceholder(rel)) return;
         if (seen.add(rel)) {
           out.add(
             PlatformFile(name: rel, size: file.size, bytes: bytes, path: rel),
@@ -116,9 +116,9 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
       } else if (e.isDirectory) {
         final dir = e as web.FileSystemDirectoryEntry;
         final reader = dir.createReader();
-        final children = await _readAllEntries(reader);
+        final children = await readAllEntries(reader);
         for (final child in children) {
-          await _walkEntry(child, '$basePath${e.name}/');
+          await walkEntry(child, '$basePath${e.name}/');
         }
       }
     } catch (_) {}
@@ -127,7 +127,7 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
   final tasks = <Future<void>>[];
 
   for (final entry in captured.entries) {
-    tasks.add(_walkEntry(entry, ''));
+    tasks.add(walkEntry(entry, ''));
   }
 
   for (final f in captured.files) {
@@ -135,9 +135,9 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
       (() async {
         try {
           final file = f as web.File;
-          final bytes = await _readFileBytes(file);
+          final bytes = await readFileBytes(file);
           final name = file.name;
-          if (_looksLikePlaceholder(name)) return;
+          if (looksLikePlaceholder(name)) return;
           if (seen.add(name)) {
             out.add(
               PlatformFile(

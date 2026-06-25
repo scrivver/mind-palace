@@ -243,6 +243,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               return FileDetailScreen(
                 fileId: fileId,
                 onBack: ({bool deleted = false}) => context.go('/vault'),
+                onUnavailable: () => context.go('/not-found'),
               );
             },
           ),

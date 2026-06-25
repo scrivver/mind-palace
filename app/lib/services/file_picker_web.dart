@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
+
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:html' as html;
@@ -22,14 +24,14 @@ Future<List<PlatformFile>?> pickFiles({bool allowMultiple = true}) async {
   input.onChange.listen((_) async {
     final files = input.files;
     cleanup();
-    if (files == null || files.length == 0) {
+    if (files == null || files.isEmpty) {
       if (!completer.isCompleted) completer.complete(null);
       return;
     }
 
     final result = <PlatformFile>[];
     for (var i = 0; i < files.length; i++) {
-      final file = files[i] as html.File;
+      final file = files[i];
       final bytes = await _readFileBytes(file);
       result.add(PlatformFile(name: file.name, size: file.size, bytes: bytes));
     }
@@ -74,14 +76,14 @@ Future<List<PlatformFile>?> pickFolder() async {
   input.onChange.listen((_) async {
     final files = input.files;
     cleanup();
-    if (files == null || files.length == 0) {
+    if (files == null || files.isEmpty) {
       if (!completer.isCompleted) completer.complete(null);
       return;
     }
 
     final result = <PlatformFile>[];
     for (var i = 0; i < files.length; i++) {
-      final file = files[i] as html.File;
+      final file = files[i];
       final bytes = await _readFileBytes(file);
       String? relative;
       try {

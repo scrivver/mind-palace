@@ -15,11 +15,13 @@ import '../widgets/file_detail/pdf_preview.dart';
 class FileDetailScreen extends ConsumerStatefulWidget {
   final String fileId;
   final void Function({bool deleted}) onBack;
+  final VoidCallback onUnavailable;
 
   const FileDetailScreen({
     super.key,
     required this.fileId,
     required this.onBack,
+    required this.onUnavailable,
   });
 
   @override
@@ -80,35 +82,32 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
 
     return file.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => _buildError(context, error),
+      error: (error, _) {
+        if (error is FileDetailLoadException) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) widget.onUnavailable();
+          });
+          return const Center(child: CircularProgressIndicator());
+        }
+        return _buildError(context, error);
+      },
       data: (file) => _buildContent(context, file),
     );
   }
 
   Widget _buildError(BuildContext context, Object error) {
-    final title = switch (error) {
-      FileDetailLoadException(failure: FileDetailLoadFailure.notFound) =>
-        'File not found',
-      FileDetailLoadException(failure: FileDetailLoadFailure.forbidden) =>
-        'File unavailable',
-      _ => 'Failed to load file',
-    };
-    final message = switch (error) {
-      FileDetailLoadException(failure: FileDetailLoadFailure.notFound) =>
-        'This file does not exist in your vault.',
-      FileDetailLoadException(failure: FileDetailLoadFailure.forbidden) =>
-        'This file is not available to your account.',
-      _ => '$error',
-    };
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Failed to load file',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center),
+            Text('$error', textAlign: TextAlign.center),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: () =>

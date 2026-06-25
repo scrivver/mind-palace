@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:path/path.dart' as p;
 
 Future<List<PlatformFile>?> pickFiles({bool allowMultiple = true}) async {
   final result = await FilePicker.platform.pickFiles(
@@ -23,7 +22,7 @@ Future<List<PlatformFile>?> pickFolder() async {
       final stat = await entity.stat();
       files.add(
         PlatformFile(
-          name: p.basename(entity.path),
+          name: _basename(entity.path),
           size: stat.size,
           path: entity.path,
         ),
@@ -33,4 +32,10 @@ Future<List<PlatformFile>?> pickFolder() async {
 
   if (files.isEmpty) return null;
   return files;
+}
+
+String _basename(String path) {
+  final normalized = path.replaceAll('\\', '/');
+  final slash = normalized.lastIndexOf('/');
+  return slash == -1 ? normalized : normalized.substring(slash + 1);
 }

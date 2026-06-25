@@ -75,20 +75,23 @@ class _MindPalaceAppState extends ConsumerState<MindPalaceApp> {
           : ThemeMode.light,
       routerConfig: ref.watch(routerProvider),
       builder: (context, child) {
-        return Consumer(builder: (context, ref, child) {
-          final isLoading = ref.watch(
-            appAuthProvider.select((s) => s.isLoading),
-          );
-          return Stack(
-            children: [
-              if (child != null) child,
-              if (isLoading)
-                const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                ),
-            ],
-          );
-        }, child: child);
+        return Consumer(
+          builder: (context, ref, child) {
+            final isLoading = ref.watch(
+              appAuthProvider.select((s) => s.isLoading),
+            );
+            return Stack(
+              children: [
+                ?child,
+                if (isLoading)
+                  const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  ),
+              ],
+            );
+          },
+          child: child,
+        );
       },
     );
   }

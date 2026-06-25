@@ -1,8 +1,6 @@
 import 'dart:io';
 
-import 'package:desktop_drop/desktop_drop.dart' as dd;
 import 'package:file_picker/file_picker.dart';
-import 'package:path/path.dart' as p;
 
 /// Expand DropItem entries on IO platforms. If a dropped path is a directory,
 /// walk it recursively and return PlatformFile entries pointing to the files
@@ -21,15 +19,29 @@ Future<List<PlatformFile>> expandDropItemsIo(List<dynamic> items) async {
         if (e is File) {
           final filePath = e.path;
           final size = await e.length();
-          final rel = p.relative(filePath, from: base);
+          final rel = _relativePath(filePath, base);
           out.add(PlatformFile(name: rel, size: size, path: filePath));
         }
       }
     } else if (entity == FileSystemEntityType.file) {
       final f = File(path);
       final size = await f.length();
-      out.add(PlatformFile(name: p.basename(path), size: size, path: path));
+      out.add(PlatformFile(name: _basename(path), size: size, path: path));
     }
   }
   return out;
+}
+
+String _relativePath(String filePath, String basePath) {
+  final prefix = basePath.endsWith(Platform.pathSeparator)
+      ? basePath
+      : '$basePath${Platform.pathSeparator}';
+  if (filePath.startsWith(prefix)) return filePath.substring(prefix.length);
+  return _basename(filePath);
+}
+
+String _basename(String path) {
+  final normalized = path.replaceAll('\\', '/');
+  final slash = normalized.lastIndexOf('/');
+  return slash == -1 ? normalized : normalized.substring(slash + 1);
 }

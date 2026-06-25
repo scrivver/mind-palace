@@ -66,7 +66,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     }
 
     if (!mounted) return;
-    bool _isPlaceholder(PlatformFile f) {
+    bool isPlaceholder(PlatformFile f) {
       final name = f.name;
       final path = f.path;
       if (name.startsWith('.inode') || name == 'x-empty') return true;
@@ -74,7 +74,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       return false;
     }
 
-    final nonPlaceholders = files.where((f) => !_isPlaceholder(f)).toList();
+    final nonPlaceholders = files.where((f) => !isPlaceholder(f)).toList();
     if (nonPlaceholders.isEmpty && files.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

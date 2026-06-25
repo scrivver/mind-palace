@@ -98,11 +98,11 @@ class AuthService {
       final state = parsed['state'] as String?;
       final error = parsed['error'] as String?;
       if (code != null || state != null || error != null) {
-        return {
-          if (code != null) 'code': code,
-          if (state != null) 'state': state,
-          if (error != null) 'error': error,
-        };
+        final params = <String, String>{};
+        if (code != null) params['code'] = code;
+        if (state != null) params['state'] = state;
+        if (error != null) params['error'] = error;
+        return params;
       }
       return const {};
     }
@@ -113,11 +113,11 @@ class AuthService {
     if (code == null && state == null && error == null) {
       return const {};
     }
-    return {
-      if (code != null) 'code': code,
-      if (state != null) 'state': state,
-      if (error != null) 'error': error,
-    };
+    final params = <String, String>{};
+    if (code != null) params['code'] = code;
+    if (state != null) params['state'] = state;
+    if (error != null) params['error'] = error;
+    return params;
   }
 
   void _clearOidcCallbackUrl() {
