@@ -11,6 +11,7 @@ import 'services/server_url_store.dart';
 import 'providers/service_providers.dart';
 import 'providers/theme_provider.dart';
 import 'theme/app_theme.dart';
+import 'widgets/app_loading_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -84,8 +85,8 @@ class _MindPalaceAppState extends ConsumerState<MindPalaceApp> {
               children: [
                 ?child,
                 if (isLoading)
-                  const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
+                  const AppLoadingScreen(
+                    message: 'Completing sign-in and preparing your routes...',
                   ),
               ],
             );

@@ -14,6 +14,7 @@ import '../screens/status_screen.dart';
 import '../screens/upload_screen.dart';
 import '../services/post_login_redirect_store.dart';
 import '../services/server_url_store.dart';
+import '../widgets/app_loading_screen.dart';
 import '../widgets/app_shell.dart';
 import '../providers/service_providers.dart';
 import '../providers/theme_provider.dart';
@@ -119,8 +120,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, ref, _) {
               final authState = ref.watch(appAuthProvider);
               if (authState.isLoading) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
+                return const AppLoadingScreen(
+                  message: 'Restoring your session...',
                 );
               }
               final segment = state.uri.pathSegments.isNotEmpty
@@ -199,7 +200,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                       .valueOrNull;
                   final authState = ref.watch(appAuthProvider);
                   if (reliquary == null) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const AppLoadingScreen(
+                      title: 'Loading Settings',
+                      message: 'Connecting to your Reliquary...',
+                    );
                   }
                   final themeService = ref.watch(themeServiceProvider);
                   final themeSetting = ref.watch(currentThemeProvider);
@@ -228,7 +232,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (context, ref, _) {
                   final authState = ref.watch(appAuthProvider);
                   if (authState.isLoading || !authState.isAdmin) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const AppLoadingScreen(
+                      title: 'Checking Access',
+                      message: 'Verifying admin permissions...',
+                    );
                   }
                   return const AdminScreen();
                 },
