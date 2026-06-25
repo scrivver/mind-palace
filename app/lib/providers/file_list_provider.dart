@@ -66,19 +66,30 @@ class FileListState {
 
 class FileListNotifier extends StateNotifier<FileListState> {
   EngramService? _engram;
+  bool _isLoggedIn = false;
   static const _pageSize = 50;
 
-  FileListNotifier(this._engram) : super(const FileListState());
+  FileListNotifier(this._engram, this._isLoggedIn)
+    : super(const FileListState());
 
   void setEngram(EngramService engram) {
     _engram = engram;
+    if (!_isLoggedIn) return;
+    loadFiles();
+    loadTags();
+  }
+
+  void setLoggedIn(bool isLoggedIn) {
+    if (_isLoggedIn == isLoggedIn) return;
+    _isLoggedIn = isLoggedIn;
+    if (!isLoggedIn || _engram == null) return;
     loadFiles();
     loadTags();
   }
 
   Future<void> loadFiles({bool append = false}) async {
     final engram = _engram;
-    if (engram == null) return;
+    if (engram == null || !_isLoggedIn) return;
     state = state.copyWith(
       isLoading: !append,
       isLoadingMore: append,
@@ -111,7 +122,7 @@ class FileListNotifier extends StateNotifier<FileListState> {
 
   Future<void> loadTags() async {
     final engram = _engram;
-    if (engram == null) return;
+    if (engram == null || !_isLoggedIn) return;
     try {
       final tags = await engram.listTags();
       final names = tags.map((t) => t['name'] as String).toSet();
@@ -186,9 +197,13 @@ final fileListProvider = StateNotifierProvider<FileListNotifier, FileListState>(
   (ref) {
     final notifier = FileListNotifier(
       ref.read(engramServiceProvider).valueOrNull,
+      ref.read(appAuthProvider).isLoggedIn,
     );
     ref.listen(engramServiceProvider, (_, next) {
       next.whenData((engram) => notifier.setEngram(engram));
+    });
+    ref.listen(appAuthProvider.select((state) => state.isLoggedIn), (_, next) {
+      notifier.setLoggedIn(next);
     });
     return notifier;
   },

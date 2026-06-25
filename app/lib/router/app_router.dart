@@ -118,6 +118,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           return Consumer(
             builder: (context, ref, _) {
               final authState = ref.watch(appAuthProvider);
+              if (authState.isLoading) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
               final segment = state.uri.pathSegments.isNotEmpty
                   ? state.uri.pathSegments.first
                   : 'vault';

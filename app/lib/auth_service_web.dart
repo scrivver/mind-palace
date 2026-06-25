@@ -20,6 +20,7 @@ class AuthService {
   final bool passwordMode;
 
   static const _accessTokenKey = 'access_token';
+  static const _accessTokenExpiresAtKey = 'access_token_expires_at';
   static const _refreshTokenKey = 'refresh_token';
   static const _idTokenKey = 'id_token';
   static const _usernameKey = 'username';
@@ -30,6 +31,7 @@ class AuthService {
   static const _oidcClientIdKey = 'oidc_client_id';
   static const _passwordTokenKey = 'password_token';
   static const _providerKey = 'auth_provider';
+  static const _refreshSkew = Duration(minutes: 1);
 
   AuthConfig? _authConfig;
   Map<String, dynamic>? _oidcDiscovery;
@@ -75,7 +77,8 @@ class AuthService {
         'redirect_uri': _redirectUri(cfg.oidc),
         'code_verifier': verifier,
         'client_id':
-            savedClientId ?? (cfg.oidc.clientId.isEmpty ? clientId : cfg.oidc.clientId),
+            savedClientId ??
+            (cfg.oidc.clientId.isEmpty ? clientId : cfg.oidc.clientId),
       });
       await _oauthParams.delete(_stateKey);
       await _oauthParams.delete(_verifierKey);
@@ -128,7 +131,7 @@ class AuthService {
     final passwordToken = await _storage.read(_passwordTokenKey);
     if (passwordToken != null) return true;
     final token = await _storage.read(_accessTokenKey);
-    if (token != null) return true;
+    if (token != null && !await _isAccessTokenExpiring()) return true;
     return _refreshTokens();
   }
 
@@ -222,6 +225,7 @@ class AuthService {
 
   Future<void> logout() async {
     await _storage.delete(_accessTokenKey);
+    await _storage.delete(_accessTokenExpiresAtKey);
     await _storage.delete(_refreshTokenKey);
     await _storage.delete(_idTokenKey);
     await _storage.delete(_usernameKey);
@@ -238,7 +242,7 @@ class AuthService {
     final token = await _storage.read(_passwordTokenKey);
     if (token != null) return token;
     final oidcToken = await _storage.read(_accessTokenKey);
-    if (oidcToken != null) return oidcToken;
+    if (oidcToken != null && !await _isAccessTokenExpiring()) return oidcToken;
     if (await _refreshTokens()) {
       return _storage.read(_accessTokenKey);
     }
@@ -338,6 +342,7 @@ class AuthService {
     if (accessToken == null || accessToken.isEmpty) return false;
 
     await _storage.write(_accessTokenKey, accessToken);
+    await _storeAccessTokenExpiry(tokens, accessToken);
     await _storage.write(_providerKey, 'oidc');
     await _storage.write(_roleKey, 'user');
     final refreshToken = tokens['refresh_token'] as String?;
@@ -353,6 +358,50 @@ class AuthService {
       await _storage.write(_usernameKey, username);
     }
     return true;
+  }
+
+  Future<bool> _isAccessTokenExpiring() async {
+    final raw = await _storage.read(_accessTokenExpiresAtKey);
+    final storedExpiresAt = raw == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(int.tryParse(raw) ?? 0);
+    final token = await _storage.read(_accessTokenKey);
+    final expiresAt =
+        storedExpiresAt ?? (token == null ? null : _jwtExpiresAt(token));
+    if (expiresAt == null) return false;
+    final refreshAt = expiresAt.subtract(_refreshSkew);
+    return !DateTime.now().isBefore(refreshAt);
+  }
+
+  Future<void> _storeAccessTokenExpiry(
+    Map<String, dynamic> tokens,
+    String accessToken,
+  ) async {
+    final expiresIn = (tokens['expires_in'] as num?)?.toInt();
+    final expiresAt = expiresIn != null && expiresIn > 0
+        ? DateTime.now().add(Duration(seconds: expiresIn))
+        : _jwtExpiresAt(accessToken);
+    if (expiresAt == null) return;
+    await _storage.write(
+      _accessTokenExpiresAtKey,
+      expiresAt.millisecondsSinceEpoch.toString(),
+    );
+  }
+
+  DateTime? _jwtExpiresAt(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final decoded = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
+      final claims = jsonDecode(decoded) as Map<String, dynamic>;
+      final exp = (claims['exp'] as num?)?.toInt();
+      if (exp == null) return null;
+      return DateTime.fromMillisecondsSinceEpoch(exp * 1000);
+    } catch (_) {
+      return null;
+    }
   }
 
   String _redirectUri(OidcAuthConfig cfg) {

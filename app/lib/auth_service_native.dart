@@ -22,12 +22,14 @@ class AuthService {
   final bool passwordMode;
 
   static const _accessTokenKey = 'access_token';
+  static const _accessTokenExpiresAtKey = 'access_token_expires_at';
   static const _refreshTokenKey = 'refresh_token';
   static const _idTokenKey = 'id_token';
   static const _usernameKey = 'username';
   static const _roleKey = 'role';
   static const _passwordTokenKey = 'password_token';
   static const _providerKey = 'auth_provider';
+  static const _refreshSkew = Duration(minutes: 1);
 
   Map<String, dynamic>? _oidcConfig;
 
@@ -133,6 +135,7 @@ class AuthService {
 
     // Clear local tokens first
     await _secureStorage.delete(key: _accessTokenKey);
+    await _secureStorage.delete(key: _accessTokenExpiresAtKey);
     await _secureStorage.delete(key: _refreshTokenKey);
     await _secureStorage.delete(key: _idTokenKey);
     await _secureStorage.delete(key: _usernameKey);
@@ -164,7 +167,7 @@ class AuthService {
     final passwordToken = await _secureStorage.read(key: _passwordTokenKey);
     if (passwordToken != null) return passwordToken;
     final token = await _secureStorage.read(key: _accessTokenKey);
-    if (token != null) return token;
+    if (token != null && !await _isAccessTokenExpiring()) return token;
     if (await _refreshTokens()) {
       return _secureStorage.read(key: _accessTokenKey);
     }
@@ -400,6 +403,7 @@ class AuthService {
         value: result.accessToken,
       );
     }
+    await _storeAccessTokenExpiry(result.accessTokenExpirationDateTime);
     if (result.refreshToken != null) {
       await _secureStorage.write(
         key: _refreshTokenKey,
@@ -420,6 +424,7 @@ class AuthService {
         value: tokens['access_token'],
       );
     }
+    await _storeAccessTokenExpiryFromTokenMap(tokens);
     if (tokens['refresh_token'] != null) {
       await _secureStorage.write(
         key: _refreshTokenKey,
@@ -431,6 +436,56 @@ class AuthService {
     }
     await _secureStorage.write(key: _providerKey, value: 'oidc');
     await _secureStorage.write(key: _roleKey, value: 'user');
+  }
+
+  Future<bool> _isAccessTokenExpiring() async {
+    final raw = await _secureStorage.read(key: _accessTokenExpiresAtKey);
+    final storedExpiresAt = raw == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(int.tryParse(raw) ?? 0);
+    final token = await _secureStorage.read(key: _accessTokenKey);
+    final expiresAt =
+        storedExpiresAt ?? (token == null ? null : _jwtExpiresAt(token));
+    if (expiresAt == null) return false;
+    final refreshAt = expiresAt.subtract(_refreshSkew);
+    return !DateTime.now().isBefore(refreshAt);
+  }
+
+  Future<void> _storeAccessTokenExpiry(DateTime? expiresAt) async {
+    if (expiresAt == null) return;
+    await _secureStorage.write(
+      key: _accessTokenExpiresAtKey,
+      value: expiresAt.millisecondsSinceEpoch.toString(),
+    );
+  }
+
+  Future<void> _storeAccessTokenExpiryFromTokenMap(
+    Map<String, dynamic> tokens,
+  ) async {
+    final accessToken = tokens['access_token'] as String?;
+    final expiresIn = (tokens['expires_in'] as num?)?.toInt();
+    final expiresAt = expiresIn != null && expiresIn > 0
+        ? DateTime.now().add(Duration(seconds: expiresIn))
+        : accessToken == null
+        ? null
+        : _jwtExpiresAt(accessToken);
+    await _storeAccessTokenExpiry(expiresAt);
+  }
+
+  DateTime? _jwtExpiresAt(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final decoded = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
+      final claims = jsonDecode(decoded) as Map<String, dynamic>;
+      final exp = (claims['exp'] as num?)?.toInt();
+      if (exp == null) return null;
+      return DateTime.fromMillisecondsSinceEpoch(exp * 1000);
+    } catch (_) {
+      return null;
+    }
   }
 
   // ── PKCE helpers ──
