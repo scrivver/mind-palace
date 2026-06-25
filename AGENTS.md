@@ -78,10 +78,16 @@ shell commands, and other important information, read the current plan at
 - **Theme not applying at runtime** fixed — `onThemeChanged` callback in `app_router.dart` now updates `ref.read(currentThemeProvider.notifier).state = setting`.
 - **Gallery screen disposed error** fixed — `Future(() { ... })` in `initState` replaced with `WidgetsBinding.instance.addPostFrameCallback` + `mounted` check.
 - **`/settings` initial-route error** fixed — root cause was `main.dart:68-79`: pre-auth code returned a plain `MaterialApp` (not `.router`), which used `WidgetsBinding.instance.platformDispatcher.defaultRouteName` (`/settings`) as `initialRoute`. Flutter's `WidgetsApp._initialRouteName` always prefers `defaultRouteName` over `widget.initialRoute` when they differ from `/`. **Fix:** removed the conditional `MaterialApp`; always use `MaterialApp.router` from the start with a GoRouter that shows a `/loading` route while `AppAuthState.isLoading` is `true`. Changed `AppAuthState` default to `isLoading: true` so GoRouter can distinguish "before-init" from "logged-out".
-- **Redirect loop on logout** fixed — `logout()` used `AppAuthState()` which inherited the new `isLoading: true` default, causing `/login→/loading→/login→/loading`. Fix: explicit `isLoading: false` in `logout()`.
+- **Redirect loop on logout** fixed — `logout()` used `AppAuthState()` which inherited the new `isLoading: true` default, causing `/login→/loading→/loading→/login→/loading→/loading`. Fix: explicit `isLoading: false` in `logout()`.
 - **`/loading` redirect no longer falls through to `!isLoggedIn` guard** — added early return `null` for `/loading` while `isLoading` is true, and a separate `if (path == '/loading')` branch for post-loading redirect. Uses a `_pendingRedirect` module-level variable to save the original URL before the loading guard intercepts it (best-effort deep-link preservation across GoRouter instances).
+- **Spec 006 complete — client routing fixed** —
+  - **Root cause**: `routerProvider` watched `authServiceProvider`/`engramServiceProvider`/`reliquaryServiceProvider`. When those `FutureProvider`s completed, a new `GoRouter` was created which could lose the browser URL and fall back to `initialLocation: '/vault'`.
+  - **Fix**: removed all `ref.watch()` on service providers from `routerProvider`. GoRouter is now created once. Added `RouterRefreshNotifier` + `refreshListenable` for auth-based redirect re-evaluation without router recreation.
+  - **Route builders** use `Consumer` + `ref.watch()` internally so they rebuild reactively when services become ready — fixes stale loading spinner on initial nav.
+  - **ShellRoute builder** watches `appAuthProvider` so the username chip populates after auth completes.
+  - **`fileListProvider`** (`FileListNotifier`) accepts late-binding engram via `ref.listen` — calls `loadFiles()`/`loadTags()` when `engramServiceProvider` completes, fixing gallery being empty on initial load.
 
 ### Blocked / Open
-- Deep-linking during the auth-loading phase (e.g. refresh on `/settings` → land on `/settings` after auth) doesn't work because `_effectiveInitialLocation` reads `PlatformDispatcher.defaultRouteName` which may already reflect the `/loading` URL by the time the post-auth `GoRouter` is created. Fix would require persisting the original URL outside the GoRouter lifecycle (e.g. sessionStorage, provider). Low priority — the app works correctly for all normal flows.
+- Deep-linking during the auth-loading phase (e.g. refresh on `/settings` → land on `/settings` after auth) doesn't work because `_effectiveInitialLocation` may reflect `/loading` URL by the time the post-auth `GoRouter` is created. Low priority — normal flows work correctly.
 
 <!-- END CONVERSATION SUMMARY -->

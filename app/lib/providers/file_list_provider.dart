@@ -137,6 +137,27 @@ class FileListNotifier extends StateNotifier<FileListState> {
     loadFiles();
   }
 
+  void setRouteState({
+    required String searchQuery,
+    required String? selectedType,
+    required Set<String> selectedTags,
+  }) {
+    final normalizedType = selectedType == 'all' ? null : selectedType;
+    if (state.searchQuery == searchQuery &&
+        state.selectedType == normalizedType &&
+        state.selectedTags.length == selectedTags.length &&
+        state.selectedTags.containsAll(selectedTags)) {
+      return;
+    }
+    state = state.copyWith(
+      searchQuery: searchQuery,
+      selectedType: normalizedType,
+      selectedTags: selectedTags,
+      offset: 0,
+    );
+    loadFiles();
+  }
+
   void applyFilters(String? type, Set<String> tags) {
     state = state.copyWith(selectedType: type, selectedTags: tags);
     loadFiles();

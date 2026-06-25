@@ -14,12 +14,25 @@ import '../widgets/gallery/quick_filter_chip.dart';
 class GalleryScreen extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToUpload;
   final void Function(EngramFile file) onOpenDetail;
+  final String initialSearchQuery;
+  final String? initialType;
+  final Set<String> initialTags;
+  final void Function({
+    required String searchQuery,
+    required String? selectedType,
+    required Set<String> selectedTags,
+  })?
+  onRouteStateChanged;
   final int refreshTrigger;
 
   const GalleryScreen({
     super.key,
     this.onNavigateToUpload,
     required this.onOpenDetail,
+    this.initialSearchQuery = '',
+    this.initialType,
+    this.initialTags = const {},
+    this.onRouteStateChanged,
     required this.refreshTrigger,
   });
 
@@ -47,10 +60,12 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   @override
   void initState() {
     super.initState();
+    _searchCtrl.text = widget.initialSearchQuery;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(fileListProvider.notifier).loadFiles();
+      _syncRouteStateToProvider();
       ref.read(fileListProvider.notifier).loadTags();
+      ref.read(fileListProvider.notifier).loadFiles();
     });
     _scrollCtrl.addListener(_onScroll);
   }
@@ -61,6 +76,36 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     if (widget.refreshTrigger != oldWidget.refreshTrigger) {
       ref.read(fileListProvider.notifier).invalidate();
     }
+    if (widget.initialSearchQuery != oldWidget.initialSearchQuery ||
+        widget.initialType != oldWidget.initialType ||
+        widget.initialTags.length != oldWidget.initialTags.length ||
+        !widget.initialTags.containsAll(oldWidget.initialTags)) {
+      _searchCtrl.text = widget.initialSearchQuery;
+      _syncRouteStateToProvider();
+    }
+  }
+
+  void _syncRouteStateToProvider() {
+    ref
+        .read(fileListProvider.notifier)
+        .setRouteState(
+          searchQuery: widget.initialSearchQuery.trim(),
+          selectedType: widget.initialType,
+          selectedTags: widget.initialTags,
+        );
+  }
+
+  void _updateRouteState({
+    String? searchQuery,
+    String? selectedType,
+    Set<String>? selectedTags,
+  }) {
+    final state = ref.read(fileListProvider);
+    widget.onRouteStateChanged?.call(
+      searchQuery: searchQuery ?? state.searchQuery,
+      selectedType: selectedType ?? state.selectedType,
+      selectedTags: selectedTags ?? state.selectedTags,
+    );
   }
 
   @override
@@ -75,7 +120,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      ref.read(fileListProvider.notifier).setSearchQuery(value.trim());
+      final query = value.trim();
+      ref.read(fileListProvider.notifier).setSearchQuery(query);
+      _updateRouteState(searchQuery: query);
     });
   }
 
@@ -87,7 +134,11 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   }
 
   void _toggleTag(String name) {
-    ref.read(fileListProvider.notifier).toggleTag(name);
+    final current = ref.read(fileListProvider).selectedTags;
+    final updated = Set<String>.from(current);
+    if (!updated.remove(name)) updated.add(name);
+    ref.read(fileListProvider.notifier).setSelectedTags(updated);
+    _updateRouteState(selectedTags: updated);
   }
 
   void _openFilterDropdown(BuildContext context) {
@@ -127,6 +178,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                           ref
                               .read(fileListProvider.notifier)
                               .applyFilters(type, tags);
+                          _updateRouteState(
+                            selectedType: type,
+                            selectedTags: tags,
+                          );
                           _closeFilterDropdown();
                         },
                       ),
@@ -458,9 +513,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               label: t.label,
               isActive: activeType == t.key,
               onTap: () {
-                ref
-                    .read(fileListProvider.notifier)
-                    .setSelectedType(activeType == t.key ? null : t.key);
+                final nextType = activeType == t.key ? null : t.key;
+                ref.read(fileListProvider.notifier).setSelectedType(nextType);
+                _updateRouteState(selectedType: nextType);
               },
             ),
             const SizedBox(width: 6),

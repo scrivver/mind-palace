@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/engram_file.dart';
+import '../providers/file_detail_provider.dart';
 import '../providers/service_providers.dart';
 import '../utils/format.dart';
 import '../widgets/file_detail/delete_dialog.dart';
@@ -12,12 +13,12 @@ import '../widgets/file_detail/image_preview.dart';
 import '../widgets/file_detail/pdf_preview.dart';
 
 class FileDetailScreen extends ConsumerStatefulWidget {
-  final EngramFile initial;
+  final String fileId;
   final void Function({bool deleted}) onBack;
 
   const FileDetailScreen({
     super.key,
-    required this.initial,
+    required this.fileId,
     required this.onBack,
   });
 
@@ -26,32 +27,10 @@ class FileDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
-  late EngramFile _file;
-
-  @override
-  void initState() {
-    super.initState();
-    _file = widget.initial;
-    _loadDetail();
-  }
-
-  Future<void> _loadDetail() async {
+  Future<void> _download(EngramFile file) async {
     try {
-      final engram = ref.read(engramServiceProvider).valueOrNull;
-      if (engram == null) return;
-      final full = await engram.getFile(widget.initial.id);
-      if (!mounted) return;
-      setState(() => _file = full);
-    } catch (_) {
-      if (!mounted) return;
-    }
-  }
-
-  Future<void> _download() async {
-    try {
-      final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
-      if (reliquary == null) return;
-      final url = await reliquary.presignDownloadForSave(_file.filePath);
+      final reliquary = await ref.read(reliquaryServiceProvider.future);
+      final url = await reliquary.presignDownloadForSave(file.filePath);
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {
       if (!mounted) return;
@@ -61,11 +40,10 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
     }
   }
 
-  Future<void> _copyLink() async {
+  Future<void> _copyLink(EngramFile file) async {
     try {
-      final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
-      if (reliquary == null) return;
-      final url = await reliquary.presignDownload(_file.filePath);
+      final reliquary = await ref.read(reliquaryServiceProvider.future);
+      final url = await reliquary.presignDownload(file.filePath);
       await Clipboard.setData(ClipboardData(text: url));
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -79,14 +57,13 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
     }
   }
 
-  Future<void> _delete() async {
-    final confirm = await showDeleteDialog(context, _file.filename);
+  Future<void> _delete(EngramFile file) async {
+    final confirm = await showDeleteDialog(context, file.filename);
     if (confirm != true) return;
 
     try {
-      final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
-      if (reliquary == null) return;
-      await reliquary.deleteFile(_file.filePath);
+      final reliquary = await ref.read(reliquaryServiceProvider.future);
+      await reliquary.deleteFile(file.filePath);
       if (!mounted) return;
       widget.onBack(deleted: true);
     } catch (_) {
@@ -99,6 +76,41 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final file = ref.watch(fileDetailProvider(widget.fileId));
+
+    return file.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => _buildError(context, error),
+      data: (file) => _buildContent(context, file),
+    );
+  }
+
+  Widget _buildError(BuildContext context, Object error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Failed to load file',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text('$error', textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () =>
+                  ref.invalidate(fileDetailProvider(widget.fileId)),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, EngramFile file) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 900;
@@ -114,8 +126,8 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
             const SizedBox(height: 24),
             Expanded(
               child: isWide
-                  ? _buildWideLayout(context)
-                  : _buildNarrowLayout(context),
+                  ? _buildWideLayout(context, file)
+                  : _buildNarrowLayout(context, file),
             ),
           ],
         );
@@ -142,48 +154,48 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
     );
   }
 
-  Widget _buildWideLayout(BuildContext context) {
+  Widget _buildWideLayout(BuildContext context, EngramFile file) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(flex: 7, child: _buildLeftColumn(context)),
+          Expanded(flex: 7, child: _buildLeftColumn(context, file)),
           const SizedBox(width: 24),
-          Expanded(flex: 5, child: _buildRightColumn(context)),
+          Expanded(flex: 5, child: _buildRightColumn(context, file)),
         ],
       ),
     );
   }
 
-  Widget _buildNarrowLayout(BuildContext context) {
+  Widget _buildNarrowLayout(BuildContext context, EngramFile file) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLeftColumn(context),
+        _buildLeftColumn(context, file),
         const SizedBox(height: 24),
-        _buildRightColumn(context),
+        _buildRightColumn(context, file),
       ],
     );
   }
 
-  Widget _buildLeftColumn(BuildContext context) {
+  Widget _buildLeftColumn(BuildContext context, EngramFile file) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: _buildPreview(context)),
-        if (_file.extractedText != null && _file.extractedText!.isNotEmpty) ...[
+        Expanded(child: _buildPreview(context, file)),
+        if (file.extractedText != null && file.extractedText!.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _buildExtractedTextButton(context),
+          _buildExtractedTextButton(context, file),
         ],
       ],
     );
   }
 
-  Widget _buildPreview(BuildContext context) {
+  Widget _buildPreview(BuildContext context, EngramFile file) {
     final theme = Theme.of(context);
-    final isPdf = (_file.mimeType ?? '').contains('pdf');
-    final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
+    final isPdf = (file.mimeType ?? '').contains('pdf');
+    final reliquary = ref.watch(reliquaryServiceProvider).valueOrNull;
 
     return Container(
       width: double.infinity,
@@ -193,25 +205,27 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
         borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
-      child: isPdf
-          ? PdfPreview(filePath: _file.filePath, reliquary: reliquary!)
+      child: reliquary == null
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : isPdf
+          ? PdfPreview(filePath: file.filePath, reliquary: reliquary)
           : ImagePreview(
-              filePath: _file.filePath,
-              isImage: _file.isImage,
-              mimeType: _file.mimeType,
-              filename: _file.filename,
-              reliquary: reliquary!,
+              filePath: file.filePath,
+              isImage: file.isImage,
+              mimeType: file.mimeType,
+              filename: file.filename,
+              reliquary: reliquary,
             ),
     );
   }
 
-  Widget _buildExtractedTextButton(BuildContext context) {
+  Widget _buildExtractedTextButton(BuildContext context, EngramFile file) {
     final theme = Theme.of(context);
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: () =>
-            showExtractedTextDialog(context, _file.extractedText ?? ''),
+            showExtractedTextDialog(context, file.extractedText ?? ''),
         icon: const Icon(Icons.description_outlined, size: 18),
         label: const Text('View Extracted Text'),
         style: OutlinedButton.styleFrom(
@@ -223,7 +237,7 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
     );
   }
 
-  Widget _buildRightColumn(BuildContext context) {
+  Widget _buildRightColumn(BuildContext context, EngramFile file) {
     final theme = Theme.of(context);
 
     return Container(
@@ -231,31 +245,31 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_file.filename, style: theme.textTheme.headlineMedium),
+          Text(file.filename, style: theme.textTheme.headlineMedium),
           const SizedBox(height: 4),
           Text(
-            'Last accessed ${FormatUtils.relativeTime(_file.mtime)}',
+            'Last accessed ${FormatUtils.relativeTime(file.mtime)}',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 24),
-          _buildTags(context),
+          _buildTags(context, file),
           const SizedBox(height: 24),
           Divider(height: 1, color: theme.colorScheme.outlineVariant),
           const SizedBox(height: 24),
-          _buildMetaGrid(context),
+          _buildMetaGrid(context, file),
           const Spacer(),
-          _buildActions(context),
+          _buildActions(context, file),
         ],
       ),
     );
   }
 
-  Widget _buildTags(BuildContext context) {
+  Widget _buildTags(BuildContext context, EngramFile file) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final tags = _file.tags;
+    final tags = file.tags;
 
     return Wrap(
       spacing: 8,
@@ -298,30 +312,30 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
     );
   }
 
-  Widget _buildMetaGrid(BuildContext context) {
+  Widget _buildMetaGrid(BuildContext context, EngramFile file) {
     final theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _metaField(theme, 'Type', _file.mimeType ?? '\u2014'),
+        _metaField(theme, 'Type', file.mimeType ?? '\u2014'),
         const SizedBox(height: 20),
-        _metaField(theme, 'Size', _file.formattedSize),
+        _metaField(theme, 'Size', file.formattedSize),
         const SizedBox(height: 20),
-        if (_file.pageCount != null) ...[
-          _metaField(theme, 'Pages', '${_file.pageCount} Plates'),
+        if (file.pageCount != null) ...[
+          _metaField(theme, 'Pages', '${file.pageCount} Plates'),
           const SizedBox(height: 20),
         ],
         _metaField(
           theme,
           'Device',
-          _file.deviceName.isNotEmpty ? _file.deviceName : '\u2014',
+          file.deviceName.isNotEmpty ? file.deviceName : '\u2014',
         ),
         const SizedBox(height: 20),
-        _metaField(theme, 'Created', _formatDateTime(_file.createdAt)),
-        if (_file.hash.isNotEmpty) ...[
+        _metaField(theme, 'Created', _formatDateTime(file.createdAt)),
+        if (file.hash.isNotEmpty) ...[
           const SizedBox(height: 20),
-          _metaField(theme, 'SHA-256', _file.hash),
+          _metaField(theme, 'SHA-256', file.hash),
         ],
       ],
     );
@@ -351,7 +365,7 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
     );
   }
 
-  Widget _buildActions(BuildContext context) {
+  Widget _buildActions(BuildContext context, EngramFile file) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
@@ -363,7 +377,7 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
               child: SizedBox(
                 height: 48,
                 child: FilledButton.icon(
-                  onPressed: _download,
+                  onPressed: () => _download(file),
                   icon: const Icon(Icons.download, size: 20),
                   label: const Text('Download'),
                   style: FilledButton.styleFrom(
@@ -377,7 +391,7 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
               child: SizedBox(
                 height: 48,
                 child: OutlinedButton.icon(
-                  onPressed: _copyLink,
+                  onPressed: () => _copyLink(file),
                   icon: const Icon(Icons.link, size: 20),
                   label: const Text('Copy Link'),
                   style: OutlinedButton.styleFrom(
@@ -394,7 +408,7 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
           width: double.infinity,
           height: 48,
           child: OutlinedButton.icon(
-            onPressed: _delete,
+            onPressed: () => _delete(file),
             icon: const Icon(Icons.delete, size: 20),
             label: const Text('Delete from Vault'),
             style: OutlinedButton.styleFrom(

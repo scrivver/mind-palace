@@ -1,70 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../reliquary_service.dart';
+import '../providers/status_provider.dart';
 import '../utils/format.dart';
 
-class StatusScreen extends StatefulWidget {
-  final ReliquaryService reliquary;
-
-  const StatusScreen({super.key, required this.reliquary});
+class StatusScreen extends ConsumerWidget {
+  const StatusScreen({super.key});
 
   @override
-  State<StatusScreen> createState() => _StatusScreenState();
-}
-
-class _StatusScreenState extends State<StatusScreen> {
-  Map<String, dynamic>? _reliquaryStats;
-  bool _loadingReliquary = true;
-  String? _reliquaryError;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    setState(() {
-      _loadingReliquary = true;
-      _reliquaryError = null;
-    });
-
-    await _loadReliquaryStats();
-  }
-
-  Future<void> _loadReliquaryStats() async {
-    try {
-      final stats = await widget.reliquary.getStats();
-      if (mounted) {
-        setState(() {
-          _reliquaryStats = stats;
-          _loadingReliquary = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _reliquaryError = e.toString();
-          _loadingReliquary = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(storageStatsProvider);
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: _loadData,
+        onRefresh: () => ref.refresh(storageStatsProvider.future),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(),
+              _buildHeader(context),
               const SizedBox(height: 32),
-              _buildStorageCapacity(),
+              _buildStorageCapacity(context, stats),
             ],
           ),
         ),
@@ -72,7 +29,7 @@ class _StatusScreenState extends State<StatusScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -91,9 +48,13 @@ class _StatusScreenState extends State<StatusScreen> {
     );
   }
 
-  Widget _buildStorageCapacity() {
-    if (_loadingReliquary) {
+  Widget _buildStorageCapacity(
+    BuildContext context,
+    AsyncValue<Map<String, dynamic>> statsValue,
+  ) {
+    if (statsValue.isLoading) {
       return _buildCard(
+        context,
         child: const SizedBox(
           height: 100,
           child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
@@ -101,8 +62,9 @@ class _StatusScreenState extends State<StatusScreen> {
       );
     }
 
-    if (_reliquaryError != null || _reliquaryStats == null) {
+    if (statsValue.hasError || !statsValue.hasValue) {
       return _buildCard(
+        context,
         child: Row(
           children: [
             Icon(
@@ -121,7 +83,7 @@ class _StatusScreenState extends State<StatusScreen> {
       );
     }
 
-    final stats = _reliquaryStats!;
+    final stats = statsValue.value!;
     final byType = stats['by_type'] as Map<String, dynamic>? ?? {};
     final fileCount = (stats['file_count'] as num?)?.toInt() ?? 0;
     final totalSize = (stats['total_size'] as num?)?.toInt() ?? 0;
@@ -134,6 +96,7 @@ class _StatusScreenState extends State<StatusScreen> {
         : 0.0;
 
     return _buildCard(
+      context,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -171,7 +134,9 @@ class _StatusScreenState extends State<StatusScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          ...categories.map((c) => _buildCategoryRow(c.$1, c.$2, c.$3)),
+          ...categories.map(
+            (c) => _buildCategoryRow(context, c.$1, c.$2, c.$3),
+          ),
         ],
       ),
     );
@@ -200,7 +165,12 @@ class _StatusScreenState extends State<StatusScreen> {
     ];
   }
 
-  Widget _buildCategoryRow(String label, IconData icon, int fileCount) {
+  Widget _buildCategoryRow(
+    BuildContext context,
+    String label,
+    IconData icon,
+    int fileCount,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -225,7 +195,7 @@ class _StatusScreenState extends State<StatusScreen> {
     );
   }
 
-  Widget _buildCard({required Widget child}) {
+  Widget _buildCard(BuildContext context, {required Widget child}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),

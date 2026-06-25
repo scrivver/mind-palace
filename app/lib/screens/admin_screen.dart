@@ -1,44 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../reliquary_service.dart';
+import '../providers/admin_provider.dart';
+import '../providers/service_providers.dart';
 
-class AdminScreen extends StatefulWidget {
-  final ReliquaryService reliquary;
-
-  const AdminScreen({super.key, required this.reliquary});
+class AdminScreen extends ConsumerStatefulWidget {
+  const AdminScreen({super.key});
 
   @override
-  State<AdminScreen> createState() => _AdminScreenState();
+  ConsumerState<AdminScreen> createState() => _AdminScreenState();
 }
 
-class _AdminScreenState extends State<AdminScreen> {
-  List<Map<String, dynamic>> _users = [];
-  bool _loading = true;
+class _AdminScreenState extends ConsumerState<AdminScreen> {
   String _query = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUsers();
-  }
-
-  Future<void> _loadUsers() async {
-    setState(() => _loading = true);
-    try {
-      final users = await widget.reliquary.listUsers();
-      if (mounted) {
-        setState(() {
-          _users = users;
-          _loading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _loading = false);
-        _showSnackBar('Failed to load users: $e');
-      }
-    }
-  }
 
   Future<void> _createUser() async {
     final result = await showDialog<_CreateUserResult>(
@@ -48,8 +22,9 @@ class _AdminScreenState extends State<AdminScreen> {
     if (result == null) return;
 
     try {
-      await widget.reliquary.createUser(result.username, result.password);
-      _loadUsers();
+      final reliquary = await ref.read(reliquaryServiceProvider.future);
+      await reliquary.createUser(result.username, result.password);
+      ref.invalidate(adminUsersProvider);
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Failed to create user: $e');
@@ -88,8 +63,9 @@ class _AdminScreenState extends State<AdminScreen> {
     if (confirm != true) return;
 
     try {
-      await widget.reliquary.deleteUser(username, permanent: deactivated);
-      _loadUsers();
+      final reliquary = await ref.read(reliquaryServiceProvider.future);
+      await reliquary.deleteUser(username, permanent: deactivated);
+      ref.invalidate(adminUsersProvider);
     } catch (e) {
       if (!mounted) return;
       _showSnackBar(
@@ -123,8 +99,9 @@ class _AdminScreenState extends State<AdminScreen> {
     if (confirm != true) return;
 
     try {
-      await widget.reliquary.activateUser(username);
-      _loadUsers();
+      final reliquary = await ref.read(reliquaryServiceProvider.future);
+      await reliquary.activateUser(username);
+      ref.invalidate(adminUsersProvider);
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Failed to re-enable user: $e');
@@ -139,7 +116,8 @@ class _AdminScreenState extends State<AdminScreen> {
     if (password == null) return;
 
     try {
-      await widget.reliquary.changePassword(username, password);
+      final reliquary = await ref.read(reliquaryServiceProvider.future);
+      await reliquary.changePassword(username, password);
       if (!mounted) return;
       _showSnackBar('Password changed');
     } catch (e) {
@@ -159,17 +137,17 @@ class _AdminScreenState extends State<AdminScreen> {
   String? _cachedQuery;
   List<Map<String, dynamic>>? _cachedUsers;
 
-  List<Map<String, dynamic>> get _filteredUsers {
-    if (_cachedQuery == _query && _cachedUsers == _users) {
-      return _filteredUsersCache ?? _users;
+  List<Map<String, dynamic>> _filteredUsers(List<Map<String, dynamic>> users) {
+    if (_cachedQuery == _query && _cachedUsers == users) {
+      return _filteredUsersCache ?? users;
     }
     _cachedQuery = _query;
-    _cachedUsers = _users;
+    _cachedUsers = users;
     final normalizedQuery = _query.trim().toLowerCase();
     if (normalizedQuery.isEmpty) {
-      _filteredUsersCache = _users;
+      _filteredUsersCache = users;
     } else {
-      _filteredUsersCache = _users.where((user) {
+      _filteredUsersCache = users.where((user) {
         final username = (user['username'] as String?) ?? '';
         final role = (user['role'] as String?) ?? '';
         return username.toLowerCase().contains(normalizedQuery) ||
@@ -181,14 +159,15 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final users = ref.watch(adminUsersProvider);
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
     return Scaffold(
       appBar: isDesktop ? null : AppBar(title: const Text('User Management')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : isDesktop
-          ? _buildDesktop()
-          : _buildMobile(),
+      body: users.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => _buildError(error),
+        data: (users) => isDesktop ? _buildDesktop(users) : _buildMobile(users),
+      ),
       floatingActionButton: isDesktop
           ? null
           : FloatingActionButton(
@@ -198,8 +177,32 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  Widget _buildMobile() {
-    final users = _filteredUsers;
+  Widget _buildError(Object error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Failed to load users',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text('$error', textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () => ref.invalidate(adminUsersProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobile(List<Map<String, dynamic>> allUsers) {
+    final users = _filteredUsers(allUsers);
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
       itemCount: users.length + 1,
@@ -225,8 +228,8 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  Widget _buildDesktop() {
-    final users = _filteredUsers;
+  Widget _buildDesktop(List<Map<String, dynamic>> allUsers) {
+    final users = _filteredUsers(allUsers);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
       child: Column(
