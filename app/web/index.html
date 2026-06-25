@@ -11,20 +11,6 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <script>
-    // Strip OIDC callback query params BEFORE Flutter's engine captures the URL.
-    // This prevents GoRouter from receiving /callback?code=...&state=... as the
-    // initial route, which it cannot match.
-    (function() {
-      var url = new URL(window.location.href);
-      if (url.pathname.endsWith('/callback') && (url.searchParams.has('code') || url.searchParams.has('error'))) {
-        var params = {};
-        url.searchParams.forEach(function(v, k) { params[k] = v; });
-        sessionStorage.setItem('oidc_callback', JSON.stringify(params));
-        window.history.replaceState(null, '', url.origin);
-      }
-    })();
-  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

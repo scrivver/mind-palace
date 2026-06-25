@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../auth_service.dart';
-import '../engram_service.dart';
 import '../models/engram_file.dart';
-import '../reliquary_service.dart';
 import '../screens/admin_screen.dart';
 import '../screens/file_detail_screen.dart';
 import '../screens/gallery_screen.dart';
@@ -16,122 +13,46 @@ import '../screens/settings_screen.dart';
 import '../screens/status_screen.dart';
 import '../screens/upload_screen.dart';
 import '../services/server_url_store.dart';
-import '../services/theme_service.dart';
 import '../widgets/app_shell.dart';
 import '../providers/service_providers.dart';
 import '../providers/theme_provider.dart';
 
-AppAuthState _lastAuthState = const AppAuthState(isLoading: true);
-
-class _AuthRefreshNotifier extends ChangeNotifier {
+class RouterRefreshNotifier extends ChangeNotifier {
   void refresh() => notifyListeners();
 }
 
-final _authRefreshProvider = Provider<Listenable>((ref) {
-  final notifier = _AuthRefreshNotifier();
-  ref.listen(appAuthProvider, (_, next) {
-    _lastAuthState = next;
-    notifier.refresh();
-  });
-  return notifier;
-});
+final routerRefreshNotifier = RouterRefreshNotifier();
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final refreshNotifier = ref.watch(_authRefreshProvider);
-  final themeService = ref.watch(themeServiceProvider);
-  final authService = ref.watch(
-    authServiceProvider.select((a) => a.valueOrNull),
-  );
-  final engramService = ref.watch(
-    engramServiceProvider.select((a) => a.valueOrNull),
-  );
-  final reliquaryService = ref.watch(
-    reliquaryServiceProvider.select((a) => a.valueOrNull),
-  );
-
   final needsSetup = !ServerUrlStore.hasSavedUrls && !kIsWeb;
 
-  return _createRouter(
-    ref,
-    themeService,
-    authService,
-    engramService,
-    reliquaryService,
-    needsSetup,
-    refreshNotifier,
-  );
-});
-
-String? _pendingRedirect;
-
-GoRouter _createRouter(
-  Ref ref,
-  ThemeService themeService,
-  AuthService? authService,
-  EngramService? engramService,
-  ReliquaryService? reliquaryService,
-  bool needsSetup,
-  Listenable refreshNotifier,
-) {
-  AppAuthState _auth() => _lastAuthState;
-
-  void _invalidateServices() {
+  void invalidateServices() {
     ref.invalidate(authServiceProvider);
     ref.invalidate(reliquaryAuthConfigProvider);
     ref.invalidate(engramServiceProvider);
     ref.invalidate(reliquaryServiceProvider);
   }
 
-  String? _loadingTarget() {
-    final target = _pendingRedirect;
-    _pendingRedirect = null;
-    return target;
-  }
-
   return GoRouter(
     initialLocation: '/vault',
-    refreshListenable: refreshNotifier,
+    refreshListenable: routerRefreshNotifier,
     redirect: (context, state) {
-      final authState = _auth();
+      final authState = ref.read(appAuthProvider);
       final path = state.uri.path;
-      if (needsSetup && path != '/setup') {
-        return '/setup';
-      }
-      if (authState.isLoading) {
-        if (path != '/loading') {
-          _pendingRedirect = path;
-          return '/loading';
-        }
-        return null;
-      }
-      if (path == '/loading') {
-        return _loadingTarget() ?? '/vault';
-      }
-      if (!needsSetup &&
-          !authState.isLoggedIn &&
-          path != '/login' &&
-          path != '/setup') {
-        return '/login';
-      }
-      if (authState.isLoggedIn && path == '/login') {
-        return '/vault';
-      }
+      if (authState.isLoading) return null;
+      if (needsSetup && path != '/setup') return '/setup';
+      if (!authState.isLoggedIn && path != '/login' && path != '/setup') return '/login';
+      if (authState.isLoggedIn && (path == '/login' || path == '/callback')) return '/vault';
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/loading',
-        builder: (context, state) => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
-      ),
       GoRoute(
         path: '/setup',
         builder: (context, state) {
           return ServerSetupScreen(
             initialUrl: ServerUrlStore.baseServerUrl,
             onConfigured: () async {
-              _invalidateServices();
+              invalidateServices();
               final auth = await ref.read(authServiceProvider.future);
               await ref.read(appAuthProvider.notifier).initialize(auth);
               context.go('/vault');
@@ -147,7 +68,7 @@ GoRouter _createRouter(
         path: '/login',
         builder: (context, state) {
           final auth = ref.read(authServiceProvider).valueOrNull;
-          final authState = _auth();
+          final authState = ref.read(appAuthProvider);
           final isPasswordMode = auth?.passwordMode ?? false;
           final isOidcMode = auth?.issuer.isNotEmpty ?? false;
           return LoginView(
@@ -167,7 +88,7 @@ GoRouter _createRouter(
       ),
       ShellRoute(
         builder: (context, state, child) {
-          final authState = _auth();
+          final authState = ref.read(appAuthProvider);
           final segment = state.uri.pathSegments.isNotEmpty
               ? state.uri.pathSegments.first
               : 'vault';
@@ -202,12 +123,20 @@ GoRouter _createRouter(
           GoRoute(
             path: '/status',
             builder: (context, state) {
-              return StatusScreen(reliquary: reliquaryService!);
+              final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
+              if (reliquary == null) return const Center(child: CircularProgressIndicator());
+              return StatusScreen(reliquary: reliquary);
             },
           ),
           GoRoute(
             path: '/settings',
             builder: (context, state) {
+              final themeService = ref.read(themeServiceProvider);
+              final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
+              final auth = ref.read(authServiceProvider).valueOrNull;
+              if (reliquary == null || auth == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
               final themeSetting = ref.read(currentThemeProvider);
               return SettingsScreen(
                 themeService: themeService,
@@ -216,10 +145,10 @@ GoRouter _createRouter(
                   themeService.setTheme(setting);
                   ref.read(currentThemeProvider.notifier).state = setting;
                 },
-                reliquary: reliquaryService!,
-                auth: authService!,
+                reliquary: reliquary,
+                auth: auth,
                 onServerUrlChanged: () {
-                  _invalidateServices();
+                  invalidateServices();
                   context.go('/vault');
                 },
               );
@@ -228,7 +157,9 @@ GoRouter _createRouter(
           GoRoute(
             path: '/admin',
             builder: (context, state) {
-              return AdminScreen(reliquary: reliquaryService!);
+              final reliquary = ref.read(reliquaryServiceProvider).valueOrNull;
+              if (reliquary == null) return const Center(child: CircularProgressIndicator());
+              return AdminScreen(reliquary: reliquary);
             },
           ),
           GoRoute(
@@ -263,7 +194,7 @@ GoRouter _createRouter(
       ),
     ],
   );
-}
+});
 
 int _navIndexForSegment(String segment, bool isAdmin) {
   switch (segment) {

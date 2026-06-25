@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
 import 'auth_service.dart';
-import 'router/app_router.dart';
+import 'router/app_router.dart' show routerProvider, routerRefreshNotifier;
 import 'services/server_url_store.dart';
 import 'providers/service_providers.dart';
 import 'providers/theme_provider.dart';
@@ -59,6 +59,10 @@ class _MindPalaceAppState extends ConsumerState<MindPalaceApp> {
       });
     });
 
+    ref.listen(appAuthProvider, (prev, next) {
+      routerRefreshNotifier.refresh();
+    });
+
     return MaterialApp.router(
       title: 'Mind Palace',
       debugShowCheckedModeBanner: false,
@@ -68,6 +72,22 @@ class _MindPalaceAppState extends ConsumerState<MindPalaceApp> {
           ? ThemeMode.dark
           : ThemeMode.light,
       routerConfig: ref.watch(routerProvider),
+      builder: (context, child) {
+        return Consumer(builder: (context, ref, child) {
+          final isLoading = ref.watch(
+            appAuthProvider.select((s) => s.isLoading),
+          );
+          return Stack(
+            children: [
+              if (child != null) child,
+              if (isLoading)
+                const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                ),
+            ],
+          );
+        }, child: child);
+      },
     );
   }
 }
