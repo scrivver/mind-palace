@@ -7,6 +7,7 @@ import '../screens/admin_screen.dart';
 import '../screens/file_detail_screen.dart';
 import '../screens/gallery_screen.dart';
 import '../screens/login_view.dart';
+import '../screens/not_found_screen.dart';
 import '../screens/server_setup_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/status_screen.dart';
@@ -33,6 +34,8 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/vault',
     refreshListenable: routerRefreshNotifier,
+    errorBuilder: (context, state) =>
+        NotFoundScreen(onGoHome: () => context.go('/vault')),
     redirect: (context, state) {
       final authState = ref.read(appAuthProvider);
       final path = state.uri.path;
@@ -42,12 +45,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       final needsSetup = !ServerUrlStore.hasSavedUrls && !kIsWeb;
       if (authState.isLoading) return null;
       if (needsSetup && path != '/setup') return '/setup';
+      if (!_isKnownRoute(state.uri)) return '/not-found';
       if (!authState.isLoggedIn && path != '/login' && path != '/setup') {
         final from = Uri.encodeComponent(state.uri.toString());
         return '/login?from=$from';
       }
       if (authState.isLoggedIn && isAdminPath && !authState.isAdmin) {
-        return '/vault';
+        return '/not-found';
       }
       if (authState.isLoggedIn && (path == '/login' || path == '/callback')) {
         return _safePostLoginPath(state.uri.queryParameters['from']);
@@ -95,6 +99,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             onConfigureServer: kIsWeb ? null : () => context.go('/setup'),
           );
         },
+      ),
+      GoRoute(
+        path: '/not-found',
+        builder: (context, state) =>
+            NotFoundScreen(onGoHome: () => context.go('/vault')),
       ),
       ShellRoute(
         builder: (context, state, child) {
@@ -264,7 +273,30 @@ String _safePostLoginPath(String? from) {
   if (uri.path == '/login' || uri.path == '/callback' || uri.path == '/setup') {
     return '/vault';
   }
+  if (!_isKnownRoute(uri)) return '/vault';
   return from;
+}
+
+bool _isKnownRoute(Uri uri) {
+  final segments = uri.pathSegments;
+  if (segments.isEmpty) return false;
+  if (segments.length == 1) {
+    return switch (segments.first) {
+      'setup' ||
+      'callback' ||
+      'login' ||
+      'not-found' ||
+      'vault' ||
+      'status' ||
+      'settings' ||
+      'admin' ||
+      'upload' => true,
+      _ => false,
+    };
+  }
+  return segments.length == 2 &&
+      segments.first == 'file' &&
+      segments.last.isNotEmpty;
 }
 
 String _segmentForNavIndex(int index, bool isAdmin) {
