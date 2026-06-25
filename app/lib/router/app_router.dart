@@ -36,6 +36,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = ref.read(appAuthProvider);
       final path = state.uri.path;
+      final isAdminPath =
+          state.uri.pathSegments.isNotEmpty &&
+          state.uri.pathSegments.first == 'admin';
       final needsSetup = !ServerUrlStore.hasSavedUrls && !kIsWeb;
       if (authState.isLoading) return null;
       if (needsSetup && path != '/setup') return '/setup';
@@ -43,7 +46,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         final from = Uri.encodeComponent(state.uri.toString());
         return '/login?from=$from';
       }
-      if (authState.isLoggedIn && path == '/admin' && !authState.isAdmin) {
+      if (authState.isLoggedIn && isAdminPath && !authState.isAdmin) {
         return '/vault';
       }
       if (authState.isLoggedIn && (path == '/login' || path == '/callback')) {
@@ -199,7 +202,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin',
             builder: (context, state) {
-              return const AdminScreen();
+              return Consumer(
+                builder: (context, ref, _) {
+                  final authState = ref.watch(appAuthProvider);
+                  if (authState.isLoading || !authState.isAdmin) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  return const AdminScreen();
+                },
+              );
             },
           ),
           GoRoute(
