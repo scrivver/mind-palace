@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mime/mime.dart';
+import '../models/picked_file.dart';
 import '../services/drop_item_utils.dart';
 import '../upload_file.dart';
 import '../providers/service_providers.dart';
@@ -23,10 +24,10 @@ class UploadScreen extends ConsumerStatefulWidget {
 }
 
 class _UploadScreenState extends ConsumerState<UploadScreen> {
-  String _key(PlatformFile f) => UploadNotifier.key(f);
+  String _key(PickedFile f) => UploadNotifier.key(f);
 
   Future<void> _onDropItems(List<dynamic> items) async {
-    final files = <PlatformFile>[];
+    final files = <PickedFile>[];
 
     try {
       if (!kIsWeb) {
@@ -37,12 +38,15 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           try {
             final bytes = await (item as dynamic).readAsBytes();
             final size = await (item as dynamic).length();
+            // A loose dropped item carries no folder context; only the
+            // directory walk in expandCapturedDrop can supply one.
             files.add(
-              PlatformFile(
-                name: (item as dynamic).name as String,
-                size: size as int,
-                bytes: bytes as Uint8List,
-                path: (item as dynamic).path as String?,
+              PickedFile(
+                PlatformFile(
+                  name: (item as dynamic).name as String,
+                  size: size as int,
+                  bytes: bytes as Uint8List,
+                ),
               ),
             );
           } catch (_) {}
@@ -54,23 +58,18 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           final bytes = await item.readAsBytes();
           final size = await item.length();
           files.add(
-            PlatformFile(
-              name: item.name,
-              size: size,
-              bytes: bytes,
-              path: item.path,
-            ),
+            PickedFile(PlatformFile(name: item.name, size: size, bytes: bytes)),
           );
         } catch (_) {}
       }
     }
 
     if (!mounted) return;
-    bool isPlaceholder(PlatformFile f) {
+    bool isPlaceholder(PickedFile f) {
       final name = f.name;
-      final path = f.path;
+      final relative = f.relativePath;
       if (name.startsWith('.inode') || name == 'x-empty') return true;
-      if (path != null && path.contains('.inode')) return true;
+      if (relative != null && relative.contains('.inode')) return true;
       return false;
     }
 
@@ -134,7 +133,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   }
 
   Future<void> _uploadAll() async {
-    final snapshotFiles = List<PlatformFile>.from(
+    final snapshotFiles = List<PickedFile>.from(
       ref.read(uploadProvider).selectedFiles,
     );
     if (snapshotFiles.isEmpty) return;
@@ -154,7 +153,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         final contentType =
             lookupMimeType(file.name) ?? 'application/octet-stream';
 
-        final bytes = await readPlatformFileBytes(file);
+        final bytes = await readPlatformFileBytes(file.file);
 
         notifier.setProgress(
           k,
@@ -168,6 +167,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           file.name,
           bytes,
           contentType,
+          // Preserves the folder the user picked or dropped. Null for a plain
+          // file selection, and never a filesystem path.
+          relativePath: file.relativePath,
           onProgress: (sent, total) {
             if (total > 0) {
               notifier.setProgress(
@@ -302,7 +304,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                     final p = progressMap[_key(file)];
                     return UploadFileTile(
                       key: ValueKey(_key(file)),
-                      file: file,
+                      file: file.file,
+                      label: file.relativePath,
                       progress: p,
                       onRemove: isUploading
                           ? null

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../models/engram_file.dart';
@@ -8,12 +10,16 @@ class FileTile extends StatefulWidget {
   final EngramFile file;
   final ReliquaryService reliquary;
   final VoidCallback onTap;
+  final String? displayName;
+  final String? locationLabel;
 
   const FileTile({
     super.key,
     required this.file,
     required this.reliquary,
     required this.onTap,
+    this.displayName,
+    this.locationLabel,
   });
 
   @override
@@ -22,7 +28,7 @@ class FileTile extends StatefulWidget {
 
 class _FileTileState extends State<FileTile>
     with AutomaticKeepAliveClientMixin<FileTile> {
-  String? _thumbUrl;
+  Uint8List? _thumbBytes;
 
   @override
   bool get wantKeepAlive => true;
@@ -50,8 +56,10 @@ class _FileTileState extends State<FileTile>
     final key = _thumbKeyFor(widget.file.filePath);
     if (key == null) return;
     try {
-      final url = await widget.reliquary.presignDownload(key);
-      if (mounted) setState(() => _thumbUrl = url);
+      // Fetched through the client rather than by URL: /storage/* is behind
+      // forward_auth and an <img> request carries no bearer token.
+      final bytes = await widget.reliquary.fetchContent(key);
+      if (mounted) setState(() => _thumbBytes = bytes);
     } catch (_) {}
   }
 
@@ -78,9 +86,9 @@ class _FileTileState extends State<FileTile>
                 ),
                 child: Container(
                   color: theme.colorScheme.surfaceContainer,
-                  child: _thumbUrl != null
-                      ? Image.network(
-                          _thumbUrl!,
+                  child: _thumbBytes != null
+                      ? Image.memory(
+                          _thumbBytes!,
                           fit: BoxFit.cover,
                           width: double.infinity,
                           errorBuilder: (_, _, _) => _fileIcon(context),
@@ -95,13 +103,25 @@ class _FileTileState extends State<FileTile>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.file.filename,
+                    widget.displayName ?? widget.file.filename,
                     style: theme.textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (widget.locationLabel != null &&
+                      widget.locationLabel!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.locationLabel!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Row(
                     children: [

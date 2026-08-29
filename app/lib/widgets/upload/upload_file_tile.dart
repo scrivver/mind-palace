@@ -6,12 +6,17 @@ import 'upload_progress.dart';
 
 class UploadFileTile extends StatelessWidget {
   final PlatformFile file;
+
+  /// What to show instead of the bare filename — the upload-relative path for
+  /// a folder upload, so nested files stay distinguishable in the list.
+  final String? label;
   final UploadProgress? progress;
   final VoidCallback? onRemove;
 
   const UploadFileTile({
     super.key,
     required this.file,
+    this.label,
     this.progress,
     this.onRemove,
   });
@@ -50,7 +55,7 @@ class UploadFileTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  file.name,
+                  label ?? file.name,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w500,
                   ),

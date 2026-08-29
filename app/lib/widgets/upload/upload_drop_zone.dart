@@ -1,6 +1,6 @@
 import 'package:desktop_drop/desktop_drop.dart'
     if (dart.library.html) 'package:mind_palace/widgets/drop_target_stub.dart';
-import 'package:file_picker/file_picker.dart';
+import '../../models/picked_file.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
@@ -15,7 +15,7 @@ import 'dashed_border_painter.dart';
 class UploadDropZone extends StatefulWidget {
   final bool isUploading;
   final void Function(List<dynamic> items) onDropItems;
-  final void Function(List<PlatformFile> files) onDropFiles;
+  final void Function(List<PickedFile> files) onDropFiles;
   final VoidCallback onPickFiles;
   final VoidCallback onPickFolder;
   final VoidCallback? onWebDropFolder;

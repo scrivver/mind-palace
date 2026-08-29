@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../engram_service.dart';
 import '../models/engram_file.dart';
+import '../widgets/gallery/gallery_view_model.dart';
 import 'service_providers.dart';
 
 class FileListState {
@@ -16,6 +17,9 @@ class FileListState {
   final int refreshTrigger;
   final List<Map<String, dynamic>> availableTags;
   final Set<String> selectedTags;
+  final List<FolderEntry> folders;
+  final String folderPath;
+  final GalleryGroupingMode groupingMode;
 
   const FileListState({
     this.files = const [],
@@ -29,7 +33,15 @@ class FileListState {
     this.refreshTrigger = 0,
     this.availableTags = const [],
     this.selectedTags = const {},
+    this.folders = const [],
+    this.folderPath = '',
+    this.groupingMode = GalleryGroupingMode.allFiles,
   });
+
+  /// Folder scope is what makes Engram return a single directory's direct
+  /// children. Search deliberately escapes it: results must span every folder.
+  bool get isFolderScoped =>
+      groupingMode == GalleryGroupingMode.folders && searchQuery.isEmpty;
 
   static const _sentinel = Object();
 
@@ -45,6 +57,9 @@ class FileListState {
     int? refreshTrigger,
     List<Map<String, dynamic>>? availableTags,
     Set<String>? selectedTags,
+    List<FolderEntry>? folders,
+    String? folderPath,
+    GalleryGroupingMode? groupingMode,
   }) {
     return FileListState(
       files: files ?? this.files,
@@ -60,6 +75,9 @@ class FileListState {
       refreshTrigger: refreshTrigger ?? this.refreshTrigger,
       availableTags: availableTags ?? this.availableTags,
       selectedTags: selectedTags ?? this.selectedTags,
+      folders: folders ?? this.folders,
+      folderPath: folderPath ?? this.folderPath,
+      groupingMode: groupingMode ?? this.groupingMode,
     );
   }
 }
@@ -93,6 +111,7 @@ class FileListNotifier extends StateNotifier<FileListState> {
     if (_didLoadInitial || !_isLoggedIn || _engram == null) return;
     _didLoadInitial = true;
     loadFiles();
+    loadFolders();
     loadTags();
   }
 
@@ -106,12 +125,15 @@ class FileListNotifier extends StateNotifier<FileListState> {
     );
     try {
       final offset = append ? state.offset : 0;
+      final folderScoped = state.isFolderScoped;
       final files = await engram.listFiles(
         offset: offset,
         limit: _pageSize,
         query: state.searchQuery.isNotEmpty ? state.searchQuery : null,
         tags: state.selectedTags.toList(),
         fileType: state.selectedType,
+        scope: folderScoped ? 'folder' : null,
+        path: folderScoped ? state.folderPath : null,
       );
       state = state.copyWith(
         files: append ? [...state.files, ...files] : files,
@@ -127,6 +149,53 @@ class FileListNotifier extends StateNotifier<FileListState> {
         error: e.toString(),
       );
     }
+  }
+
+  /// Fetches the current directory's subfolders. Engram returns the complete
+  /// set, so the tree no longer depends on how many pages of files have been
+  /// loaded. A failure here leaves the file list intact rather than blanking
+  /// the gallery.
+  Future<void> loadFolders() async {
+    // Clearing is local state rather than a fetch, so it happens even when the
+    // service is unavailable: stale folders must never outlive the scope that
+    // produced them.
+    if (!state.isFolderScoped) {
+      if (state.folders.isNotEmpty) {
+        state = state.copyWith(folders: const []);
+      }
+      return;
+    }
+    final engram = _engram;
+    if (engram == null || !_isLoggedIn) return;
+    try {
+      final raw = await engram.listFolders(
+        path: state.folderPath,
+        query: state.searchQuery.isNotEmpty ? state.searchQuery : null,
+        tags: state.selectedTags.toList(),
+        fileType: state.selectedType,
+      );
+      state = state.copyWith(folders: raw.map(FolderEntry.fromJson).toList());
+    } catch (_) {}
+  }
+
+  /// Moves to a directory, or switches between folder and flat views. Both
+  /// reload files and folders together so the two can never describe different
+  /// directories.
+  void setFolder({
+    required GalleryGroupingMode groupingMode,
+    required String folderPath,
+  }) {
+    final normalized = GalleryFolderPath(folderPath).path;
+    if (state.groupingMode == groupingMode && state.folderPath == normalized) {
+      return;
+    }
+    state = state.copyWith(
+      groupingMode: groupingMode,
+      folderPath: normalized,
+      offset: 0,
+    );
+    loadFiles();
+    loadFolders();
   }
 
   Future<void> loadTags() async {
@@ -145,26 +214,34 @@ class FileListNotifier extends StateNotifier<FileListState> {
   void setSearchQuery(String query) {
     state = state.copyWith(searchQuery: query, offset: 0);
     loadFiles();
+    loadFolders();
   }
 
   void setSelectedType(String? type) {
     state = state.copyWith(selectedType: type, offset: 0);
     loadFiles();
+    loadFolders();
   }
 
   void setSelectedTags(Set<String> tags) {
-    state = state.copyWith(selectedTags: tags);
+    state = state.copyWith(selectedTags: tags, offset: 0);
     loadFiles();
+    loadFolders();
   }
 
   void setRouteState({
     required String searchQuery,
     required String? selectedType,
     required Set<String> selectedTags,
+    required GalleryGroupingMode groupingMode,
+    required String folderPath,
   }) {
     final normalizedType = selectedType == 'all' ? null : selectedType;
+    final normalizedPath = GalleryFolderPath(folderPath).path;
     if (state.searchQuery == searchQuery &&
         state.selectedType == normalizedType &&
+        state.groupingMode == groupingMode &&
+        state.folderPath == normalizedPath &&
         state.selectedTags.length == selectedTags.length &&
         state.selectedTags.containsAll(selectedTags)) {
       return;
@@ -173,14 +250,18 @@ class FileListNotifier extends StateNotifier<FileListState> {
       searchQuery: searchQuery,
       selectedType: normalizedType,
       selectedTags: selectedTags,
+      groupingMode: groupingMode,
+      folderPath: normalizedPath,
       offset: 0,
     );
     loadFiles();
+    loadFolders();
   }
 
   void applyFilters(String? type, Set<String> tags) {
-    state = state.copyWith(selectedType: type, selectedTags: tags);
+    state = state.copyWith(selectedType: type, selectedTags: tags, offset: 0);
     loadFiles();
+    loadFolders();
   }
 
   void toggleTag(String name) {
@@ -188,11 +269,12 @@ class FileListNotifier extends StateNotifier<FileListState> {
     if (!updated.remove(name)) updated.add(name);
     state = state.copyWith(selectedTags: updated);
     loadFiles();
+    loadFolders();
   }
 
   Future<void> invalidate() async {
     state = state.copyWith(refreshTrigger: state.refreshTrigger + 1);
-    await Future.wait([loadFiles(), loadTags()]);
+    await Future.wait([loadFiles(), loadFolders(), loadTags()]);
   }
 
   void loadMore() {

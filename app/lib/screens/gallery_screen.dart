@@ -7,8 +7,12 @@ import '../models/engram_file.dart';
 import '../providers/file_list_provider.dart';
 import '../providers/service_providers.dart';
 import '../reliquary_service.dart';
+import '../widgets/gallery/file_row.dart';
 import '../widgets/gallery/file_tile.dart';
 import '../widgets/gallery/filter_dropdown_panel.dart';
+import '../widgets/gallery/folder_row.dart';
+import '../widgets/gallery/folder_tile.dart';
+import '../widgets/gallery/gallery_view_model.dart';
 import '../widgets/gallery/quick_filter_chip.dart';
 
 class GalleryScreen extends ConsumerStatefulWidget {
@@ -17,10 +21,16 @@ class GalleryScreen extends ConsumerStatefulWidget {
   final String initialSearchQuery;
   final String? initialType;
   final Set<String> initialTags;
+  final GalleryViewMode initialViewMode;
+  final GalleryGroupingMode initialGroupingMode;
+  final String initialFolderPath;
   final void Function({
     required String searchQuery,
     required String? selectedType,
     required Set<String> selectedTags,
+    required GalleryViewMode viewMode,
+    required GalleryGroupingMode groupingMode,
+    required String folderPath,
   })?
   onRouteStateChanged;
   final int refreshTrigger;
@@ -32,6 +42,9 @@ class GalleryScreen extends ConsumerStatefulWidget {
     this.initialSearchQuery = '',
     this.initialType,
     this.initialTags = const {},
+    this.initialViewMode = GalleryViewMode.grid,
+    this.initialGroupingMode = GalleryGroupingMode.allFiles,
+    this.initialFolderPath = '',
     this.onRouteStateChanged,
     required this.refreshTrigger,
   });
@@ -44,6 +57,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   Timer? _searchDebounce;
   final ScrollController _scrollCtrl = ScrollController();
+  late GalleryViewMode _viewMode;
+  late GalleryGroupingMode _groupingMode;
+  late GalleryFolderPath _folderPath;
 
   static const _fileTypes = <({String key, String label, IconData icon})>[
     (key: 'all', label: 'All Files', icon: Icons.grid_view),
@@ -61,6 +77,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   void initState() {
     super.initState();
     _searchCtrl.text = widget.initialSearchQuery;
+    _viewMode = widget.initialViewMode;
+    _groupingMode = widget.initialGroupingMode;
+    _folderPath = GalleryFolderPath(widget.initialFolderPath);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _syncRouteStateToProvider();
@@ -81,6 +100,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       _searchCtrl.text = widget.initialSearchQuery;
       _syncRouteStateToProvider();
     }
+    if (widget.initialViewMode != oldWidget.initialViewMode ||
+        widget.initialGroupingMode != oldWidget.initialGroupingMode ||
+        widget.initialFolderPath != oldWidget.initialFolderPath) {
+      _viewMode = widget.initialViewMode;
+      _groupingMode = widget.initialGroupingMode;
+      _folderPath = GalleryFolderPath(widget.initialFolderPath);
+      _syncFolderStateToProvider();
+    }
   }
 
   void _syncRouteStateToProvider() {
@@ -90,20 +117,63 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           searchQuery: widget.initialSearchQuery.trim(),
           selectedType: widget.initialType,
           selectedTags: widget.initialTags,
+          groupingMode: _groupingMode,
+          folderPath: _folderPath.path,
         );
+  }
+
+  void _syncFolderStateToProvider() {
+    ref
+        .read(fileListProvider.notifier)
+        .setFolder(groupingMode: _groupingMode, folderPath: _folderPath.path);
   }
 
   void _updateRouteState({
     String? searchQuery,
     String? selectedType,
     Set<String>? selectedTags,
+    GalleryViewMode? viewMode,
+    GalleryGroupingMode? groupingMode,
+    String? folderPath,
   }) {
     final state = ref.read(fileListProvider);
     widget.onRouteStateChanged?.call(
       searchQuery: searchQuery ?? state.searchQuery,
       selectedType: selectedType ?? state.selectedType,
       selectedTags: selectedTags ?? state.selectedTags,
+      viewMode: viewMode ?? _viewMode,
+      groupingMode: groupingMode ?? _groupingMode,
+      folderPath: folderPath ?? _folderPath.path,
     );
+  }
+
+  void _setViewMode(GalleryViewMode mode) {
+    if (_viewMode == mode) return;
+    setState(() => _viewMode = mode);
+    _updateRouteState(viewMode: mode);
+  }
+
+  void _setGroupingMode(GalleryGroupingMode mode) {
+    if (_groupingMode == mode) return;
+    setState(() => _groupingMode = mode);
+    _syncFolderStateToProvider();
+    _updateRouteState(groupingMode: mode);
+  }
+
+  void _openFolder(String path) {
+    final next = GalleryFolderPath(path);
+    setState(() => _folderPath = next);
+    if (_scrollCtrl.hasClients) _scrollCtrl.jumpTo(0);
+    _syncFolderStateToProvider();
+    _updateRouteState(folderPath: next.path);
+  }
+
+  void _goUpFolder() {
+    final next = _folderPath.parent();
+    setState(() => _folderPath = next);
+    if (_scrollCtrl.hasClients) _scrollCtrl.jumpTo(0);
+    _syncFolderStateToProvider();
+    _updateRouteState(folderPath: next.path);
   }
 
   @override
@@ -209,8 +279,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   Widget build(BuildContext context) {
     final files = ref.watch(fileListProvider.select((s) => s.files));
     final loading = ref.watch(fileListProvider.select((s) => s.isLoading));
+    final loadingMore = ref.watch(
+      fileListProvider.select((s) => s.isLoadingMore),
+    );
     final error = ref.watch(fileListProvider.select((s) => s.error));
-    final hasMore = ref.watch(fileListProvider.select((s) => s.hasMore));
     final searchQuery = ref.watch(
       fileListProvider.select((s) => s.searchQuery),
     );
@@ -228,6 +300,20 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
         (activeType != null && activeType != 'all') ||
         searchQuery.isNotEmpty;
     final reliquary = ref.watch(reliquaryServiceProvider).valueOrNull;
+    final isSearching = searchQuery.isNotEmpty;
+    // Folders come from Engram, complete for this directory, rather than being
+    // derived from however many pages of files happen to be loaded. Search
+    // spans every folder, so the tree is meaningless while one is active: the
+    // provider clears it, and this keeps the rule visible here too.
+    final folders = isSearching
+        ? const <FolderEntry>[]
+        : ref.watch(fileListProvider.select((s) => s.folders));
+    final visibleFiles = visibleFilesFor(
+      files: files,
+      currentPath: _folderPath.path,
+      showFullPath:
+          _groupingMode == GalleryGroupingMode.allFiles || isSearching,
+    );
 
     return Stack(
       fit: StackFit.expand,
@@ -272,10 +358,11 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                     const SliverToBoxAdapter(child: SizedBox(height: 32)),
                     _buildBody(
                       context,
-                      files,
+                      folders,
+                      visibleFiles,
                       loading,
+                      loadingMore,
                       error,
-                      hasMore,
                       hasActiveFilters: hasActiveFilters,
                       reliquary: reliquary,
                     ),
@@ -419,6 +506,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildFilterBar(context, hasActiveFilters),
+          if (_groupingMode == GalleryGroupingMode.folders) ...[
+            const SizedBox(height: 12),
+            _buildFolderCrumb(context),
+          ],
           const SizedBox(height: 16),
           if (hasActiveFilters)
             _buildQuickFilters(
@@ -436,7 +527,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         InkWell(
           key: _filterButtonKey,
@@ -476,6 +570,88 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                   color: hasActiveFilters ? cs.primary : cs.onSurfaceVariant,
                 ),
               ],
+            ),
+          ),
+        ),
+        _modeButton(
+          context,
+          tooltip: 'Grid view',
+          icon: Icons.grid_view,
+          selected: _viewMode == GalleryViewMode.grid,
+          onTap: () => _setViewMode(GalleryViewMode.grid),
+        ),
+        _modeButton(
+          context,
+          tooltip: 'List view',
+          icon: Icons.view_list,
+          selected: _viewMode == GalleryViewMode.list,
+          onTap: () => _setViewMode(GalleryViewMode.list),
+        ),
+        _modeButton(
+          context,
+          tooltip: 'Folder view',
+          icon: Icons.account_tree_outlined,
+          selected: _groupingMode == GalleryGroupingMode.folders,
+          onTap: () => _setGroupingMode(GalleryGroupingMode.folders),
+        ),
+        _modeButton(
+          context,
+          tooltip: 'All files',
+          icon: Icons.snippet_folder_outlined,
+          selected: _groupingMode == GalleryGroupingMode.allFiles,
+          onTap: () => _setGroupingMode(GalleryGroupingMode.allFiles),
+        ),
+      ],
+    );
+  }
+
+  Widget _modeButton(
+    BuildContext context, {
+    required String tooltip,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: tooltip,
+      child: IconButton.filledTonal(
+        isSelected: selected,
+        onPressed: onTap,
+        icon: Icon(icon, size: 19),
+        style: IconButton.styleFrom(
+          backgroundColor: selected ? cs.primaryContainer : cs.surface,
+          foregroundColor: selected
+              ? cs.onPrimaryContainer
+              : cs.onSurfaceVariant,
+          side: BorderSide(color: selected ? cs.primary : cs.outlineVariant),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFolderCrumb(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Row(
+      children: [
+        IconButton(
+          tooltip: 'Back',
+          onPressed: _folderPath.isRoot ? null : _goUpFolder,
+          icon: const Icon(Icons.arrow_back, size: 18),
+        ),
+        const SizedBox(width: 4),
+        Icon(Icons.folder_open, size: 18, color: cs.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            _folderPath.isRoot ? 'Files' : _folderPath.path,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -536,10 +712,11 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 
   Widget _buildBody(
     BuildContext context,
-    List<EngramFile> files,
+    List<FolderEntry> folders,
+    List<GalleryFileProjection> files,
     bool loading,
-    String? error,
-    bool hasMore, {
+    bool loadingMore,
+    String? error, {
     required bool hasActiveFilters,
     required ReliquaryService? reliquary,
   }) {
@@ -567,7 +744,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       );
     }
 
-    if (files.isEmpty) {
+    if (folders.isEmpty && files.isEmpty) {
       return SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
@@ -599,6 +776,25 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       );
     }
 
+    if (reliquary == null) {
+      return _buildLoadingGrid(context);
+    }
+
+    if (_viewMode == GalleryViewMode.list) {
+      return _buildListBody(context, folders, files, loadingMore);
+    }
+
+    return _buildGridBody(context, folders, files, reliquary, loadingMore);
+  }
+
+  Widget _buildGridBody(
+    BuildContext context,
+    List<FolderEntry> folders,
+    List<GalleryFileProjection> files,
+    ReliquaryService reliquary,
+    bool loadingMore,
+  ) {
+    final itemCount = folders.length + files.length + (loadingMore ? 1 : 0);
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       sliver: SliverGrid(
@@ -609,17 +805,71 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           childAspectRatio: 1.1,
         ),
         delegate: SliverChildBuilderDelegate((context, index) {
-          if (index >= files.length) {
+          if (index >= folders.length + files.length) {
             return const Center(child: CircularProgressIndicator());
           }
-          final file = files[index];
+          if (index < folders.length) {
+            final folder = folders[index];
+            return FolderTile(
+              key: ValueKey('folder:${folder.path}'),
+              folder: folder,
+              onTap: () => _openFolder(folder.path),
+            );
+          }
+          final projection = files[index - folders.length];
           return FileTile(
-            key: ValueKey(file.id),
-            file: file,
-            reliquary: reliquary!,
-            onTap: () => _openDetail(file),
+            key: ValueKey(projection.file.id),
+            file: projection.file,
+            reliquary: reliquary,
+            displayName: projection.displayName,
+            locationLabel:
+                _groupingMode == GalleryGroupingMode.allFiles ||
+                    projection.directoryPath.isNotEmpty
+                ? projection.directoryPath
+                : null,
+            onTap: () => _openDetail(projection.file),
           );
-        }, childCount: files.length + (hasMore ? 1 : 0)),
+        }, childCount: itemCount),
+      ),
+    );
+  }
+
+  Widget _buildListBody(
+    BuildContext context,
+    List<FolderEntry> folders,
+    List<GalleryFileProjection> files,
+    bool loadingMore,
+  ) {
+    final itemCount = folders.length + files.length + (loadingMore ? 1 : 0);
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          if (index >= folders.length + files.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (index < folders.length) {
+            final folder = folders[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: FolderRow(
+                folder: folder,
+                onTap: () => _openFolder(folder.path),
+              ),
+            );
+          }
+          final projection = files[index - folders.length];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: FileRow(
+              projection: projection,
+              onTap: () => _openDetail(projection.file),
+            ),
+          );
+        }, childCount: itemCount),
       ),
     );
   }

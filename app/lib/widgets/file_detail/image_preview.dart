@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../reliquary_service.dart';
@@ -26,12 +28,12 @@ class ImagePreview extends StatefulWidget {
 
 class _ImagePreviewState extends State<ImagePreview> {
   static final _cache = PreviewCache();
-  Future<String>? _urlFuture;
+  Future<Uint8List>? _bytesFuture;
 
   @override
   void initState() {
     super.initState();
-    _urlFuture = _loadUrl();
+    _bytesFuture = _loadBytes();
   }
 
   @override
@@ -39,14 +41,16 @@ class _ImagePreviewState extends State<ImagePreview> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.filePath != widget.filePath ||
         oldWidget.reliquary != widget.reliquary) {
-      _urlFuture = _loadUrl();
+      _bytesFuture = _loadBytes();
     }
   }
 
-  Future<String> _loadUrl() {
-    return _cache.presignedUrl(
+  Future<Uint8List> _loadBytes() {
+    // /storage/* is behind forward_auth, so the bytes must come through the
+    // authenticated client rather than a plain image URL.
+    return _cache.contentBytes(
       widget.filePath,
-      () => widget.reliquary.presignDownload(widget.filePath),
+      () => widget.reliquary.fetchContent(widget.filePath),
     );
   }
 
@@ -55,8 +59,8 @@ class _ImagePreviewState extends State<ImagePreview> {
     if (!widget.isImage) {
       return Center(child: _iconPreview(context));
     }
-    return FutureBuilder<String>(
-      future: _urlFuture,
+    return FutureBuilder<Uint8List>(
+      future: _bytesFuture,
       builder: (context, snap) {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -68,7 +72,7 @@ class _ImagePreviewState extends State<ImagePreview> {
               child: SizedBox(
                 width: constraints.maxWidth,
                 height: constraints.maxHeight,
-                child: Image.network(
+                child: Image.memory(
                   snap.data!,
                   fit: BoxFit.contain,
                   errorBuilder: (_, _, _) => _iconPreview(context),

@@ -18,6 +18,7 @@ import '../widgets/app_loading_screen.dart';
 import '../widgets/app_shell.dart';
 import '../providers/service_providers.dart';
 import '../providers/theme_provider.dart';
+import '../widgets/gallery/gallery_view_model.dart';
 
 class RouterRefreshNotifier extends ChangeNotifier {
   void refresh() => notifyListeners();
@@ -156,26 +157,35 @@ final routerProvider = Provider<GoRouter>((ref) {
                   .split(',')
                   .where((tag) => tag.isNotEmpty)
                   .toSet();
+              final galleryRoute = GalleryRouteState.fromQuery(
+                state.uri.queryParameters,
+              );
               return GalleryScreen(
                 onNavigateToUpload: () => context.go('/upload'),
                 onOpenDetail: (file) => context.go('/file/${file.id}'),
                 initialSearchQuery: query,
                 initialType: type,
                 initialTags: tags,
+                initialViewMode: galleryRoute.viewMode,
+                initialGroupingMode: galleryRoute.groupingMode,
+                initialFolderPath: galleryRoute.folderPath.path,
                 onRouteStateChanged:
                     ({
                       required searchQuery,
                       required selectedType,
                       required selectedTags,
+                      required viewMode,
+                      required groupingMode,
+                      required folderPath,
                     }) {
-                      final params = <String, String>{};
-                      if (searchQuery.isNotEmpty) params['q'] = searchQuery;
-                      if (selectedType != null && selectedType != 'all') {
-                        params['type'] = selectedType;
-                      }
-                      if (selectedTags.isNotEmpty) {
-                        params['tags'] = selectedTags.join(',');
-                      }
+                      final params = GalleryRouteState(
+                        searchQuery: searchQuery,
+                        selectedType: selectedType,
+                        selectedTags: selectedTags,
+                        viewMode: viewMode,
+                        groupingMode: groupingMode,
+                        folderPath: GalleryFolderPath(folderPath),
+                      ).toQueryParameters();
                       context.go(
                         Uri(path: '/vault', queryParameters: params).toString(),
                       );

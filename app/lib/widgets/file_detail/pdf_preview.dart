@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../reliquary_service.dart';
@@ -41,11 +40,11 @@ class _PdfPreviewState extends State<PdfPreview> {
   }
 
   Future<Uint8List> _loadBytes() {
-    return _cache.pdfBytes(widget.filePath, () async {
-      final url = await widget.reliquary.presignDownload(widget.filePath);
-      final response = await http.get(Uri.parse(url));
-      return response.bodyBytes;
-    });
+    // A bare http.get carries no bearer token and forward_auth rejects it.
+    return _cache.contentBytes(
+      widget.filePath,
+      () => widget.reliquary.fetchContent(widget.filePath),
+    );
   }
 
   @override

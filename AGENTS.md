@@ -52,7 +52,7 @@ Pull requests should explain behavior, list verification commands, link relevant
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan at
-`specs/006-client-routing/plan.md`.
+`specs/008-backend-display-paths/plan.md`.
 <!-- SPECKIT END -->
 
 <!-- CONVERSATION SUMMARY -->

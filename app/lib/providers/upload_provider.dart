@@ -1,10 +1,11 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../models/picked_file.dart';
 
 import '../widgets/upload/upload_progress.dart';
 
 class UploadState {
-  final List<PlatformFile> selectedFiles;
+  final List<PickedFile> selectedFiles;
   final Map<String, UploadProgress> progressMap;
   final bool isUploading;
 
@@ -15,7 +16,7 @@ class UploadState {
   });
 
   UploadState copyWith({
-    List<PlatformFile>? selectedFiles,
+    List<PickedFile>? selectedFiles,
     Map<String, UploadProgress>? progressMap,
     bool? isUploading,
   }) {
@@ -30,9 +31,10 @@ class UploadState {
 class UploadNotifier extends StateNotifier<UploadState> {
   UploadNotifier() : super(const UploadState());
 
-  static String key(PlatformFile f) => '${f.name}::${f.hashCode}';
+  static String key(PickedFile f) =>
+      '${f.relativePath ?? f.name}::${f.hashCode}';
 
-  void addFiles(List<PlatformFile> files) {
+  void addFiles(List<PickedFile> files) {
     final updated = Map<String, UploadProgress>.from(state.progressMap);
     for (final f in files) {
       final k = key(f);
@@ -68,7 +70,7 @@ class UploadNotifier extends StateNotifier<UploadState> {
   }
 
   void clearCompleted() {
-    final remaining = <PlatformFile>[];
+    final remaining = <PickedFile>[];
     final progress = <String, UploadProgress>{};
     for (final f in state.selectedFiles) {
       final k = key(f);

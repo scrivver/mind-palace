@@ -7,7 +7,7 @@ import 'dart:typed_data';
 /// lives only for the current app session.
 class PreviewCache {
   final Map<String, Future<String>> _presignedUrls = {};
-  final Map<String, Future<Uint8List>> _pdfBytes = {};
+  final Map<String, Future<Uint8List>> _contentBytes = {};
 
   /// Returns a cached presigned URL future for [key] or creates one using
   /// [fetch] and stores it.
@@ -16,20 +16,26 @@ class PreviewCache {
   }
 
   /// Returns cached PDF bytes for [key] or creates the future using [fetch].
-  Future<Uint8List> pdfBytes(String key, Future<Uint8List> Function() fetch) {
-    return _pdfBytes.putIfAbsent(key, fetch);
+  /// Caches raw object bytes. Named for content rather than PDFs because
+  /// every preview now fetches bytes: `/storage/*` is behind forward_auth, so
+  /// nothing can be handed to a plain URL loader.
+  Future<Uint8List> contentBytes(
+    String key,
+    Future<Uint8List> Function() fetch,
+  ) {
+    return _contentBytes.putIfAbsent(key, fetch);
   }
 
   /// Invalidates cached entries for [key]. Called when the underlying file is
   /// deleted or otherwise known to have changed.
   void invalidate(String key) {
     _presignedUrls.remove(key);
-    _pdfBytes.remove(key);
+    _contentBytes.remove(key);
   }
 
   /// Clears all cached previews.
   void clear() {
     _presignedUrls.clear();
-    _pdfBytes.clear();
+    _contentBytes.clear();
   }
 }

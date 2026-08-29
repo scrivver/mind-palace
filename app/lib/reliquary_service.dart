@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'auth_service.dart';
 import 'models/file_item.dart';
@@ -25,7 +28,13 @@ class ReliquaryService {
     this.onUnauthorized,
   }) : baseUrl = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/' {
     final parsedBaseUrl = Uri.parse(this.baseUrl);
-    _origin = parsedBaseUrl.hasScheme ? parsedBaseUrl.origin : '';
+    // Falls back to the page origin for a web build in relative mode, where
+    // baseUrl is deliberately scheme-less. Storage URLs must come out absolute:
+    // they are now fetched through dio, which would otherwise resolve a bare
+    // `/storage/...` against baseUrl rather than against the origin.
+    _origin = parsedBaseUrl.hasScheme
+        ? parsedBaseUrl.origin
+        : (kIsWeb ? Uri.base.origin : '');
     dio = Dio(BaseOptions(baseUrl: this.baseUrl));
     dio.interceptors.add(
       InterceptorsWrapper(
@@ -125,6 +134,24 @@ class ReliquaryService {
     );
     final relativePath = response.data['url'] as String;
     return _origin + relativePath;
+  }
+
+  /// Fetches the raw bytes of an object from `/storage/*`.
+  ///
+  /// Goes through dio so the interceptor attaches the bearer token: Caddy's
+  /// forward_auth asks Reliquary to authorize the request before MinIO serves
+  /// it, so an unauthenticated fetch — `Image.network`, a bare `http.get`, or
+  /// a pasted URL — is rejected. That rejection is the point: it is what stops
+  /// a leaked presigned link from working.
+  Future<Uint8List> fetchContent(String key, {bool download = false}) async {
+    final url = download
+        ? await presignDownloadForSave(key)
+        : await presignDownload(key);
+    final response = await dio.getUri<List<int>>(
+      Uri.parse(url),
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(response.data ?? const []);
   }
 
   Future<void> deleteFile(String key) async {

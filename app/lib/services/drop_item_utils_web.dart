@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
+
+import '../models/picked_file.dart';
 import 'package:web/web.dart' as web;
 
 /// Entries and files captured synchronously from a drop event before the
@@ -39,9 +41,9 @@ CapturedDrop captureDropEntries(dynamic items) {
 }
 
 /// Walk pre-captured FileSystemEntry objects and File fallbacks, returning
-/// PlatformFile entries. This is the async counterpart to [captureDropEntries].
-Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
-  final out = <PlatformFile>[];
+/// PickedFile entries. This is the async counterpart to [captureDropEntries].
+Future<List<PickedFile>> expandCapturedDrop(CapturedDrop captured) async {
+  final out = <PickedFile>[];
   final seen = <String>{};
 
   Future<Uint8List> readFileBytes(web.File f) async {
@@ -110,7 +112,15 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
         if (looksLikePlaceholder(rel)) return;
         if (seen.add(rel)) {
           out.add(
-            PlatformFile(name: rel, size: file.size, bytes: bytes, path: rel),
+            // `rel` already starts at the dropped folder's own name.
+            PickedFile(
+              PlatformFile(
+                name: basenameOfPath(rel),
+                size: file.size,
+                bytes: bytes,
+              ),
+              relativePath: rel,
+            ),
           );
         }
       } else if (e.isDirectory) {
@@ -140,11 +150,9 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
           if (looksLikePlaceholder(name)) return;
           if (seen.add(name)) {
             out.add(
-              PlatformFile(
-                name: name,
-                size: file.size,
-                bytes: bytes,
-                path: null,
+              // A loose dropped file has no folder context.
+              PickedFile(
+                PlatformFile(name: name, size: file.size, bytes: bytes),
               ),
             );
           }
@@ -157,10 +165,10 @@ Future<List<PlatformFile>> expandCapturedDrop(CapturedDrop captured) async {
   return out;
 }
 
-/// Walk a DataTransferItemList and return PlatformFile entries for files.
+/// Walk a DataTransferItemList and return PickedFile entries for files.
 ///
 /// Convenience wrapper that calls captureDropEntries then expandCapturedDrop.
-Future<List<PlatformFile>> expandDropItemsWeb(dynamic items) async {
+Future<List<PickedFile>> expandDropItemsWeb(dynamic items) async {
   final captured = captureDropEntries(items);
   return expandCapturedDrop(captured);
 }

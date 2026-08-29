@@ -2,12 +2,14 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 
-/// Expand DropItem entries on IO platforms. If a dropped path is a directory,
-/// walk it recursively and return PlatformFile entries pointing to the files
-/// (path set, bytes left null). If an item is a file, return a PlatformFile
-/// with path set.
-Future<List<PlatformFile>> expandDropItemsIo(List<dynamic> items) async {
-  final out = <PlatformFile>[];
+import '../models/picked_file.dart';
+
+/// Expand DropItem entries on IO platforms. A dropped directory is walked
+/// recursively; each file keeps its absolute `path` for byte reading and
+/// carries its position inside the dropped folder as [PickedFile.relativePath].
+/// A dropped file has no folder context.
+Future<List<PickedFile>> expandDropItemsIo(List<dynamic> items) async {
+  final out = <PickedFile>[];
   for (final item in items) {
     final path = item.path;
     if (path == null) continue;
@@ -15,18 +17,33 @@ Future<List<PlatformFile>> expandDropItemsIo(List<dynamic> items) async {
     final entity = FileSystemEntity.typeSync(path);
     if (entity == FileSystemEntityType.directory) {
       final base = path;
+      final root = basenameOfPath(base);
       await for (final e in Directory(base).list(recursive: true)) {
         if (e is File) {
           final filePath = e.path;
           final size = await e.length();
-          final rel = _relativePath(filePath, base);
-          out.add(PlatformFile(name: rel, size: size, path: filePath));
+          out.add(
+            PickedFile(
+              PlatformFile(
+                name: basenameOfPath(filePath),
+                size: size,
+                path: filePath,
+              ),
+              // Rooted at the dropped folder's name, matching the shape the
+              // browser produces for webkitRelativePath.
+              relativePath: '$root/${_relativePath(filePath, base)}',
+            ),
+          );
         }
       }
     } else if (entity == FileSystemEntityType.file) {
       final f = File(path);
       final size = await f.length();
-      out.add(PlatformFile(name: _basename(path), size: size, path: path));
+      out.add(
+        PickedFile(
+          PlatformFile(name: basenameOfPath(path), size: size, path: path),
+        ),
+      );
     }
   }
   return out;
@@ -36,12 +53,8 @@ String _relativePath(String filePath, String basePath) {
   final prefix = basePath.endsWith(Platform.pathSeparator)
       ? basePath
       : '$basePath${Platform.pathSeparator}';
-  if (filePath.startsWith(prefix)) return filePath.substring(prefix.length);
-  return _basename(filePath);
-}
-
-String _basename(String path) {
-  final normalized = path.replaceAll('\\', '/');
-  final slash = normalized.lastIndexOf('/');
-  return slash == -1 ? normalized : normalized.substring(slash + 1);
+  final relative = filePath.startsWith(prefix)
+      ? filePath.substring(prefix.length)
+      : basenameOfPath(filePath);
+  return relative.replaceAll('\\', '/');
 }

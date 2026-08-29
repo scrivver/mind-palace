@@ -3,13 +3,13 @@
 import 'dart:async';
 import 'dart:html' as html;
 import 'package:flutter/widgets.dart';
-import 'package:file_picker/file_picker.dart';
+import '../models/picked_file.dart';
 import '../services/drop_item_utils_web.dart'
     show captureDropEntries, expandCapturedDrop;
 
 class WebDropZone extends StatefulWidget {
   final Widget child;
-  final void Function(List<PlatformFile>)? onDropFiles;
+  final void Function(List<PickedFile>)? onDropFiles;
   final void Function(bool)? onHover;
   final void Function()? onDropFolder;
 

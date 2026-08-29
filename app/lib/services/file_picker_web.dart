@@ -5,8 +5,10 @@ import 'dart:typed_data';
 import 'dart:html' as html;
 import 'package:file_picker/file_picker.dart';
 
-Future<List<PlatformFile>?> pickFiles({bool allowMultiple = true}) async {
-  final completer = Completer<List<PlatformFile>?>();
+import '../models/picked_file.dart';
+
+Future<List<PickedFile>?> pickFiles({bool allowMultiple = true}) async {
+  final completer = Completer<List<PickedFile>?>();
 
   final input = html.FileUploadInputElement()
     ..multiple = allowMultiple
@@ -29,11 +31,16 @@ Future<List<PlatformFile>?> pickFiles({bool allowMultiple = true}) async {
       return;
     }
 
-    final result = <PlatformFile>[];
+    final result = <PickedFile>[];
     for (var i = 0; i < files.length; i++) {
       final file = files[i];
       final bytes = await _readFileBytes(file);
-      result.add(PlatformFile(name: file.name, size: file.size, bytes: bytes));
+      // A plain file selection has no folder context to preserve.
+      result.add(
+        PickedFile(
+          PlatformFile(name: file.name, size: file.size, bytes: bytes),
+        ),
+      );
     }
 
     if (!completer.isCompleted) completer.complete(result);
@@ -55,8 +62,8 @@ Future<List<PlatformFile>?> pickFiles({bool allowMultiple = true}) async {
   return completer.future;
 }
 
-Future<List<PlatformFile>?> pickFolder() async {
-  final completer = Completer<List<PlatformFile>?>();
+Future<List<PickedFile>?> pickFolder() async {
+  final completer = Completer<List<PickedFile>?>();
 
   final input = html.FileUploadInputElement()
     ..multiple = true
@@ -81,25 +88,27 @@ Future<List<PlatformFile>?> pickFolder() async {
       return;
     }
 
-    final result = <PlatformFile>[];
+    final result = <PickedFile>[];
     for (var i = 0; i < files.length; i++) {
       final file = files[i];
       final bytes = await _readFileBytes(file);
-      String? relative;
-      try {
-        final dyn = file as dynamic;
-        final val = dyn.webkitRelativePath;
-        if (val is String && val.isNotEmpty) relative = val;
-      } catch (_) {
-        relative = null;
-      }
+      // dart:html exposes the JS `webkitRelativePath` property under the Dart
+      // name `relativePath` (@JSName in html_dart2js.dart). File is a @Native
+      // class, so reading `webkitRelativePath` dynamically throws
+      // NoSuchMethodError instead of returning the path — do not "fix" this
+      // back to the JS spelling.
+      //
+      // The value is already relative and already includes the selected
+      // folder's own name, e.g. `Photos/2026/a.jpg`.
+      final rawRelative = file.relativePath;
+      final relative = (rawRelative != null && rawRelative.isNotEmpty)
+          ? rawRelative
+          : null;
 
       result.add(
-        PlatformFile(
-          name: file.name,
-          size: file.size,
-          bytes: bytes,
-          path: relative,
+        PickedFile(
+          PlatformFile(name: file.name, size: file.size, bytes: bytes),
+          relativePath: relative,
         ),
       );
     }

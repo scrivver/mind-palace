@@ -27,10 +27,23 @@ let
         reverse_proxy engram-api:8081
       }
 
+      # A presigned URL is a bearer credential: anyone holding it can fetch the
+      # object until it expires. forward_auth asks Reliquary to authorize every
+      # request first, so a leaked link is useless without a session that also
+      # owns the key.
       handle /storage/* {
+        forward_auth reliquary-api:8080 {
+          uri /api/auth/check
+        }
+
         uri strip_prefix /storage
         reverse_proxy minio:9000 {
           header_up Host minio:9000
+          # The client sends a Bearer token for forward_auth above, but the
+          # object itself is authenticated by the presigned query signature.
+          # MinIO rejects a request carrying both with "request has multiple
+          # authentication types", so the token stops here.
+          header_up -Authorization
           header_down -Access-Control-Allow-Origin
           header_down -Access-Control-Allow-Methods
           header_down -Access-Control-Allow-Headers

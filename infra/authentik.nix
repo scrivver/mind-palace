@@ -185,19 +185,37 @@ let
         {"matching_mode": "regex", "url": "com\\.reliquary\\.app://callback"},
     ]
 
+    # Reliquary v0.4+ verifies access tokens against the issuer's signing keys
+    # and checks the aud claim. A provider with no signing key makes Authentik
+    # issue opaque tokens, which carry no claims to check: the backend then
+    # rejects every request with "access token is not a JWT and cannot be
+    # audience-checked". Authentik ships a self-signed keypair; any keypair
+    # holding a private key will do.
+    keypairs = api_call("GET", "/crypto/certificatekeypairs/?ordering=name", token=token)
+    signing_key = next(
+        (k["pk"] for k in keypairs["results"] if k.get("private_key_available")),
+        None,
+    )
+    if signing_key is None:
+        print("  WARNING: no certificate keypair with a private key available;")
+        print("           the provider will issue opaque tokens and Reliquary will reject them")
+
     # Check if provider already exists
     providers = api_call("GET", "/providers/oauth2/?name=Mind+Palace+OAuth2", token=token)
     if providers["pagination"]["count"] > 0:
         provider = providers["results"][0]
         print(f"  OAuth2 provider already exists (pk={provider['pk']})")
-        provider = api_call("PATCH", f"/providers/oauth2/{provider['pk']}/", {
+        patch = {
             "redirect_uris": redirect_uris,
             "property_mappings": scope_pks,
-        }, token=token)
-        print("  Updated OAuth2 provider redirect URIs")
+        }
+        if signing_key is not None:
+            patch["signing_key"] = signing_key
+        provider = api_call("PATCH", f"/providers/oauth2/{provider['pk']}/", patch, token=token)
+        print("  Updated OAuth2 provider redirect URIs and signing key")
     else:
         # Create OAuth2 provider
-        provider = api_call("POST", "/providers/oauth2/", {
+        create = {
             "name": "Mind Palace OAuth2",
             "authorization_flow": auth_flow_pk,
             "invalidation_flow": inv_flow_pk,
@@ -205,7 +223,10 @@ let
             "client_id": "mind-palace",
             "redirect_uris": redirect_uris,
             "property_mappings": scope_pks,
-        }, token=token)
+        }
+        if signing_key is not None:
+            create["signing_key"] = signing_key
+        provider = api_call("POST", "/providers/oauth2/", create, token=token)
         print(f"  Created OAuth2 provider (pk={provider['pk']})")
 
     # Ensure application exists and is up-to-date

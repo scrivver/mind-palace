@@ -16,6 +16,22 @@ class ServerUrlStore {
     return '${_norm(baseServerUrl)}api/reliquary/';
   }
 
+  /// Origin to build shareable in-app links against, e.g. the `<origin>` in
+  /// `<origin>/file/<id>`.
+  ///
+  /// Prefers the configured server, which in every supported topology also
+  /// serves the app. Falls back to the page's own origin for a web build in
+  /// relative mode, where [baseServerUrl] is deliberately empty.
+  static String get appOrigin {
+    final configured = baseServerUrl.trim();
+    if (configured.isNotEmpty) {
+      final parsed = Uri.tryParse(configured);
+      if (parsed != null && parsed.hasScheme) return parsed.origin;
+    }
+    if (kIsWeb) return Uri.base.origin;
+    return '';
+  }
+
   static const String _dartDefineUrl = String.fromEnvironment(
     'DEFAULT_API_BASE_URL',
   );

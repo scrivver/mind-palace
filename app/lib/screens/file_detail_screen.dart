@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../models/engram_file.dart';
 import '../providers/file_detail_provider.dart';
 import '../providers/service_providers.dart';
+import '../services/save_file.dart';
+import '../services/server_url_store.dart';
+import '../widgets/gallery/gallery_view_model.dart' show basenameOf;
 import '../utils/format.dart';
 import '../widgets/file_detail/delete_dialog.dart';
 import '../widgets/file_detail/extracted_text_dialog.dart';
@@ -32,8 +34,15 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
   Future<void> _download(EngramFile file) async {
     try {
       final reliquary = await ref.read(reliquaryServiceProvider.future);
-      final url = await reliquary.presignDownloadForSave(file.filePath);
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      // Fetched here rather than handed to the browser as a URL: /storage/* is
+      // behind forward_auth, and an external navigation carries no bearer
+      // token. The bytes are already authorized by the time they are saved.
+      final bytes = await reliquary.fetchContent(file.filePath, download: true);
+      await saveBytes(
+        basenameOf(file.filename),
+        bytes,
+        file.mimeType ?? 'application/octet-stream',
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -42,21 +51,17 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
     }
   }
 
+  /// Copies a link to this file's page in the app, not a presigned storage
+  /// URL. Storage URLs are authorized per-request at the proxy now, so a
+  /// pasted one fails for everybody; an app route sends the recipient through
+  /// the normal signed-in flow instead.
   Future<void> _copyLink(EngramFile file) async {
-    try {
-      final reliquary = await ref.read(reliquaryServiceProvider.future);
-      final url = await reliquary.presignDownload(file.filePath);
-      await Clipboard.setData(ClipboardData(text: url));
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to get link')));
-    }
+    final link = '${ServerUrlStore.appOrigin}/file/${file.id}';
+    await Clipboard.setData(ClipboardData(text: link));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
   }
 
   Future<void> _delete(EngramFile file) async {
