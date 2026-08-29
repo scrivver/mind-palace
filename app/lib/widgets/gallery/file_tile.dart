@@ -13,6 +13,10 @@ class FileTile extends StatefulWidget {
   final String? displayName;
   final String? locationLabel;
 
+  /// Phone density: tighter padding, a smaller name, and no relative time —
+  /// the meta row has room for the type badge and size and nothing more.
+  final bool compact;
+
   const FileTile({
     super.key,
     required this.file,
@@ -20,6 +24,7 @@ class FileTile extends StatefulWidget {
     required this.onTap,
     this.displayName,
     this.locationLabel,
+    this.compact = false,
   });
 
   @override
@@ -95,15 +100,17 @@ class _FileTileState extends State<FileTile>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(widget.compact ? 12 : 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     widget.displayName ?? widget.file.filename,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style:
+                        (widget.compact
+                                ? theme.textTheme.bodyMedium
+                                : theme.textTheme.bodyLarge)
+                            ?.copyWith(fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -113,6 +120,7 @@ class _FileTileState extends State<FileTile>
                     Text(
                       widget.locationLabel!,
                       style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: widget.compact ? 11 : null,
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 1,
@@ -133,24 +141,32 @@ class _FileTileState extends State<FileTile>
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        FormatUtils.formatBytes(widget.file.size),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'Space Mono',
-                          fontSize: 11,
-                          color: theme.colorScheme.onSurfaceVariant,
+                      // Flexible so a wide size string, or a large text
+                      // scale, ellipsizes instead of overflowing the tile.
+                      Flexible(
+                        child: Text(
+                          FormatUtils.formatBytes(widget.file.size),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontFamily: 'Space Mono',
+                            fontSize: 11,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
-                      const Spacer(),
-                      Text(
-                        FormatUtils.relativeTime(widget.file.mtime),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'Inter',
-                          fontStyle: FontStyle.italic,
-                          fontSize: 11,
-                          color: theme.colorScheme.onSurfaceVariant,
+                      if (!widget.compact) ...[
+                        const Spacer(),
+                        Text(
+                          FormatUtils.relativeTime(widget.file.mtime),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontFamily: 'Inter',
+                            fontStyle: FontStyle.italic,
+                            fontSize: 11,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ],

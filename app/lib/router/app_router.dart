@@ -138,6 +138,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 selectedIndex: navIndex,
                 username: authState.username ?? '',
                 isAdmin: isAdmin,
+                segment: segment,
                 onDestinationChanged: (index) {
                   // goBranch restores where the branch was left rather than
                   // resetting it to the section's root.
@@ -280,6 +281,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                         onServerUrlChanged: () {
                           invalidateServices();
                           context.go('/vault');
+                        },
+                        // The sidebar carries the account chip and logout on
+                        // desktop; on mobile there is no sidebar, so Settings
+                        // holds them instead.
+                        onLogout: () {
+                          ref.read(appAuthProvider.notifier).logout();
+                          context.go('/login');
                         },
                       );
                     },

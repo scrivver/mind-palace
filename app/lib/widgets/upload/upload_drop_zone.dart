@@ -20,6 +20,10 @@ class UploadDropZone extends StatefulWidget {
   final VoidCallback onPickFolder;
   final VoidCallback? onWebDropFolder;
 
+  /// Phone layout: no drag-and-drop copy (there is nothing to drag from) and
+  /// the two pickers stack full width as 48dp targets.
+  final bool compact;
+
   const UploadDropZone({
     super.key,
     required this.isUploading,
@@ -28,6 +32,7 @@ class UploadDropZone extends StatefulWidget {
     required this.onPickFiles,
     required this.onPickFolder,
     this.onWebDropFolder,
+    this.compact = false,
   });
 
   @override
@@ -70,7 +75,7 @@ class _UploadDropZoneState extends State<UploadDropZone> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 width: double.infinity,
-                padding: const EdgeInsets.all(32),
+                padding: EdgeInsets.all(widget.compact ? 24 : 32),
                 decoration: BoxDecoration(
                   color: _isDragging
                       ? theme.colorScheme.primaryContainer.withValues(
@@ -107,7 +112,7 @@ class _UploadDropZoneState extends State<UploadDropZone> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: double.infinity,
-              padding: const EdgeInsets.all(32),
+              padding: EdgeInsets.all(widget.compact ? 24 : 32),
               decoration: BoxDecoration(
                 color: _isDragging
                     ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
@@ -145,34 +150,66 @@ class _UploadDropZoneState extends State<UploadDropZone> {
         ),
         const SizedBox(height: 16),
         Text(
-          _isDragging ? 'Drop files here' : 'Click to select or drag files',
-          style: theme.textTheme.headlineSmall?.copyWith(
-            color: theme.colorScheme.onSurface,
-          ),
+          widget.compact
+              ? 'Add files to your vault'
+              : (_isDragging
+                    ? 'Drop files here'
+                    : 'Click to select or drag files'),
+          textAlign: TextAlign.center,
+          style:
+              (widget.compact
+                      ? theme.textTheme.titleLarge
+                      : theme.textTheme.headlineSmall)
+                  ?.copyWith(color: theme.colorScheme.onSurface),
         ),
         const SizedBox(height: 4),
         Text(
           'PDF, Markdown, JSON, and high-res images (Max 100MB)',
+          textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 20),
-        Wrap(
-          spacing: 8,
-          alignment: WrapAlignment.center,
-          children: [
-            FilledButton(
-              onPressed: widget.isUploading ? null : widget.onPickFiles,
-              child: const Text('Select Files'),
-            ),
-            OutlinedButton.icon(
-              onPressed: widget.isUploading ? null : widget.onPickFolder,
-              icon: const Icon(Icons.folder_open, size: 18),
-              label: const Text('Select Folder'),
-            ),
-          ],
-        ),
+        if (widget.compact)
+          Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: FilledButton(
+                  onPressed: widget.isUploading ? null : widget.onPickFiles,
+                  child: const Text('Select Files'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: widget.isUploading ? null : widget.onPickFolder,
+                  icon: const Icon(Icons.folder_open, size: 18),
+                  label: const Text('Select Folder'),
+                ),
+              ),
+            ],
+          )
+        else
+          Wrap(
+            spacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              FilledButton(
+                onPressed: widget.isUploading ? null : widget.onPickFiles,
+                child: const Text('Select Files'),
+              ),
+              OutlinedButton.icon(
+                onPressed: widget.isUploading ? null : widget.onPickFolder,
+                icon: const Icon(Icons.folder_open, size: 18),
+                label: const Text('Select Folder'),
+              ),
+            ],
+          ),
       ],
     );
   }

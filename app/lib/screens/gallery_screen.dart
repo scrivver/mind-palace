@@ -7,6 +7,7 @@ import '../models/engram_file.dart';
 import '../providers/file_list_provider.dart';
 import '../providers/service_providers.dart';
 import '../reliquary_service.dart';
+import '../utils/breakpoints.dart';
 import '../widgets/gallery/file_row.dart';
 import '../widgets/gallery/file_tile.dart';
 import '../widgets/gallery/filter_dropdown_panel.dart';
@@ -266,6 +267,37 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     Overlay.of(context).insert(_filterDropdownOverlay!);
   }
 
+  /// The phone equivalent of [_openFilterDropdown]: the same panel, in a modal
+  /// sheet rather than an overlay anchored to a button that is not there.
+  Future<void> _openFilterSheet(BuildContext context) async {
+    final state = ref.read(fileListProvider);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            child: FilterDropdownPanel(
+              fileTypes: _fileTypes,
+              initialSelectedTags: state.selectedTags,
+              initialTypeFilter: state.selectedType,
+              availableTags: state.availableTags,
+              onApply: (type, tags) {
+                ref.read(fileListProvider.notifier).applyFilters(type, tags);
+                _updateRouteState(selectedType: type, selectedTags: tags);
+                Navigator.of(sheetContext).pop();
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _closeFilterDropdown() {
     _filterDropdownOverlay?.remove();
     _filterDropdownOverlay = null;
@@ -315,64 +347,94 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           _groupingMode == GalleryGroupingMode.allFiles || isSearching,
     );
 
+    final isMobile = isMobileWidth(context);
+    final gutter = isMobile ? 16.0 : 32.0;
+
+    final scrollView = RefreshIndicator(
+      onRefresh: () => ref.read(fileListProvider.notifier).invalidate(),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1440),
+          child: CustomScrollView(
+            controller: _scrollCtrl,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // The desktop page header becomes the mobile app bar's title,
+              // leaving only the count line to sit above the search field.
+              if (isMobile)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12),
+                    child: _buildMobileSubtitle(context, files.length),
+                  ),
+                )
+              else ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(32, 32, 32, 0),
+                    child: _buildHeader(context, files.length),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              ],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  child: _buildSearchBar(
+                    context,
+                    searchQuery,
+                    files.length,
+                    isMobile: isMobile,
+                    hasActiveFilters: hasActiveFilters,
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(child: SizedBox(height: isMobile ? 12 : 24)),
+              SliverToBoxAdapter(
+                child: _buildFilterSection(
+                  context,
+                  activeType,
+                  selectedTags,
+                  availableTags,
+                  hasActiveFilters: hasActiveFilters,
+                  isMobile: isMobile,
+                  fileCount: files.length,
+                ),
+              ),
+              SliverToBoxAdapter(child: SizedBox(height: isMobile ? 16 : 32)),
+              _buildBody(
+                context,
+                folders,
+                visibleFiles,
+                loading,
+                loadingMore,
+                error,
+                hasActiveFilters: hasActiveFilters,
+                reliquary: reliquary,
+                isMobile: isMobile,
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (isMobile) {
+      return Scaffold(
+        appBar: _buildMobileAppBar(context),
+        body: scrollView,
+        floatingActionButton: FloatingActionButton(
+          onPressed: widget.onNavigateToUpload,
+          child: const Icon(Icons.add),
+        ),
+      );
+    }
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        Positioned.fill(
-          child: RefreshIndicator(
-            onRefresh: () => ref.read(fileListProvider.notifier).invalidate(),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1440),
-                child: CustomScrollView(
-                  controller: _scrollCtrl,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(32, 32, 32, 0),
-                        child: _buildHeader(context, files.length),
-                      ),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 32)),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: _buildSearchBar(
-                          context,
-                          searchQuery,
-                          files.length,
-                        ),
-                      ),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
-                    SliverToBoxAdapter(
-                      child: _buildFilterSection(
-                        context,
-                        activeType,
-                        selectedTags,
-                        availableTags,
-                        hasActiveFilters: hasActiveFilters,
-                      ),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 32)),
-                    _buildBody(
-                      context,
-                      folders,
-                      visibleFiles,
-                      loading,
-                      loadingMore,
-                      error,
-                      hasActiveFilters: hasActiveFilters,
-                      reliquary: reliquary,
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+        Positioned.fill(child: scrollView),
         Positioned(
           right: 32,
           bottom: 24,
@@ -382,6 +444,55 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// The four desktop toggle buttons collapse into two app bar actions: one
+  /// that flips grid/list, one that flips folders/all files.
+  PreferredSizeWidget _buildMobileAppBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final isGrid = _viewMode == GalleryViewMode.grid;
+    final inFolders = _groupingMode == GalleryGroupingMode.folders;
+
+    return AppBar(
+      title: Text(
+        'Knowledge Vault',
+        style: theme.textTheme.headlineMedium?.copyWith(
+          fontSize: 22,
+          height: 28 / 22,
+        ),
+      ),
+      actions: [
+        IconButton(
+          tooltip: isGrid ? 'Switch to list view' : 'Switch to grid view',
+          icon: Icon(isGrid ? Icons.grid_view : Icons.view_list),
+          onPressed: () => _setViewMode(
+            isGrid ? GalleryViewMode.list : GalleryViewMode.grid,
+          ),
+        ),
+        IconButton(
+          tooltip: inFolders ? 'Show all files' : 'Browse folders',
+          isSelected: inFolders,
+          icon: const Icon(Icons.account_tree_outlined),
+          selectedIcon: const Icon(Icons.account_tree),
+          onPressed: () => _setGroupingMode(
+            inFolders
+                ? GalleryGroupingMode.allFiles
+                : GalleryGroupingMode.folders,
+          ),
+        ),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
+
+  Widget _buildMobileSubtitle(BuildContext context, int fileCount) {
+    final theme = Theme.of(context);
+    return Text(
+      'Synchronizing $fileCount nodes.',
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
     );
   }
 
@@ -405,8 +516,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   Widget _buildSearchBar(
     BuildContext context,
     String searchQuery,
-    int fileCount,
-  ) {
+    int fileCount, {
+    required bool isMobile,
+    required bool hasActiveFilters,
+  }) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return Row(
@@ -460,9 +573,37 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 12),
-        _allFilesChip(context, fileCount),
+        SizedBox(width: isMobile ? 8 : 12),
+        // On a phone the count moves into the chip row and this slot carries
+        // the filter sheet's entry point instead.
+        if (isMobile)
+          _mobileFilterButton(context, hasActiveFilters: hasActiveFilters)
+        else
+          _allFilesChip(context, fileCount),
       ],
+    );
+  }
+
+  Widget _mobileFilterButton(
+    BuildContext context, {
+    required bool hasActiveFilters,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: IconButton(
+        tooltip: 'Filter',
+        onPressed: () => _openFilterSheet(context),
+        icon: const Icon(Icons.filter_list, size: 20),
+        style: IconButton.styleFrom(
+          foregroundColor: hasActiveFilters ? cs.primary : cs.onSurfaceVariant,
+          side: BorderSide(
+            color: hasActiveFilters ? cs.primary : cs.outlineVariant,
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
     );
   }
 
@@ -499,7 +640,36 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     Set<String> selectedTags,
     List<Map<String, dynamic>> availableTags, {
     required bool hasActiveFilters,
+    required bool isMobile,
+    required int fileCount,
   }) {
+    if (isMobile) {
+      // The type dropdown and view toggles have moved to the filter sheet and
+      // the app bar, so the chip row is the only always-on control left — and
+      // it carries the file count the desktop chip used to show.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: _buildQuickFilters(
+              context,
+              activeType,
+              selectedTags,
+              availableTags,
+              isMobile: true,
+              fileCount: fileCount,
+            ),
+          ),
+          if (_groupingMode == GalleryGroupingMode.folders)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+              child: _buildFolderCrumb(context),
+            ),
+        ],
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
@@ -517,6 +687,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               activeType,
               selectedTags,
               availableTags,
+              isMobile: false,
+              fileCount: fileCount,
             ),
         ],
       ),
@@ -663,8 +835,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     BuildContext context,
     String? activeType,
     Set<String> selectedTags,
-    List<Map<String, dynamic>> availableTags,
-  ) {
+    List<Map<String, dynamic>> availableTags, {
+    required bool isMobile,
+    required int fileCount,
+  }) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
@@ -672,15 +846,28 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          Text(
-            'Quick Filters:',
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'Space Mono',
-              fontSize: 11,
-              color: cs.onSurfaceVariant,
+          if (isMobile) ...[
+            QuickFilterChip(
+              icon: Icons.grid_view,
+              label: 'All Files ($fileCount)',
+              isActive: activeType == null || activeType == 'all',
+              onTap: () {
+                ref.read(fileListProvider.notifier).setSelectedType(null);
+                _updateRouteState(selectedType: null);
+              },
             ),
-          ),
-          const SizedBox(width: 8),
+            const SizedBox(width: 6),
+          ] else ...[
+            Text(
+              'Quick Filters:',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'Space Mono',
+                fontSize: 11,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           for (final t in _fileTypes.where((ft) => ft.key != 'all')) ...[
             QuickFilterChip(
               icon: t.icon,
@@ -705,6 +892,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ),
             const SizedBox(width: 6),
           ],
+          // Matches the 16px gutter the rest of the mobile layout uses; the
+          // row itself has to start flush so chips can scroll under the edge.
+          if (isMobile) const SizedBox(width: 10),
         ],
       ),
     );
@@ -719,15 +909,18 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     String? error, {
     required bool hasActiveFilters,
     required ReliquaryService? reliquary,
+    required bool isMobile,
   }) {
+    final gutter = isMobile ? 16.0 : 32.0;
+
     if (loading) {
-      return _buildLoadingGrid(context);
+      return _buildLoadingGrid(context, isMobile: isMobile);
     }
 
     if (error != null) {
       return SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
+          padding: EdgeInsets.fromLTRB(gutter, 48, gutter, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -747,7 +940,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     if (folders.isEmpty && files.isEmpty) {
       return SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
+          padding: EdgeInsets.fromLTRB(gutter, 48, gutter, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -777,14 +970,60 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     }
 
     if (reliquary == null) {
-      return _buildLoadingGrid(context);
+      return _buildLoadingGrid(context, isMobile: isMobile);
     }
 
     if (_viewMode == GalleryViewMode.list) {
-      return _buildListBody(context, folders, files, loadingMore);
+      return _buildListBody(
+        context,
+        folders,
+        files,
+        loadingMore,
+        isMobile: isMobile,
+      );
     }
 
-    return _buildGridBody(context, folders, files, reliquary, loadingMore);
+    return _buildGridBody(
+      context,
+      folders,
+      files,
+      reliquary,
+      loadingMore,
+      isMobile: isMobile,
+    );
+  }
+
+  /// Two columns at phone widths, sized by a measured extent rather than an
+  /// aspect ratio: the text block under a tile's 16:9 thumbnail is a fixed
+  /// stack of lines, so a ratio would shrink it along with the width and clip
+  /// it on a narrow phone or at a large text scale.
+  SliverGridDelegate _tileGridDelegate(
+    BuildContext context, {
+    required bool isMobile,
+    required double aspectRatio,
+  }) {
+    if (!isMobile) {
+      return SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 300,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: aspectRatio,
+      );
+    }
+
+    const spacing = 12.0;
+    const gutter = 16.0;
+    final tileWidth =
+        (MediaQuery.sizeOf(context).width - gutter * 2 - spacing) / 2;
+    // 44 of fixed padding and gaps, plus the name, location and badge lines.
+    final textBlock = 44 + MediaQuery.textScalerOf(context).scale(56);
+
+    return SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      crossAxisSpacing: spacing,
+      mainAxisSpacing: spacing,
+      mainAxisExtent: tileWidth * 9 / 16 + textBlock,
+    );
   }
 
   Widget _buildGridBody(
@@ -792,17 +1031,17 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     List<FolderEntry> folders,
     List<GalleryFileProjection> files,
     ReliquaryService reliquary,
-    bool loadingMore,
-  ) {
+    bool loadingMore, {
+    required bool isMobile,
+  }) {
     final itemCount = folders.length + files.length + (loadingMore ? 1 : 0);
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 32),
       sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 300,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.1,
+        gridDelegate: _tileGridDelegate(
+          context,
+          isMobile: isMobile,
+          aspectRatio: 1.1,
         ),
         delegate: SliverChildBuilderDelegate((context, index) {
           if (index >= folders.length + files.length) {
@@ -814,6 +1053,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               key: ValueKey('folder:${folder.path}'),
               folder: folder,
               onTap: () => _openFolder(folder.path),
+              compact: isMobile,
             );
           }
           final projection = files[index - folders.length];
@@ -821,6 +1061,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             key: ValueKey(projection.file.id),
             file: projection.file,
             reliquary: reliquary,
+            compact: isMobile,
             displayName: projection.displayName,
             locationLabel:
                 _groupingMode == GalleryGroupingMode.allFiles ||
@@ -838,11 +1079,12 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     BuildContext context,
     List<FolderEntry> folders,
     List<GalleryFileProjection> files,
-    bool loadingMore,
-  ) {
+    bool loadingMore, {
+    required bool isMobile,
+  }) {
     final itemCount = folders.length + files.length + (loadingMore ? 1 : 0);
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 32),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate((context, index) {
           if (index >= folders.length + files.length) {
@@ -858,6 +1100,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               child: FolderRow(
                 folder: folder,
                 onTap: () => _openFolder(folder.path),
+                compact: isMobile,
               ),
             );
           }
@@ -867,6 +1110,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             child: FileRow(
               projection: projection,
               onTap: () => _openDetail(projection.file),
+              compact: isMobile,
             ),
           );
         }, childCount: itemCount),
@@ -874,38 +1118,39 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     );
   }
 
-  Widget _buildLoadingGrid(BuildContext context) {
+  Widget _buildLoadingGrid(BuildContext context, {required bool isMobile}) {
     final colors = Theme.of(context).colorScheme;
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 32),
       sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 300,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 0.9,
+        gridDelegate: _tileGridDelegate(
+          context,
+          isMobile: isMobile,
+          aspectRatio: 0.9,
         ),
         delegate: SliverChildBuilderDelegate(
-          (context, index) => _buildLoadingTile(colors),
-          childCount: 8,
+          (context, index) => _buildLoadingTile(colors, isMobile: isMobile),
+          childCount: isMobile ? 6 : 8,
         ),
       ),
     );
   }
 
-  Widget _buildLoadingTile(ColorScheme colors) {
+  Widget _buildLoadingTile(ColorScheme colors, {required bool isMobile}) {
+    if (isMobile) return _buildCompactLoadingTile(colors);
+
     return Container(
       decoration: BoxDecoration(
         color: colors.surfaceContainerLow,
         border: Border.all(color: colors.outlineVariant),
         borderRadius: BorderRadius.circular(12),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            height: 112,
+            height: isMobile ? 88 : 112,
             decoration: BoxDecoration(
               color: colors.surfaceContainerHighest.withAlpha(160),
               borderRadius: BorderRadius.circular(10),
@@ -931,6 +1176,67 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// Mirrors the compact [FileTile]: a 16:9 thumbnail flush to the top edge
+  /// and a padded text block under it, so the skeleton occupies the same cell
+  /// as the tile that replaces it.
+  Widget _buildCompactLoadingTile(ColorScheme colors) {
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        border: Border.all(color: colors.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Container(
+              color: colors.surfaceContainerHighest.withAlpha(160),
+              child: Center(
+                child: Icon(
+                  Icons.insert_drive_file_outlined,
+                  size: 28,
+                  color: colors.onSurfaceVariant.withAlpha(80),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _loadingBar(colors, widthFactor: 0.82),
+                const SizedBox(height: 8),
+                _loadingBar(colors, widthFactor: 0.52),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _loadingPillBox(colors)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _loadingPillBox(colors)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loadingPillBox(ColorScheme colors) {
+    return Container(
+      height: 22,
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withAlpha(180),
+        borderRadius: BorderRadius.circular(999),
       ),
     );
   }

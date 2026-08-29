@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/server_url_store.dart';
+import '../utils/breakpoints.dart';
 
 class ServerSetupScreen extends StatefulWidget {
   final String initialUrl;
@@ -82,7 +83,10 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+          padding: EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: isMobileWidth(context) ? 32 : 48,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: Column(
@@ -132,7 +136,7 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
-                  height: 44,
+                  height: isMobileWidth(context) ? 48 : 44,
                   child: FilledButton(
                     onPressed: _checking ? null : _connect,
                     child: _checking

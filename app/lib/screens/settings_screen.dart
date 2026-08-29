@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../reliquary_service.dart';
 import '../services/server_url_store.dart';
 import '../services/theme_service.dart';
+import '../utils/breakpoints.dart';
 
 class SettingsScreen extends StatefulWidget {
   final ThemeSetting currentTheme;
@@ -13,6 +14,10 @@ class SettingsScreen extends StatefulWidget {
   final String? provider;
   final VoidCallback onServerUrlChanged;
 
+  /// Only used on mobile, where there is no sidebar to hold the account chip
+  /// and its logout button.
+  final VoidCallback? onLogout;
+
   const SettingsScreen({
     super.key,
     required this.currentTheme,
@@ -21,6 +26,7 @@ class SettingsScreen extends StatefulWidget {
     required this.username,
     required this.provider,
     required this.onServerUrlChanged,
+    this.onLogout,
   });
 
   @override
@@ -122,22 +128,122 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = isMobileWidth(context);
+
     return Scaffold(
+      appBar: isMobile ? AppBar(title: const Text('Settings')) : null,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 16 : 32,
+          vertical: isMobile ? 16 : 24,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(),
-            const SizedBox(height: 32),
-            if (!kIsWeb) _buildServerConnectionSection(),
-            if (!kIsWeb) const SizedBox(height: 48),
-            _buildResetPasswordSection(),
+            if (isMobile) _buildMobileSubtitle() else _buildHeader(),
+            const SizedBox(height: 24),
+            // The sidebar carries the account chip and logout on desktop, so
+            // this section only exists where the sidebar does not.
+            if (isMobile) ...[
+              _buildAccountSection(),
+              const SizedBox(height: 32),
+            ],
+            _buildThemeSection(isMobile: isMobile),
             const SizedBox(height: 48),
-            _buildThemeSection(),
+            if (!kIsWeb) ...[
+              _buildServerConnectionSection(isMobile: isMobile),
+              const SizedBox(height: 48),
+            ],
+            _buildResetPasswordSection(isMobile: isMobile),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMobileSubtitle() {
+    return Text(
+      'Manage your sanctuary preferences and security settings.',
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+
+  Widget _buildAccountSection() {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final name = widget.username ?? '';
+    final provider = widget.provider;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Account', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: colors.outlineVariant),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: colors.primary,
+                foregroundColor: colors.onPrimary,
+                child: Text(
+                  name.isEmpty ? '?' : name.substring(0, 1).toUpperCase(),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isEmpty ? 'Signed in' : name,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (provider != null && provider.isNotEmpty)
+                      Text(
+                        provider == 'password'
+                            ? 'Signed in with a password'
+                            : 'Signed in with $provider',
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (widget.onLogout != null) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: widget.onLogout,
+              icon: const Icon(Icons.logout, size: 20),
+              label: const Text('Log out'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colors.error,
+                side: BorderSide(color: colors.error),
+                alignment: Alignment.centerLeft,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -157,7 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildServerConnectionSection() {
+  Widget _buildServerConnectionSection({required bool isMobile}) {
     final colors = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,31 +286,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: colors.surfaceContainerHighest.withAlpha(128),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Server URL',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Server URL',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: colors.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          ServerUrlStore.baseServerUrl,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      ServerUrlStore.baseServerUrl,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  // At phone widths the URL needs the full line, so the
+                  // button drops below it instead of sharing the row.
+                  if (!isMobile) ...[
+                    const SizedBox(width: 16),
+                    OutlinedButton(
+                      onPressed: _changeServerUrl,
+                      child: const Text('Change'),
                     ),
                   ],
+                ],
+              ),
+              if (isMobile) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: _changeServerUrl,
+                    child: const Text('Change'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              OutlinedButton(
-                onPressed: _changeServerUrl,
-                child: const Text('Change'),
-              ),
+              ],
             ],
           ),
         ),
@@ -212,7 +337,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildResetPasswordSection() {
+  Widget _buildResetPasswordSection({required bool isMobile}) {
     final colors = Theme.of(context).colorScheme;
     final isPasswordProvider = widget.provider == 'password';
     return Column(
@@ -222,7 +347,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 24),
         if (isPasswordProvider)
           SizedBox(
-            width: 480,
+            width: isMobile ? double.infinity : 480,
             child: Column(
               children: [
                 TextFormField(
@@ -283,7 +408,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildThemeSection() {
+  Widget _buildThemeSection({required bool isMobile}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -299,15 +424,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: ThemeSetting.values
-              .map(
-                (setting) =>
-                    SizedBox(width: 180, child: _buildThemeCard(setting)),
-              )
-              .toList(),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const spacing = 16.0;
+            // Two per row on a phone: a fixed 180px card leaves an awkward
+            // stripe of dead space at 390dp.
+            final cardWidth = isMobile
+                ? (constraints.maxWidth - spacing) / 2
+                : 180.0;
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: ThemeSetting.values
+                  .map(
+                    (setting) => SizedBox(
+                      width: cardWidth,
+                      child: _buildThemeCard(setting),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
         ),
       ],
     );

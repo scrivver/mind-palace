@@ -6,7 +6,16 @@ class FileRow extends StatelessWidget {
   final GalleryFileProjection projection;
   final VoidCallback onTap;
 
-  const FileRow({super.key, required this.projection, required this.onTap});
+  /// Phone density: the size drops out of the trailing slot and joins the
+  /// directory in the subtitle, leaving only the type badge on the right.
+  final bool compact;
+
+  const FileRow({
+    super.key,
+    required this.projection,
+    required this.onTap,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +25,10 @@ class FileRow extends StatelessWidget {
         ? 'Root'
         : projection.directoryPath;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: compact ? 4 : 6,
+      ),
       leading: Icon(
         iconForMime(projection.file.mimeType ?? ''),
         color: cs.onSurfaceVariant,
@@ -28,31 +40,36 @@ class FileRow extends StatelessWidget {
         style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
-        directory,
+        compact ? '$directory \u00b7 ${projection.sizeLabel}' : directory,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-      ),
-      trailing: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 180),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _TypeBadge(label: projection.typeLabel),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Text(
-                projection.sizeLabel,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontFamily: 'Space Mono',
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
+        style: theme.textTheme.bodySmall?.copyWith(
+          fontSize: compact ? 11 : null,
+          color: cs.onSurfaceVariant,
         ),
       ),
+      trailing: compact
+          ? _TypeBadge(label: projection.typeLabel)
+          : ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 180),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _TypeBadge(label: projection.typeLabel),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      projection.sizeLabel,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'Space Mono',
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
       onTap: onTap,
     );
   }

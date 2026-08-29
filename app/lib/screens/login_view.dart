@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../utils/breakpoints.dart';
+
 class LoginView extends StatefulWidget {
   final VoidCallback onLogin;
   final Future<void> Function(String username, String password)?
@@ -52,21 +54,28 @@ class _LoginViewState extends State<LoginView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // A column rather than a stacked overlay: on a phone the card is tall
+    // enough to run under a footer that floats at the bottom of the viewport.
     return Scaffold(
-      body: Stack(
+      body: Column(
         children: [
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 48),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildBrandHeader(theme),
-                    const SizedBox(height: 32),
-                    _buildLoginCard(context),
-                  ],
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 32,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildBrandHeader(theme),
+                      const SizedBox(height: 32),
+                      _buildLoginCard(context),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -107,7 +116,7 @@ class _LoginViewState extends State<LoginView> {
         border: Border.all(color: cs.outlineVariant),
         borderRadius: BorderRadius.circular(12),
       ),
-      padding: const EdgeInsets.all(32),
+      padding: EdgeInsets.all(isMobileWidth(context) ? 24 : 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,26 +234,21 @@ class _LoginViewState extends State<LoginView> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          border: Border(top: BorderSide(color: cs.outlineVariant)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: SafeArea(
-          top: false,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth < 600) {
-                return _buildFooterMobile(theme);
-              }
-              return _buildFooterDesktop(theme);
-            },
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        border: Border(top: BorderSide(color: cs.outlineVariant)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: SafeArea(
+        top: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 600) {
+              return _buildFooterMobile(theme);
+            }
+            return _buildFooterDesktop(theme);
+          },
         ),
       ),
     );

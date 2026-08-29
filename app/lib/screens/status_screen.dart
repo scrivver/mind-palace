@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/status_provider.dart';
+import '../utils/breakpoints.dart';
 import '../utils/format.dart';
 
 class StatusScreen extends ConsumerWidget {
@@ -10,17 +11,30 @@ class StatusScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(storageStatsProvider);
+    final isMobile = isMobileWidth(context);
     return Scaffold(
+      appBar: isMobile ? AppBar(title: const Text('Sanctuary Health')) : null,
       body: RefreshIndicator(
         onRefresh: () => ref.refresh(storageStatsProvider.future),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 16 : 32,
+            vertical: isMobile ? 16 : 24,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(context),
-              const SizedBox(height: 32),
+              if (isMobile)
+                Text(
+                  'Overview of your personal digital sanctuary',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                _buildHeader(context),
+              SizedBox(height: isMobile ? 20 : 32),
               _buildStorageCapacity(context, stats),
             ],
           ),

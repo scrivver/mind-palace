@@ -6,7 +6,15 @@ class FolderTile extends StatelessWidget {
   final FolderEntry folder;
   final VoidCallback onTap;
 
-  const FolderTile({super.key, required this.folder, required this.onTap});
+  /// Phone density: tighter padding and a smaller folder glyph.
+  final bool compact;
+
+  const FolderTile({
+    super.key,
+    required this.folder,
+    required this.onTap,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +29,7 @@ class FolderTile extends StatelessWidget {
           border: Border.all(color: cs.outlineVariant),
           borderRadius: BorderRadius.circular(8),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(compact ? 12 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -32,17 +40,23 @@ class FolderTile extends StatelessWidget {
                   color: cs.surfaceContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.folder, size: 52, color: cs.primary),
+                child: Icon(
+                  Icons.folder,
+                  size: compact ? 40 : 52,
+                  color: cs.primary,
+                ),
               ),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: compact ? 10 : 14),
             Text(
               folder.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style:
+                  (compact
+                          ? theme.textTheme.bodyMedium
+                          : theme.textTheme.bodyLarge)
+                      ?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(

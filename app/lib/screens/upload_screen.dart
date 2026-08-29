@@ -10,6 +10,7 @@ import '../upload_file.dart';
 import '../providers/service_providers.dart';
 import '../providers/upload_provider.dart';
 import '../services/file_picker_service.dart' as picker;
+import '../utils/breakpoints.dart';
 import '../widgets/upload/upload_drop_zone.dart';
 import '../widgets/upload/upload_file_tile.dart';
 import '../widgets/upload/upload_progress.dart';
@@ -212,26 +213,50 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     final allDone =
         progressMap.isNotEmpty && progressMap.values.every((p) => p.done);
 
+    final isMobile = isMobileWidth(context);
+    final gutter = isMobile ? 16.0 : 24.0;
+
     return Scaffold(
+      // The shell hides its navigation bar here, so the back button lives in
+      // this screen's own app bar rather than in the scrolling content.
+      appBar: isMobile
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
+              ),
+              title: const Text('Upload Assets'),
+            )
+          : null,
       body: SafeArea(
+        top: !isMobile,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 4),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed:
-                        widget.onBack ?? () => Navigator.of(context).pop(),
-                  ),
-                  Text('Upload Assets', style: theme.textTheme.headlineMedium),
-                ],
+            if (!isMobile)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 4),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed:
+                          widget.onBack ?? () => Navigator.of(context).pop(),
+                    ),
+                    Text(
+                      'Upload Assets',
+                      style: theme.textTheme.headlineMedium,
+                    ),
+                  ],
+                ),
               ),
-            ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              padding: EdgeInsets.fromLTRB(
+                gutter,
+                isMobile ? 16 : 0,
+                gutter,
+                16,
+              ),
               child: Text(
                 'Integrate new knowledge into your Mind Palace. Supports documents, images, and neural mappings.',
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -241,9 +266,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
             ),
 
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: EdgeInsets.symmetric(horizontal: gutter),
               child: UploadDropZone(
                 isUploading: isUploading,
+                compact: isMobile,
                 onDropItems: _onDropItems,
                 onDropFiles: (files) =>
                     ref.read(uploadProvider.notifier).addFiles(files),
@@ -266,7 +292,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
             if (selectedFiles.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                padding: EdgeInsets.fromLTRB(gutter, 20, gutter, 8),
                 child: Row(
                   children: [
                     Text(
@@ -293,7 +319,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
             if (selectedFiles.isNotEmpty)
               Expanded(
                 child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
                   itemCount: selectedFiles.length,
                   separatorBuilder: (_, _) => Divider(
                     height: 1,
@@ -319,10 +345,15 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
             if (selectedFiles.isNotEmpty && !allDone && !isUploading)
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                padding: EdgeInsets.fromLTRB(
+                  gutter,
+                  12,
+                  gutter,
+                  isMobile ? 16 : 24,
+                ),
                 child: SizedBox(
                   width: double.infinity,
-                  height: 44,
+                  height: isMobile ? 48 : 44,
                   child: FilledButton(
                     onPressed: isUploading ? null : _uploadAll,
                     child: Text('Process All (${selectedFiles.length})'),
