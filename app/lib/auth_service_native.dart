@@ -366,7 +366,29 @@ class AuthService {
 
   // ── Token refresh ──
 
-  Future<bool> _refreshTokens() async {
+  /// Serialises token refreshes.
+  ///
+  /// Every request goes through the service interceptors, and the gallery loads
+  /// each tile's presigned URL and bytes separately, so an expiring token would
+  /// otherwise set off a burst of simultaneous refreshes. Authentik rotates the
+  /// refresh token on use: the first exchange consumes it and the rest present
+  /// one that has already been revoked, fail, and drop the caller to a null
+  /// access token — which the interceptors read as a dead session and sign the
+  /// user out. Sharing one in-flight future means the burst costs one exchange.
+  Future<bool>? _refreshInFlight;
+
+  Future<bool> _refreshTokens() {
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) return inFlight;
+
+    final future = _performRefresh().whenComplete(() {
+      _refreshInFlight = null;
+    });
+    _refreshInFlight = future;
+    return future;
+  }
+
+  Future<bool> _performRefresh() async {
     final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
     if (refreshToken == null) return false;
 

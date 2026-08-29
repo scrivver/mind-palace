@@ -175,9 +175,35 @@ let
     )
     inv_flow_pk = inv_flows[0]["pk"]
 
-    # Get scope mappings
+    # Get scope mappings.
+    #
+    # offline_access has to be among them or Authentik silently drops the scope
+    # from the authorization request and issues no refresh token. The access
+    # token then dies at its own expiry with nothing to renew it, which the
+    # client reports as being logged out a few minutes after signing in.
+    wanted_scopes = ("openid", "email", "profile", "offline_access")
     scopes = api_call("GET", "/propertymappings/provider/scope/?ordering=scope_name", token=token)
-    scope_pks = [s["pk"] for s in scopes["results"] if s["scope_name"] in ("openid", "email", "profile")]
+    by_scope = {s["scope_name"]: s["pk"] for s in scopes["results"]}
+
+    # Older Authentik releases ship no built-in offline_access mapping. The
+    # scope only has to exist and be attached to the provider; it contributes no
+    # claims of its own, so the expression is empty.
+    if "offline_access" not in by_scope:
+        created = api_call(
+            "POST",
+            "/propertymappings/provider/scope/",
+            {
+                "name": "Mind Palace OAuth Mapping: offline_access",
+                "scope_name": "offline_access",
+                "description": "Issue a refresh token so sessions outlive the access token",
+                "expression": "return {}",
+            },
+            token=token,
+        )
+        by_scope["offline_access"] = created["pk"]
+        print("  Created offline_access scope mapping")
+
+    scope_pks = [by_scope[name] for name in wanted_scopes if name in by_scope]
     redirect_uris = [
         {"matching_mode": "regex", "url": "http://localhost:.*/callback"},
         {"matching_mode": "regex", "url": "http://127.0.0.1:.*/callback"},
