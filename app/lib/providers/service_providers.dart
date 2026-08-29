@@ -8,6 +8,7 @@ import '../engram_service.dart';
 import '../reliquary_service.dart';
 import '../services/post_login_redirect_store.dart';
 import '../services/server_url_store.dart';
+import '../utils/preview_cache.dart';
 
 final serverUrlReadyProvider = FutureProvider<void>((ref) async {
   await ServerUrlStore.load();
@@ -125,7 +126,9 @@ class AppAuthState {
 }
 
 class AppAuthNotifier extends StateNotifier<AppAuthState> {
-  AppAuthNotifier() : super(const AppAuthState());
+  AppAuthNotifier(this._ref) : super(const AppAuthState());
+
+  final Ref _ref;
 
   Future<void> initialize(AuthService auth) async {
     state = state.copyWith(isLoading: true, error: null, authService: auth);
@@ -213,6 +216,10 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
   Future<void> logout() async {
     final auth = state.authService;
     await auth?.logout();
+    // The services are provider-cached and outlive the session, so their
+    // caches have to be emptied explicitly rather than dying with the user.
+    _ref.read(reliquaryServiceProvider).valueOrNull?.clearCaches();
+    PreviewCache.clearAll();
     state = AppAuthState(
       isLoading: false,
       isLoggedIn: false,
@@ -224,5 +231,5 @@ class AppAuthNotifier extends StateNotifier<AppAuthState> {
 final appAuthProvider = StateNotifierProvider<AppAuthNotifier, AppAuthState>((
   ref,
 ) {
-  return AppAuthNotifier();
+  return AppAuthNotifier(ref);
 });

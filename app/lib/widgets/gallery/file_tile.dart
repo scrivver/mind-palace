@@ -36,15 +36,14 @@ class _FileTileState extends State<FileTile>
   @override
   void initState() {
     super.initState();
-    if (_supportsThumbnail(widget.file.mimeType ?? '')) {
-      _loadThumbnail();
-    }
-  }
-
-  String? _thumbKeyFor(String filePath) {
-    const prefix = 'files/';
-    if (!filePath.startsWith(prefix)) return null;
-    return 'thumbs/${filePath.substring(prefix.length)}';
+    if (!_supportsThumbnail(widget.file.mimeType ?? '')) return;
+    final key = ReliquaryService.thumbnailKeyFor(widget.file.filePath);
+    if (key == null) return;
+    // A remount after the shell rebuilt this screen usually finds the bytes
+    // already cached; taking them synchronously paints the thumbnail on the
+    // first frame instead of flashing the placeholder.
+    _thumbBytes = widget.reliquary.cachedContent(key);
+    if (_thumbBytes == null) _loadThumbnail(key);
   }
 
   bool _supportsThumbnail(String mime) =>
@@ -52,9 +51,7 @@ class _FileTileState extends State<FileTile>
       mime.startsWith('video/') ||
       mime == 'application/pdf';
 
-  Future<void> _loadThumbnail() async {
-    final key = _thumbKeyFor(widget.file.filePath);
-    if (key == null) return;
+  Future<void> _loadThumbnail(String key) async {
     try {
       // Fetched through the client rather than by URL: /storage/* is behind
       // forward_auth and an <img> request carries no bearer token.

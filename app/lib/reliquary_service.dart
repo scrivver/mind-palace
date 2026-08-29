@@ -16,7 +16,15 @@ class ReliquaryService {
 
   // Cache presigned URLs for 10 minutes (they're valid for 15).
   final Map<String, _CachedUrl> _urlCache = {};
+  // In-memory byte cache for previews and thumbnails. Every tile loads its own
+  // thumbnail on mount, so without this each remount of the gallery re-fetches
+  // every thumbnail on screen.
+  final Map<String, _CachedBytes> _bytesCache = {};
   static const _cacheTtl = Duration(minutes: 10);
+  // Full-size originals come through here too, so the cache is capped by total
+  // size and evicted oldest-first rather than growing for the whole session.
+  static const _bytesCacheBudget = 64 * 1024 * 1024;
+  int _bytesCacheSize = 0;
 
   /// Origin of baseUrl (scheme://host[:port]), used to resolve server-relative
   /// URLs like `/storage/...` that presigned responses return.
@@ -143,10 +151,40 @@ class ReliquaryService {
   /// it, so an unauthenticated fetch — `Image.network`, a bare `http.get`, or
   /// a pasted URL — is rejected. That rejection is the point: it is what stops
   /// a leaked presigned link from working.
+  ///
+  /// Preview fetches are cached; a `download` fetch is not. The latter is a
+  /// one-shot save of the original to disk, so holding its bytes would cost
+  /// memory nothing reads again.
   Future<Uint8List> fetchContent(String key, {bool download = false}) async {
-    final url = download
-        ? await presignDownloadForSave(key)
-        : await presignDownload(key);
+    if (download) {
+      final url = await presignDownloadForSave(key);
+      return _getBytes(url);
+    }
+
+    final cached = _bytesCache[key];
+    if (cached != null && DateTime.now().isBefore(cached.expiresAt)) {
+      return cached.bytes;
+    }
+
+    final bytes = await _getBytes(await presignDownload(key));
+    _storeBytes(key, bytes);
+    return bytes;
+  }
+
+  /// Synchronous peek at the byte cache, so a widget that remounts with its
+  /// bytes already cached can paint them on its first frame instead of
+  /// flashing a placeholder while a resolved future settles.
+  Uint8List? cachedContent(String key) {
+    final cached = _bytesCache[key];
+    if (cached == null) return null;
+    if (DateTime.now().isAfter(cached.expiresAt)) {
+      _evictBytes(key);
+      return null;
+    }
+    return cached.bytes;
+  }
+
+  Future<Uint8List> _getBytes(String url) async {
     final response = await dio.getUri<List<int>>(
       Uri.parse(url),
       options: Options(responseType: ResponseType.bytes),
@@ -154,8 +192,57 @@ class ReliquaryService {
     return Uint8List.fromList(response.data ?? const []);
   }
 
+  void _storeBytes(String key, Uint8List bytes) {
+    if (bytes.lengthInBytes > _bytesCacheBudget) return;
+    _evictBytes(key);
+    _bytesCache[key] = _CachedBytes(
+      bytes: bytes,
+      expiresAt: DateTime.now().add(_cacheTtl),
+    );
+    _bytesCacheSize += bytes.lengthInBytes;
+    // Dart maps preserve insertion order, so the first key is the oldest.
+    while (_bytesCacheSize > _bytesCacheBudget && _bytesCache.isNotEmpty) {
+      _evictBytes(_bytesCache.keys.first);
+    }
+  }
+
+  void _evictBytes(String key) {
+    final removed = _bytesCache.remove(key);
+    if (removed != null) _bytesCacheSize -= removed.bytes.lengthInBytes;
+  }
+
+  /// Drops every cached URL and byte. Called on logout: the service instance
+  /// outlives the session, so without this one user's previews stay in memory
+  /// for the rest of the cache TTL after they sign out.
+  void clearCaches() {
+    _urlCache.clear();
+    _bytesCache.clear();
+    _bytesCacheSize = 0;
+  }
+
+  /// Drops every cached artifact for [key]. The thumbnail lives under a
+  /// parallel `thumbs/` prefix, so it is invalidated alongside the object.
+  void invalidateCache(String key) {
+    _urlCache.remove(key);
+    _evictBytes(key);
+    final thumbKey = thumbnailKeyFor(key);
+    if (thumbKey != null) {
+      _urlCache.remove(thumbKey);
+      _evictBytes(thumbKey);
+    }
+  }
+
+  /// The thumbnail key for an object key, or null when the object does not sit
+  /// under the `files/` prefix that thumbnails mirror.
+  static String? thumbnailKeyFor(String filePath) {
+    const prefix = 'files/';
+    if (!filePath.startsWith(prefix)) return null;
+    return 'thumbs/${filePath.substring(prefix.length)}';
+  }
+
   Future<void> deleteFile(String key) async {
     await dio.delete('/api/files', queryParameters: {'key': key});
+    invalidateCache(key);
   }
 
   Future<Map<String, dynamic>> getStats() async {
@@ -219,4 +306,11 @@ class _CachedUrl {
   final DateTime expiresAt;
 
   _CachedUrl({required this.url, required this.expiresAt});
+}
+
+class _CachedBytes {
+  final Uint8List bytes;
+  final DateTime expiresAt;
+
+  _CachedBytes({required this.bytes, required this.expiresAt});
 }

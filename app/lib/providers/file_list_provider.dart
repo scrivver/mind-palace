@@ -91,7 +91,12 @@ class FileListNotifier extends StateNotifier<FileListState> {
   FileListNotifier(this._engram, this._isLoggedIn)
     : super(const FileListState());
 
+  /// A replaced service means the data source changed — a reconfigured server
+  /// URL invalidates the providers — so the listing the old one produced no
+  /// longer describes anything and the initial load has to run again.
   void setEngram(EngramService engram) {
+    if (identical(_engram, engram)) return;
+    if (_engram != null) _didLoadInitial = false;
     _engram = engram;
     _loadInitialIfReady();
   }
@@ -99,7 +104,15 @@ class FileListNotifier extends StateNotifier<FileListState> {
   void setLoggedIn(bool isLoggedIn) {
     if (_isLoggedIn == isLoggedIn) return;
     _isLoggedIn = isLoggedIn;
-    if (!isLoggedIn) return;
+    if (!isLoggedIn) {
+      // This notifier outlives the session, so signing out has to drop the
+      // listing explicitly. Without the reset, the next sign-in on this tab
+      // renders the previous user's files and _didLoadInitial suppresses the
+      // fetch that would have replaced them.
+      _didLoadInitial = false;
+      state = const FileListState();
+      return;
+    }
     _loadInitialIfReady();
   }
 

@@ -6,8 +6,23 @@ import 'dart:typed_data';
 /// file detail screen is open. The cache is intentionally lightweight and
 /// lives only for the current app session.
 class PreviewCache {
+  static final List<PreviewCache> _instances = [];
+
   final Map<String, Future<String>> _presignedUrls = {};
   final Map<String, Future<Uint8List>> _contentBytes = {};
+
+  PreviewCache() {
+    _instances.add(this);
+  }
+
+  /// Clears every cache in the app. Called on logout: these caches are held in
+  /// statics that outlive the session, so a signed-out user's previews would
+  /// otherwise stay in memory.
+  static void clearAll() {
+    for (final cache in _instances) {
+      cache.clear();
+    }
+  }
 
   /// Returns a cached presigned URL future for [key] or creates one using
   /// [fetch] and stores it.

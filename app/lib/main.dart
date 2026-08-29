@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:go_router/go_router.dart';
 
 import 'auth_service.dart';
 import 'router/app_router.dart' show routerProvider, routerRefreshNotifier;
@@ -15,6 +16,13 @@ import 'widgets/app_loading_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // The file detail screen is pushed rather than gone-to, so the gallery stays
+  // mounted underneath it. Without this the address bar would keep showing
+  // /vault while the detail is open. go_router leaves it off by default
+  // because a pushed route is not always deep-linkable; /file/:id is — it is a
+  // real top-level route, guarded by the same redirect as the rest, and the
+  // link the detail screen offers to copy.
+  GoRouter.optionURLReflectsImperativeAPIs = true;
   if (kIsWeb) {
     usePathUrlStrategy();
     const channel = MethodChannel('desktop_drop');
