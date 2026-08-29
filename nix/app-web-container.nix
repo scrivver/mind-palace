@@ -55,10 +55,30 @@ let
         }
       }
 
+      # Flutter does not content-hash these, so without an explicit directive the
+      # browser applies heuristic caching and an upgraded deployment keeps
+      # serving the previous bundle. That fails in a way that is hard to read:
+      # an old bundle talks to a new API, and only the calls whose contract
+      # changed break.
+      #
+      # `no-cache` means revalidate, not "don't store", but it costs a full
+      # re-download here rather than a 304: Nix pins every file in the store to
+      # mtime epoch+1, and Caddy omits ETag and Last-Modified for such files, so
+      # the browser has no validator to send. Cheap revalidation would need the
+      # build to stamp a real per-release mtime on /srv/web.
+      @bundle path / /index.html /flutter_bootstrap.js /flutter_service_worker.js /main.dart.js /version.json
+
       handle {
         root * /srv/web
-        try_files {path} /index.html
-        file_server
+
+        # `route` pins the execution order: Caddy would otherwise sort `header`
+        # ahead of `try_files`, so a deep link like /gallery would be matched on
+        # its original path and served an unmarked index.html.
+        route {
+          try_files {path} /index.html
+          header @bundle Cache-Control "no-cache"
+          file_server
+        }
       }
     }
   '';
