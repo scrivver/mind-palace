@@ -77,7 +77,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   @override
   void initState() {
     super.initState();
-    _searchCtrl.text = widget.initialSearchQuery;
+    _syncSearchText(widget.initialSearchQuery);
     _viewMode = widget.initialViewMode;
     _groupingMode = widget.initialGroupingMode;
     _folderPath = GalleryFolderPath(widget.initialFolderPath);
@@ -98,7 +98,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
         widget.initialType != oldWidget.initialType ||
         widget.initialTags.length != oldWidget.initialTags.length ||
         !widget.initialTags.containsAll(oldWidget.initialTags)) {
-      _searchCtrl.text = widget.initialSearchQuery;
+      _syncSearchText(widget.initialSearchQuery);
       _syncRouteStateToProvider();
     }
     if (widget.initialViewMode != oldWidget.initialViewMode ||
@@ -184,6 +184,30 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     _scrollCtrl.dispose();
     _closeFilterDropdown();
     super.dispose();
+  }
+
+  /// Pushes [value] into the search field without disturbing what the user is
+  /// typing.
+  ///
+  /// Every debounced keystroke round-trips through the route (`?q=`) and comes
+  /// back as [GalleryScreen.initialSearchQuery], so this runs mid-typing.
+  /// Assigning `TextEditingController.text` there is what made the field
+  /// highlight itself: that setter resets the selection to offset -1, and
+  /// `EditableText` reacts to an invalid selection on a focused field by
+  /// re-running its gained-focus behaviour — which on web and desktop is
+  /// `selectAllOnFocus`, so the whole query ended up selected and the next
+  /// character replaced it. Writing a [TextEditingValue] with an explicit
+  /// collapsed caret never leaves the selection invalid, so that path is
+  /// never taken.
+  ///
+  /// The route only ever carries the trimmed query, so comparing trimmed keeps
+  /// a trailing space the user just typed from being clipped back out.
+  void _syncSearchText(String value) {
+    if (_searchCtrl.text.trim() == value.trim()) return;
+    _searchCtrl.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
   }
 
   void _onSearchChanged(String value) {
@@ -525,50 +549,58 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     return Row(
       children: [
         Expanded(
-          child: TextField(
-            controller: _searchCtrl,
-            onChanged: _onSearchChanged,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: 'Search your vault\u2026',
-              hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
-              prefixIcon: Icon(
-                Icons.search,
-                size: 20,
-                color: cs.onSurfaceVariant,
-              ),
-              suffixIcon: _searchCtrl.text.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: Icon(
-                        Icons.clear,
-                        size: 18,
-                        color: cs.onSurfaceVariant,
+          // Rebuilt from the controller so the clear button tracks the
+          // keystroke. Reading `_searchCtrl.text` in build without listening
+          // to it tied the button to whatever else rebuilt this widget, which
+          // is the debounced provider update — so the button arrived 300ms
+          // after the first character and lingered 300ms past the last.
+          child: ListenableBuilder(
+            listenable: _searchCtrl,
+            builder: (context, _) => TextField(
+              controller: _searchCtrl,
+              onChanged: _onSearchChanged,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search your vault\u2026',
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 20,
+                  color: cs.onSurfaceVariant,
+                ),
+                suffixIcon: _searchCtrl.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: Icon(
+                          Icons.clear,
+                          size: 18,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _onSearchChanged('');
+                        },
                       ),
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        _onSearchChanged('');
-                      },
-                    ),
-              filled: true,
-              fillColor: cs.surfaceContainerLow,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: cs.outlineVariant),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: cs.outlineVariant),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: cs.primary, width: 2),
+                filled: true,
+                fillColor: cs.surfaceContainerLow,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: cs.outlineVariant),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: cs.outlineVariant),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: cs.primary, width: 2),
+                ),
               ),
             ),
           ),
