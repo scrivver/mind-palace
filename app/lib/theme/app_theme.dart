@@ -12,7 +12,7 @@ class MindPalaceTheme {
       ColorScheme.fromSeed(seedColor: seedColor, brightness: brightness);
 
   static ThemeData _build(ColorScheme colorScheme) {
-    final textTheme = _textTheme();
+    final textTheme = _textTheme(colorScheme);
 
     return ThemeData(
       useMaterial3: true,
@@ -101,8 +101,16 @@ class MindPalaceTheme {
     );
   }
 
-  static TextTheme _textTheme() {
-    return GoogleFonts.interTextTheme().copyWith(
+  static TextTheme _textTheme(ColorScheme colorScheme) {
+    // interTextTheme() defaults its base to ThemeData.light().textTheme, which
+    // bakes black into every style. Seed it from brightness-correct typography
+    // and re-apply the scheme colors so unoverridden styles stay legible in dark.
+    final typography = Typography.material2021(colorScheme: colorScheme);
+    final base = colorScheme.brightness == Brightness.dark
+        ? typography.white
+        : typography.black;
+
+    return GoogleFonts.interTextTheme(base).copyWith(
       displayLarge: GoogleFonts.inter(
         fontSize: 48,
         fontWeight: FontWeight.w700,
@@ -141,6 +149,9 @@ class MindPalaceTheme {
         height: 16 / 14,
         letterSpacing: 0.05 * 14,
       ),
+    ).apply(
+      bodyColor: colorScheme.onSurface,
+      displayColor: colorScheme.onSurface,
     );
   }
 }
