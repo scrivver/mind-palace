@@ -12,9 +12,13 @@ The default Compose deployment now separates Caddy ingress, the Go API, the
 thumbnail worker, MinIO, and RabbitMQ. The all-in-one image remains available as
 an optional compatibility deployment. Remaining production limitations include:
 
-- Per-user checksum indexes use read-modify-write JSON objects in S3 and can lose
-  concurrent updates across API replicas.
-- User/account state stored as JSON in S3 has similar concurrency limitations.
+- Per-user checksum and file indexes use read-modify-write JSON objects in S3 and
+  can lose concurrent updates across API replicas.
+- User/account state is still JSON in S3, but since Reliquary v0.5.0 every write
+  is conditional on the ETag it was derived from, so a stale writer is refused
+  rather than silently winning. The API verifies at startup that the object
+  store actually enforces `If-Match`/`If-None-Match` and refuses to boot if it
+  does not.
 - Infrastructure image versions and production resource limits still need to be
   managed by the deployment environment.
 
@@ -36,6 +40,7 @@ Ingress / TLS
            +--> PostgreSQL
            +--> RabbitMQ: reliquary.thumbnail
            +--> RabbitMQ: engram.ingest
+           +--> RabbitMQ: reliquary.userstore (fanout, replica invalidation)
 
 RabbitMQ: reliquary.thumbnail
    |
@@ -52,7 +57,10 @@ Production components should be independently deployable:
   explicit Engram event publication.
 - **Thumbnail workers:** separate Go worker process consuming durable jobs.
 - **Object storage:** external S3-compatible service with managed persistence.
-- **RabbitMQ:** durable broker for thumbnail jobs and Engram file events.
+- **RabbitMQ:** durable broker for thumbnail jobs, Engram file events, and the
+  `reliquary.userstore` fanout that tells API replicas to re-read the user
+  store. The fanout is an optimisation over the periodic reload; the conditional
+  write is what makes concurrent mutation safe.
 - **PostgreSQL:** transactional application state and deduplication metadata.
 
 ## Required Application Changes
@@ -62,9 +70,13 @@ Production components should be independently deployable:
    `reliquary.thumbnail` queue using acknowledgements and bounded prefetch.~~
 3. ~~Make thumbnail generation idempotent by destination object key.~~
 4. Move checksum and upload identity records from S3 JSON indexes to PostgreSQL
-   with appropriate unique constraints.
+   with appropriate unique constraints. These indexes are per-user and have one
+   writer today, but they share the read-modify-write design that lost user-store
+   updates before v0.5.0.
 5. Move mutable user/account state to a transactional store, or delegate it fully
-   to the configured identity provider.
+   to the configured identity provider. Partially mitigated in v0.5.0: writes are
+   compare-and-swap, so the store no longer loses updates, but it is still a
+   whole-object rewrite.
 6. Keep the API free of background work so replicas are interchangeable.
 7. Add readiness checks for S3, PostgreSQL, and required RabbitMQ topology.
 

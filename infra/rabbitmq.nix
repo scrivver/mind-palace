@@ -3,6 +3,13 @@
   { name = "reliquary.thumbnail"; durable = true; }
   { name = "reliquary.thumbnail.dead"; durable = true; }
   { name = "synapse.jobs"; durable = true; }
+],
+# Exchanges that are not queue-backed. Reliquary's user-store fanout is
+# declared passively by the API and the reliquary-user CLI, so it has to exist
+# before either starts; no queue or binding belongs here, because each API
+# replica declares its own exclusive, auto-delete queue at runtime.
+exchanges ? [
+  { name = "reliquary.userstore"; type = "fanout"; durable = true; }
 ] }:
 let
   definitions = builtins.toJSON {
@@ -22,6 +29,16 @@ let
       write = ".*";
       read = ".*";
     } ];
+
+    exchanges = map (e: {
+      name = e.name;
+      vhost = "/";
+      type = e.type;
+      durable = e.durable;
+      auto_delete = false;
+      internal = false;
+      arguments = {};
+    }) exchanges;
 
     queues = map (q: {
       name = q.name;

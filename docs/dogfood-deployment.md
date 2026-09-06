@@ -159,6 +159,66 @@ docker compose down -v
 docker compose up -d
 ```
 
+## RabbitMQ Topology
+
+`rabbitmq-setup` predeclares the broker topology before any service that uses
+it starts, and every consumer depends on it with
+`condition: service_completed_successfully`.
+
+| Object | Kind | Declared by | Used by |
+|--------|------|-------------|---------|
+| `engram.ingest` | durable queue, bound to `amq.direct` | `rabbitmq-setup` | `reliquary-api` produces, `engram-ingestion` consumes |
+| `reliquary.thumbnail` | durable queue, bound to `amq.direct` | `rabbitmq-setup` | `reliquary-api` produces, `reliquary-thumbnail-worker` consumes |
+| `reliquary.thumbnail.dead` | durable queue, bound to `amq.direct` | `rabbitmq-setup` | `reliquary-thumbnail-worker` |
+| `synapse.jobs`, `synapse.jobs.dlq` | durable queues, bound to `amq.direct` | `rabbitmq-setup` | `synapse-worker`, `synapse-reconciler` |
+| `reliquary.userstore` | durable fanout exchange | `rabbitmq-setup` | `reliquary-api` replicas |
+
+`reliquary.userstore` is new in Reliquary v0.5.0. It carries user-store
+invalidation hints so API replicas re-read `admin/users.json` within a round
+trip instead of waiting out the 30s periodic reload. Two properties matter when
+changing the topology:
+
+- The exchange must be **predeclared**. Both `reliquary-api` and the
+  `reliquary-user` CLI declare it *passively*; they will not create it.
+- No queue or binding for it belongs in the setup step. Each API replica
+  declares its own exclusive, auto-delete queue at runtime, for the life of one
+  connection.
+
+The local development stack declares the same topology through
+`infra/rabbitmq.nix`, which RabbitMQ loads from a generated definitions file at
+boot. Restart `rabbitmq` after changing it; an existing `.data/` directory does
+not need to be reset.
+
+## Reliquary User Store (v0.5.0)
+
+Reliquary rewrites `admin/users.json` whole on every change, and it has two
+writers: the API and the `reliquary-user` CLI. Before v0.5.0 a writer working
+from a stale snapshot restored its whole snapshot over anything written since,
+with no error and no log line — a password change could be silently reverted,
+leaving the old password working. Every mutation is now conditional on the ETag
+it was read at, and retries against a fresh snapshot on conflict.
+
+Two settings in `.env` follow from that:
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `USER_SYNC_ENABLED` | `true` | Publish and consume user-store invalidation on `reliquary.userstore`. An optimisation; with it off, correctness is unchanged and the periodic reload still applies. |
+| `USER_SYNC_EXCHANGE` | `reliquary.userstore` | Exchange name. Shared by `rabbitmq-setup` and `reliquary-api`, so changing it in `.env` moves both. |
+| `STORAGE_INSECURE_SKIP_CAS_PREFLIGHT` | unset (`false`) | Skips the startup check that the object store enforces conditional writes. |
+
+`reliquary-api` verifies at startup that MinIO really honours `If-Match` and
+`If-None-Match`, and **exits** if it does not. This runs in every auth mode,
+including OIDC, so it applies to the local development stack too. A backend that
+accepts those headers and ignores them is the dangerous case: writes succeed, no
+error is raised, and lost updates come back silently. Only set
+`STORAGE_INSECURE_SKIP_CAS_PREFLIGHT=true` on a backend known to lack the
+feature, accepting that risk.
+
+The invalidation channel itself is only used when Reliquary password auth is on
+(`RELIQUARY_AUTH_MODE=full`); with `oidc` there is no local user store to
+replicate. The exchange is still declared in both paths so switching auth modes
+needs no topology change.
+
 ## Service Boundaries
 
 Only `app` publishes a host port by default. PostgreSQL, RabbitMQ, MinIO,

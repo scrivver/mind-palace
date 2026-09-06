@@ -82,6 +82,7 @@ services:
       RELIQUARY_THUMBNAIL_DEAD_QUEUE: ${RELIQUARY_THUMBNAIL_DEAD_QUEUE:-reliquary.thumbnail.dead}
       SYNAPSE_JOBS_QUEUE: ${SYNAPSE_JOBS_QUEUE:-synapse.jobs}
       SYNAPSE_JOBS_DLQ: ${SYNAPSE_JOBS_DLQ:-synapse.jobs.dlq}
+      USER_SYNC_EXCHANGE: ${USER_SYNC_EXCHANGE:-reliquary.userstore}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -97,6 +98,15 @@ services:
             -X POST "http://rabbitmq:15672/api/bindings/%2F/e/amq.direct/q/$$queue" \
             -d "{\"routing_key\":\"$$queue\",\"arguments\":{}}"
         done
+        # Reliquary user-store invalidation (v0.5.0). The API declares this
+        # exchange passively and refuses to publish if it is missing, so it has
+        # to exist before reliquary-api starts. No queue or binding is
+        # predeclared: each API replica declares its own exclusive, auto-delete
+        # queue at runtime, for the life of one connection.
+        curl --fail --silent --show-error -u "$$auth" \
+          -H "content-type: application/json" \
+          -X PUT "http://rabbitmq:15672/api/exchanges/%2F/$$USER_SYNC_EXCHANGE" \
+          -d '{"type":"fanout","durable":true,"auto_delete":false,"internal":false,"arguments":{}}'
 
   reliquary-api:
     image: mind-palace-reliquary-api:latest
@@ -125,6 +135,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-shared-use}
       OIDC_ISSUER_URL: ${RELIQUARY_OIDC_ISSUER_URL:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-mind-palace}
+      STORAGE_INSECURE_SKIP_CAS_PREFLIGHT: ${STORAGE_INSECURE_SKIP_CAS_PREFLIGHT:-}
+      USER_SYNC_ENABLED: ${USER_SYNC_ENABLED:-true}
+      USER_SYNC_EXCHANGE: ${USER_SYNC_EXCHANGE:-reliquary.userstore}
       EVENTS_ENABLED: ${EVENTS_ENABLED:-true}
       EVENT_QUEUE: ${EVENT_QUEUE:-engram.ingest}
       EVENT_DEVICE_NAME: ${EVENT_DEVICE_NAME:-reliquary}

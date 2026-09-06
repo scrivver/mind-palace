@@ -41,6 +41,12 @@ rg -q 'synapse-reconciler-healthcheck' "$compose"
 rg -q 'mind-palace-app-healthcheck' "$compose"
 rg -q 'mc mb --ignore-existing' "$compose"
 rg -q '/api/queues/%2F/' "$compose"
+# Reliquary v0.5.0 user-store invalidation: the fanout must be predeclared,
+# because the API only ever declares it passively.
+rg -q '/api/exchanges/%2F/' "$compose"
+rg -q 'USER_SYNC_EXCHANGE' "$compose"
+rg -q 'USER_SYNC_ENABLED' "$compose"
+rg -q 'STORAGE_INSECURE_SKIP_CAS_PREFLIGHT' "$compose"
 rg -q 'condition: service_completed_successfully' "$compose"
 rg -q 'ENGRAM_API_URL: http://engram-api:8081$' "$compose"
 rg -q '\$\{MIND_PALACE_PORT:-2080\}:2080' "$compose"
